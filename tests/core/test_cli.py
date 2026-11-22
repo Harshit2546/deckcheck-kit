@@ -114,6 +114,18 @@ def test_resume_with_out_after_a_failed_step(tmp_path, fake_stages):
     assert sum(fakes.CHECK_CALLS.values()) == 3          # resume re-checked nothing
 
 
+def test_request_deck_path_relative_to_current_folder(tmp_path, monkeypatch):
+    # tests/decks/deck_a_request.json uses a repo-relative deck_path, run from the repo root
+    (tmp_path / "tests" / "decks").mkdir(parents=True)
+    (tmp_path / "tests" / "decks" / "deck.pdf").write_bytes(b"%PDF-1.4")
+    req = tmp_path / "tests" / "decks" / "request.json"
+    req.write_text(json.dumps({"request": "r", "deck_path": "tests/decks/deck.pdf",
+                               "company_domain": "example.in", "deck_date": "2026-10-01"}))
+    monkeypatch.chdir(tmp_path)
+    run_input = cli._input_from_request("tests/decks/request.json")
+    assert run_input.deck_path == str((tmp_path / "tests" / "decks" / "deck.pdf").resolve())
+
+
 def test_run_request_rejects_bad_request(tmp_path):
     req = _request(tmp_path, deck_date="tomorrow")
     assert cli.main(["--db", str(tmp_path / "d.db"), "run", "--request", str(req)]) == 2

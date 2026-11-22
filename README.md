@@ -75,6 +75,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 Put the keys in `.env` at the repo root. The file is gitignored. It needs
 `CRUSTDATA_API_KEY`, plus `GEMINI_API_KEY` or `OPENAI_API_KEY` for claim extraction.
+If both LLM keys are set, Gemini is used.
 Load it into the shell before a run, because the extraction step reads the keys from
 the environment:
 
@@ -135,7 +136,29 @@ There are no wrong Supported or Contradicted verdicts.
 
 ### Live run, Deck A
 
-LIVE_RESULTS_PENDING
+Run `run-20261122-092339-ef3899` on 2026-11-22 used live Crustdata and a live LLM
+(gpt-4o-mini).
+- The LLM extracted 7 claims, and code found every quote on its slide.
+- The company resolved as confirmed on 2 signals (domain and name).
+
+| Slide | Type | Claimed | Verdict | Evidence (field, value, record date) |
+|---|---|---|---|---|
+| 2 | team_size | 350 | SUPPORTED / within_tolerance (high) | `headcount.timeseries[2026-11-02].employee_count` = 349, 2026-11-02 |
+| 3 | funding | $50M | SUPPORTED / within_tolerance (medium) | `funding.milestones[2021-06-02].amount_usd` = 50,000,000, 2021-06-02 |
+| 4 | funding | $78.75M total | SUPPORTED / within_tolerance_undated_rounds (low) | 4 dated `funding.milestones[]` rows; 3 rounds lack a date or amount and are not counted |
+| 5 | team_size | 700 | CONTRADICTED / outside_tolerance (medium) | `headcount.timeseries[2026-11-02].employee_count` = 349, 2026-11-02 |
+| 6 | customer | Acme Freight Corp | HELD / no_checker | none (no customer checker) |
+| 7 | market_size | $9B | HELD / error | none (`sources/web.py` missing) |
+| 8 | hiring | 40 open roles | CANNOT_VERIFY / missing_record_date | `hiring.openings_count` = 5, with no record date |
+
+The live verdicts are the same as the offline replay on every slide.
+
+The ledger has 4 calls: 2 Crustdata credits, ₹2.79 and 16.5 s in calls. One of those calls
+is a failed first LLM attempt.
+- The first attempt failed on an invalid Gemini key. Its ledger row is kept (`ok = 0`).
+- The run was resumed with `cli.py resume` and finished from its checkpoint.
+
+The founder email is waiting for approval (`pending`).
 
 ## Known limits (what does not work yet)
 

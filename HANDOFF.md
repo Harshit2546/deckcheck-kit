@@ -812,3 +812,57 @@ Open questions for a human:
 - Finance partner: min_title_level meaning, funding age limit 10 years, real values for verdict: keys and templates in report/question_templates.yaml.
 - D9/D10 say the Windows laptop owns claude-verdict; the lane now moves to the Mac. Please add a line under D10.
 Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens high
+
+### 15:20 · harshit · merger + lanes claude-core and claude-verdict (Mac) · task merge, T25, T23
+
+Status: T25 in-progress (live-results section pending), T23 done
+Done this session:
+- Took over merging and lane claude-verdict from the Windows coordinator (docs/MERGER_HANDOFF.md).
+- Merge check: every lane branch (ag, ag-b, claude-core, claude-verdict, codex-a) was already in main at d1f4b25; nothing new to merge. main tested in a throwaway worktree: 238 passed (UI tests included).
+- Offline eval on main (python tests/eval/run_eval.py): slides 2, 3, 4, 5 PASS (ag-b's milestones fix works); 6 FAIL (HELD no_checker), 7 FAIL (HELD error, no sources/web.py); 8 SKIP. 4 PASS, 2 FAIL, 1 SKIP.
+- README.md (T25): job, who pays, input, result, pass mark, how to run, offline results, known limits, credits with licences read from installed package metadata. The "Live run" section still says LIVE_RESULTS_PENDING.
+- docs/ARCHITECTURE.md (T23): mermaid data-flow diagram, states, data calls, limits/retries, ledger, approval and exactly-once send.
+- .gitignore: logs/ and out/.
+- Merged lane/claude-core into main: 2114ed7 (238 passed, hard-rule greps clean). dc-core and dc-verdict fast-forwarded to it.
+In progress / exact next step:
+1. Live Deck A run (credits approved by harshit). Needs dc-core/.env with CRUSTDATA_API_KEY and GEMINI_API_KEY or OPENAI_API_KEY. In ../dc-core:
+   set -a; . ./.env; set +a; python cli.py run --request tests/decks/deck_a_request.json --out out/result.json
+   Then replace LIVE_RESULTS_PENDING in README.md with the real table, commit, and merge to main.
+2. Human: record the demo video (5:30 PM), make the GitHub repo public, submit the form (6:00 PM).
+How to run / test:
+- python -m pytest -q   (238 passed)
+- python tests/eval/run_eval.py
+Known bugs or shortcuts taken:
+- extract/claims.py reads LLM keys only from the environment (only sources/crust.py reads .env), so the shell must load .env first. The README says so. extract/ is not my lane, so I did not change it.
+- Slides 6 and 7 stay HELD. I did not change the answer key to match our output; README "Known limits" explains it.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- ../dc-ag is checked out on main, not lane/ag. I did not switch it; switch it in that folder only if lane ag needs to commit again.
+- Finance partner: every rules.yaml value is still PLACEHOLDER.
+Credits / tokens used this session (rough): 0 Crustdata credits so far
+
+### 15:35 · harshit · merger + claude-core · task live Deck A run, T25
+
+Status: done
+Done this session:
+- cli.py: a repo-relative deck_path in a request file (tests/decks/deck_a_request.json has "tests/decks/deck_a.pdf") was joined onto the request's folder, so the demo command failed with "deck not found". It now looks beside the request first, then from the current folder. Test: tests/core/test_cli.py::test_request_deck_path_relative_to_current_folder.
+- Live Deck A run run-20261122-092339-ef3899 (keys loaded from ../deckcheck-kit/.env):
+  - The first attempt failed: the GEMINI_API_KEY in .env is rejected by Google (API_KEY_INVALID). The failed call has its ledger row (ok=0).
+  - Resumed with GEMINI_API_KEY unset, so gpt-4o-mini did the extraction: 7 claims, every quote verified, company confirmed on 2 signals.
+  - Verdicts match the offline replay on every slide: 2 SUPPORTED, 3 SUPPORTED, 4 SUPPORTED (undated rounds), 5 CONTRADICTED, 6 HELD no_checker, 7 HELD error, 8 CANNOT_VERIFY missing_record_date.
+  - Ledger: 4 calls, 2 credits, Rs 2.79, 16.5 s.
+- README "Live run" table filled; T25 done.
+In progress / exact next step:
+- Human: demo video (5:30 PM), make the repo public, submission form (6:00 PM). The demo can approve the pending email in the UI (streamlit run ui/app.py, DB dc-core/deckcheck.db).
+How to run / test:
+- set -a; . ./.env; set +a; unset GEMINI_API_KEY   (until the Gemini key is fixed)
+- python cli.py run --request tests/decks/deck_a_request.json --out out/result.json
+- python -m pytest -q   (239 passed)
+Known bugs or shortcuts taken:
+- When both LLM keys are set, extract/claims.py picks Gemini, so the invalid Gemini key must be fixed or unset.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- Fix or remove GEMINI_API_KEY in .env.
+Credits / tokens used this session (rough): 2 Crustdata credits; 1,068 OpenAI tokens (Rs 2.79 total)
