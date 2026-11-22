@@ -380,3 +380,23 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - None. Ready for merge.
 Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
+
+### 13:33 · yash · lane codex-a · task T08
+
+Status: done
+Done this session:
+- sources/crust.py (c4dea5f): get_company(ctx, domain) returns the unique exact-domain record and call ID. Checks D7 limits before each request, paces attempts using account policy, retries 429/5xx once, enforces configured timeouts and writes each attempt through core.ledger.record() in finally. The run-scoped cache keeps the original retrieved_at and call ID.
+- tests/sources/test_crust.py: tested the caller, recorded response shape, timeout, credit accounting, cache and retry paths. Test-only provider example and recorded account fields are under tests/fixtures/crustdata/.
+In progress / exact next step:
+- T02: after the human supplies Deck A's domain and founder identifiers, call exact-domain company enrich and batched person enrich. Record provider fields, record dates and charged or estimated credits in docs/crustdata_fields.md. Save sanitized entity fixtures, verify, and push. Then continue with sources/web.py and customer.
+How to run / test:
+- uv run --no-project --python 3.11 --with-requirements requirements.txt python -m pytest tests/sources -q
+- uv run --no-project --python 3.11 --with-requirements requirements.txt --with pypdf --with requests --with reportlab python -m pytest -q (132 passed).
+Known bugs or shortcuts taken:
+- Without a provider billing receipt, company charges are estimated from current account rates and returned records. The company fixture is a provider-published example. Live Deck A enrichment is still pending.
+- Existing ag-b checkers stamp their Evidence.retrieved_at when creating evidence. For a cache hit, ag-b should use the payload's retrieved_at as described in D11. The source preserves the original value.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D11 records the company client contract, dynamic account rates and request provenance.
+Open questions for a human:
+- Deck A company domain and founder profile URLs or names are needed for T02.
+Credits / tokens used this session (rough): 0 Crustdata credits (fixture tests only).
