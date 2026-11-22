@@ -25,6 +25,7 @@ web:                         # D16, docs/WEB_SOURCE.md. Crustdata web search + f
   results_to_fetch: 3        # PLACEHOLDER. Pages fetched per claim (1 credit each, plus 1 LLM call each)
   max_page_chars: 12000      # PLACEHOLDER. Page text sent to the LLM to pick a quote
   human_mode: false          # PLACEHOLDER. Browser-like fetch for bot-protected sites
+  fetch_timeout_s: 45        # PLACEHOLDER. Seconds one page fetch call may take before the claim is HELD timeout (search uses limits.per_call_timeout_s)
 
 identity:
   min_signals: 2             # two-signal rule: a person or company matches only on >= 2 signals

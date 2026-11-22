@@ -350,3 +350,45 @@ def test_limit_hit_blocks_the_call(make_context: MakeContext, serve: Serve,
     with pytest.raises(limits.LimitExceeded):
         web.fetch(ctx, ["https://example.com/a"])
     assert calls == [] and store.list_ledger(ctx.conn, ctx.run.id) == []
+
+
+def test_fetch_uses_web_fetch_timeout(make_context: MakeContext, serve: Serve) -> None:
+    ctx = make_context("fetch-timeout")
+    ctx.rules["web"]["fetch_timeout_s"] = 45
+    calls = serve((_recorded("fetch_mixed.json"), None))
+    web.fetch(ctx, ["https://example-news.in/hr-tech-market"])
+    assert calls[0][3] - calls[0][0] == 45
+
+
+def test_fetch_timeout_falls_back_to_per_call_limit(make_context: MakeContext, serve: Serve) -> None:
+    ctx = make_context("fetch-fallback")
+    ctx.rules["web"].pop("fetch_timeout_s", None)
+    calls = serve((_recorded("fetch_mixed.json"), None))
+    web.fetch(ctx, ["https://example-news.in/hr-tech-market"])
+    assert calls[0][3] - calls[0][0] == ctx.rules["limits"]["per_call_timeout_s"]
+
+
+def test_search_keeps_per_call_timeout(make_context: MakeContext, serve: Serve) -> None:
+    ctx = make_context("search-timeout")
+    ctx.rules["web"]["fetch_timeout_s"] = 45
+    calls = serve((_recorded("search_market_size.json"), None))
+    web.search(ctx, "q")
+    assert calls[0][3] - calls[0][0] == ctx.rules["limits"]["per_call_timeout_s"] != 45
+
+
+def test_slow_fetch_still_times_out_and_is_ledgered(make_context: MakeContext, serve: Serve,
+                                                    monkeypatch: pytest.MonkeyPatch,
+                                                    clock: Clock) -> None:
+    ctx = make_context("fetch-slow")
+    ctx.rules["web"]["fetch_timeout_s"] = 45
+
+    def slow_send(key: str, path: str, body: dict[str, Any],
+                  deadline: float) -> tuple[object, float | None]:
+        clock.now = deadline + 1
+        return [], None
+
+    monkeypatch.setattr(web, "_send", slow_send)
+    with pytest.raises(TimeoutError):
+        web.fetch(ctx, ["https://example-news.in/hr-tech-market"])
+    rows = store.list_ledger(ctx.conn, ctx.run.id)
+    assert len(rows) == 1 and rows[0].error == "timeout" and rows[0].endpoint_or_model == "POST /web/enrich/live"
