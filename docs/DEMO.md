@@ -32,7 +32,7 @@ and rehearsing live judge interactions.
 | **0:20 - 0:45**<br>(25s) | **CLI Run + Kill/Resume**<br>Run CLI command in terminal:<br>`python cli.py run --request tests/decks/deck_a_request.json --out out/result.json`<br>Hit `Ctrl+C` after step `extracted`. Then run:<br>`python cli.py resume <run_id> --out out/result.json` | "Watch our crash resilience: we trigger a live run on an 8-slide synthetic deck for Locus. Mid-run, we simulate an infrastructure crash with `Ctrl+C`. We resume with `cli.py resume`. Every step and claim is checkpointed in SQLite—it doesn't duplicate previous calls, respects limits, and finishes seamlessly." | Point out checkpoints.<br>No duplicate ledger charges. |
 | **0:45 - 1:15**<br>(30s) | **Claims Table in UI**<br>Switch to UI -> "Claims" tab.<br>Expand Slide 2 (Headcount) & Slide 5 (Headcount 700). | "Here are the verdicts: code, not LLM memory, decides every result. Slide 2 claims 350 employees; Crustdata shows 349 on 2026-11-02: **SUPPORTED**. Slide 5 claims 700: **CONTRADICTED**. Funding of $50M on Slide 3 is verified against dated milestones. Every fact cites exact source URLs, fields, and record dates." | LLM only extracts quotes; code rules decide verdicts.<br>Strict date rule (D3). |
 | **1:15 - 1:40**<br>(25s) | **Approvals & Local Inbox**<br>Navigate to "Approvals", enter human name, click "Approve and send". Then view "Inbox". | "Human-in-the-loop ethics: DeckCheck generates tailored founder questions for contradicted claims, but emails remain in `pending` status. Nothing is sent without human approval. We approve it now; our transactional sender guarantees exactly-once dispatch into our local audit inbox with zero real-world leak risk." | Idempotency key guarantee.<br>No unsolicited emails. |
-| **1:40 - 2:00**<br>(20s) | **Ledger View & Close**<br>Navigate to "Ledger" page. Show total cost and runtime. | "Every API call writes an immutable ledger entry. This entire run used 2 Crustdata credits and cost just **₹2.79** and 16 seconds—versus thousands of rupees in analyst time. DeckCheck brings instant, factual, auditable diligence to investors." | Highlight ₹2.79 cost vs ₹3k+ analyst cost.<br>End on crisp value proposition. |
+| **1:40 - 2:00**<br>(20s) | **Ledger View & Close**<br>Navigate to "Ledger" page. Show total cost and runtime. | "Every API call writes an immutable ledger entry. A full run with web search used 11 Crustdata credits and cost about **₹12** and 75 seconds (rupee rates are placeholders)—versus thousands of rupees in analyst time. DeckCheck brings instant, factual, auditable diligence to investors." | Highlight about ₹12 per deck (measured, run-20261122-104047-1b295e) vs ₹3k+ analyst cost.<br>End on crisp value proposition. |
 
 ---
 
@@ -81,9 +81,10 @@ If judges ask "What if our firm has different diligence requirements or limits?"
   2. Under `output.fields`, add `- missing` or rearrange fields.
   3. Re-run CLI export:
      ```bash
-     python cli.py export <run_id> --out out/result.json
+     python cli.py resume <run_id> --out out/result.json
      ```
-  4. Inspect `out/result.md` or UI claims view: the new column renders automatically without code changes.
+     (`resume` on a finished run re-writes the report; there is no `export` command.)
+  4. Inspect `out/result.md` or the UI Every claim page: the new column renders automatically without code changes.
 
 ### Drill 3: Adjust budget / time limits to trigger safe HELD behavior
 - **Judge prompt:** *"What happens if an API provider bills unexpectedly or a call stalls?"*

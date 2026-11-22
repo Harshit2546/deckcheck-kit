@@ -28,13 +28,15 @@ In emerging startup ecosystems, namesake confusion is common (different founders
 
 ## 3. Verifiable Provenance: Zero Hallucinated Grounding
 
-- **Every Fact Requires a Dated Source:**
+- **Every Fact Needs a Source, and a Date Whenever One Exists:**
   Every `Evidence` record permanently binds five mandatory provenance attributes:
   1. `source_type` (e.g., `CRUSTDATA_COMPANY`, `CRUSTDATA_PERSON`, `web_page`)
   2. `url_or_endpoint` (the exact URL or API endpoint retrieved)
   3. `field_or_quote` (the exact payload JSON path or verbatim sentence quote)
-  4. `record_date` (the data point's own publication/event date, strictly on or before deck date)
+  4. `record_date` (the data point's own publication or event date; a fact dated after the deck date is never used. For a founder, the date of the job itself, D19)
   5. `retrieved_at` (the UTC ISO timestamp of retrieval)
+- **Undated Sources Are Used Only Under a Guard (D17):**
+  If no dated record exists, an undated source may be used only when the deck is at most 90 days older than the retrieval date. The verdict is then capped at low confidence, its reason code ends in `_undated`, and the report says "No dated record was found; this uses an undated source retrieved on <date>." The guard can be switched off in `config/rules.yaml` (`verdict.undated_fallback`).
 - **Model Memory is Forbidden:**
   Verdicts are never generated from an LLM's pre-trained knowledge or weights. If external data cannot be retrieved, the claim remains unverified.
 
@@ -71,7 +73,11 @@ In emerging startup ecosystems, namesake confusion is common (different founders
 
 ---
 
-## 7. Responsible Web Sourcing & Fair Use
+## 7. Fairness: Founders With Little Online Presence
+
+DeckCheck can only check what public records show. A founder or company with a thin online footprint (stealth, new, or from a region with less coverage) gets more `CANNOT_VERIFY` and `HELD` results than a well-documented one. That is a bias in coverage, not a finding about the founder. We reduce the harm three ways: a missing record is never a contradiction (profiles often omit jobs), the report asks for specific documents instead of flagging a red flag, and a human decides what to do with every result.
+
+## 8. Responsible Web Sourcing & Fair Use
 
 - **Single-Sentence Quotation:**
   When querying external third-party market reports or news publications, DeckCheck extracts at most one verbatim sentence supporting the factual check, attributing and linking the full source URL.

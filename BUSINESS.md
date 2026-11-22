@@ -36,21 +36,22 @@ Before an investor schedules a second founder meeting or issues an LOI, an analy
 
 We do not use synthetic estimates. Our cost per deck is measured directly from the SQLite run ledger:
 
-### Baseline Live Run (Deck A — Locus, without Web Search):
-- **Run ID:** `run-20261122-092339-ef3899`
-- **Total Duration:** 16.5 seconds
-- **Calls:** 4 external calls (Crustdata company lookup + LLM extraction via gpt-4o-mini; includes 1 failed initial call preserved in ledger)
-- **Crustdata Credits:** 2.0 credits
-- **Token Usage:** 1,068 tokens
-- **Total Run Cost:** **₹2.79** (at ₹1.0/credit and ₹0.25/₹1.25 per 1k input/output tokens)
+### Full live run (Deck A, Locus, with web search): the number to quote
+- **Run ID:** `run-20261122-104047-1b295e` (6 PASS against the answer key)
+- **Calls:** 8 (company data, web search, page fetches)
+- **Crustdata credits:** 11 (2 company, 3 web search, 6 page fetch)
+- **Time in calls:** 74.8 seconds
+- **Total cost:** **₹11.96**
 
-### Projected Run Cost (With Live Web Search & Fetch Enabled):
-- **Web Search & Fetch:**
-  - 1 search call per web-dependent claim (1 credit)
-  - Up to 3 page fetches per claim (3 credits)
-  - Estimated additional credit consumption: ~8 credits per deck
-- **Total Projected Cost per Deck:** **₹10.50 to ₹14.00** (~8–10 credits + ~3,000 LLM tokens for quote extraction)
-- **Turnaround:** 25 to 45 seconds per deck.
+### Other measured runs
+- Deck A without web search (`run-20261122-092339-ef3899`): 2 credits, **₹2.79**, 16.5 s.
+- Deck A with web search, earlier runs: ₹9.72 and ₹7.79 (some web calls timed out and were held).
+- Deck F, founders only (`run-20261122-111231-e7bd42`): 3 credits, **₹3.40**, 10.8 s.
+
+**All rupee figures use placeholder rates** (`costs.*` in `config/rules.yaml`: ₹1.00 per credit and
+guessed LLM prices). They are not published Crustdata prices, and the margins below depend on them.
+Decks with more web claims cost more: each web claim is 1 search plus up to 3 page fetches, so
+about 4 credits. Turnaround was 15 to 75 seconds.
 
 ---
 
@@ -60,14 +61,14 @@ We offer usage-based tiers aligned with Indian VC deal-flow volume:
 
 | Tier | Monthly Decks | Monthly Fee (INR) | Effective Price / Deck | Cost to Serve (Est. INR) | Gross Margin |
 |---|---|---|---|---|---|
-| **Angel / Syndicate** | 20 | ₹9,999 | ₹500 | ₹280 (20 x ₹14) | **97.2%** |
-| **Boutique VC (Seed/Pre-Series A)** | 75 | ₹29,999 | ₹400 | ₹1,050 (75 x ₹14) | **96.5%** |
-| **Growth Fund / CVC Desk** | 250 | ₹74,999 | ₹300 | ₹3,500 (250 x ₹14) | **95.3%** |
-| **Ad-Hoc / Pay-per-deck** | 1 | ₹799 | ₹799 | ₹14 | **98.2%** |
+| **Angel / Syndicate** | 20 | ₹9,999 | ₹500 | ₹240 (20 x ₹12) | **97.6%** |
+| **Boutique VC (Seed/Pre-Series A)** | 75 | ₹29,999 | ₹400 | ₹900 (75 x ₹12) | **97.0%** |
+| **Growth Fund / CVC Desk** | 250 | ₹74,999 | ₹300 | ₹3,000 (250 x ₹12) | **96.0%** |
+| **Ad-Hoc / Pay-per-deck** | 1 | ₹799 | ₹799 | ₹12 | **98.5%** |
 
 ### Value Comparison:
 - **Analyst Manual Diligence:** ₹3,000 – ₹8,000 | 3–8 hours turnaround
-- **DeckCheck Automated Check:** ₹400 – ₹799 | <45 seconds turnaround
+- **DeckCheck Automated Check:** ₹400 – ₹799 (price), about ₹12 of data cost | under 2 minutes turnaround
 - **Immediate ROI:** **>85% direct cost saving** per analyzed deck while liberating analyst capacity for deeper thesis building.
 
 ---
@@ -81,7 +82,7 @@ Scaling from 100 to 10,000 decks/month requires the following production archite
 2. **Shared Multilevel Caching:**
    - Replace in-process run cache with a centralized Redis/Dragonfly instance. Multiple decks referencing common competitors or industry market-size reports will hit cache hits (0 additional credits).
 3. **Upstream Rate Limit Management:**
-   - Crustdata endpoints currently enforce 10 requests per minute (RPM) for web search/fetch and 5 RPM for company enrichments.
+   - Crustdata's pacing limits are read live from its `GET /account/endpoints` call, not fixed in our code. Web search and page fetch were the slowest calls in our runs (up to 28 s for one fetch).
    - At 100x, implement token-bucket egress rate limiters and enterprise concurrent-seat Crustdata contracts.
 4. **Multi-Tenant Metering & Client Ledgers:**
    - Extend `ledger` schema with `organization_id` and pre-paid rupee credit quotas to prevent run overages.
@@ -95,7 +96,7 @@ Scaling from 100 to 10,000 decks/month requires the following production archite
    - *Mitigation:* DeckCheck explicitly emits `CANNOT_VERIFY` or `HELD`, preventing false rejections, and auto-generates founder evidence requests.
 2. **Provider Pricing Volatility:**
    - Shifts in third-party API or LLM token rates.
-   - *Mitigation:* Abstracted pricing engine in `config/rules.yaml` (`costs.*`) allows instant repricing without code rewrites; extreme gross margins (>95%) absorb upstream fluctuations.
+   - *Mitigation:* Abstracted pricing engine in `config/rules.yaml` (`costs.*`) allows instant repricing without code rewrites; extreme gross margins (about 95% or more at placeholder rates) absorb upstream fluctuations.
 3. **Adversarial / Non-Standard Decks:**
    - Complex image-only slides, non-standard layouts, or ambiguous metrics.
    - *Mitigation:* Verbatim slide quote verification drops ungrounded quotes; unresolvable claims degrade gracefully to `CANNOT_VERIFY`.
