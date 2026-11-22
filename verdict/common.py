@@ -45,6 +45,8 @@ MISSING_TEXT: dict[str, str] = {
     "acquirer_differs": "The deal announcement naming the acquirer.",
     "period_mismatch": "Headcount on both dates of the period the deck names (for example a year apart).",
     "competition_not_judged": "An analyst's review of the competitor landscape; this is not checked automatically.",
+    # T33
+    "self_reported_only": "A page from the customer or a news outlet naming the customer.",
 }
 
 
