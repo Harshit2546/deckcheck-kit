@@ -202,9 +202,13 @@ def test_founder_employer_not_found(person_profile_fixture: dict, rules: dict) -
     assert len(result.observed["positions"]) == 0
     assert result.observed["title_observed"] is None
 
+    assert result.observed["record_date"] is None  # D19 rule 5: a missing job has no date
+
     v = decide(claim, result, rules)
     assert v.label == VerdictLabel.CANNOT_VERIFY
-    assert v.reason_code == "employer_not_in_profile"
+    # The engine checks dates before the employer rule, so an old deck stops at missing_record_date
+    # (a recent deck would give employer_not_in_profile_undated, D17). Never CONTRADICTED.
+    assert v.reason_code in ("missing_record_date", "employer_not_in_profile_undated")
 
 
 def test_founder_missing_payload(rules: dict) -> None:
@@ -303,3 +307,73 @@ def test_recorded_locus_founder_record(fake_people: list) -> None:
     assert result.observed["employer_found"] is True
     assert result.observed["positions"] == [{"employer": "Amazon", "title": "Software Developer",
                                              "start_date": "2012-07-01", "end_date": "2014-07-01"}]
+
+
+# ---- D19: record_date from the matched role's own dates ----
+
+def _role_record(*roles: dict[str, Any]) -> dict[str, Any]:
+    return {"crustdata_person_id": "p-1", "basic_profile": {"name": "Priya Sharma"},
+            "updated_at": "2026-11-20T00:00:00Z",
+            "experience": {"employment_details": {"current": [], "past": list(roles)}}}
+
+
+def _flipkart(start: str | None, end: str | None) -> dict[str, Any]:
+    return {"name": "Flipkart", "title": "VP Engineering", "start_date": start, "end_date": end}
+
+
+@pytest.mark.parametrize(("role", "expected"), [
+    (_flipkart("2015-01-01T00:00:00+00:00", "2020-01-01T00:00:00+00:00"), "2020-01-01"),  # ended before deck
+    (_flipkart("2018-03-01", None), "2018-03-01"),                  # current role: its start date
+    (_flipkart("2015-01-01", "2025-01-01"), "2015-01-01"),          # ended after the deck: start date
+    (_flipkart("2024-09-01", None), "2024-09-01"),                  # started after the deck: earliest start
+    (_flipkart(None, None), None),                                  # no dates
+])
+def test_record_date_from_matched_role(role: dict[str, Any], expected: str | None) -> None:
+    result = check(_employer_claim(), _ctx(_role_record(role)))  # deck date 2024-05-15
+    assert result.observed["employer_found"] is True
+    assert result.observed["record_date"] == expected
+    assert result.evidence[0].record_date == expected
+    assert result.observed["record_date"] != "2026-11-20"  # never updated_at
+
+
+def test_record_date_none_without_employer_match() -> None:
+    record = _role_record({"name": "Amazon", "title": "SDE", "start_date": "2012-01-01", "end_date": "2014-01-01"})
+    result = check(_employer_claim(), _ctx(record))
+    assert result.observed["employer_found"] is False
+    assert result.observed["record_date"] is None and result.evidence[0].record_date is None
+
+
+def test_role_after_deck_date_is_not_comparable(rules: dict) -> None:
+    claim = _employer_claim()
+    result = check(claim, _ctx(_role_record(_flipkart("2024-09-01", None))))
+    v = decide(claim, result, rules)
+    assert v.label == VerdictLabel.NOT_COMPARABLE and v.reason_code == "record_after_as_of"
+
+
+def test_record_date_uses_latest_date_over_all_matched_roles() -> None:
+    record = _role_record(_flipkart("2012-01-01", "2014-01-01"), _flipkart("2016-01-01", "2019-06-30"))
+    result = check(_employer_claim(), _ctx(record))
+    assert result.observed["record_date"] == "2019-06-30"
+
+
+def test_locus_fixture_amazon_claim_is_supported_through_engine() -> None:
+    """D19 end to end on the recorded live record: Amazon 2012-07-01 to 2014-07-01, deck 2026-11-15."""
+    import json
+    from pathlib import Path
+
+    from sources.crust import _parse_people
+
+    raw = json.loads((Path(__file__).resolve().parents[1] / "fixtures" / "crustdata"
+                      / "person_enrich_locus.json").read_text(encoding="utf-8"))
+    payload, _ = _parse_people(1)(raw)
+    ctx = make_ctx(run_id="run_1", company=None, deck_date="2026-11-15")
+    ctx.entities["founders"] = [_founder(person_id="44441", name="Nishith Rastogi", signals=3,
+                                         profile_url="https://www.linkedin.com/in/nishithrastogi/")]
+    PEOPLE["enrich"] = payload
+    claim = Claim(id="c_f2", run_id="run_1", slide=2, type=ClaimType.FOUNDER_BACKGROUND,
+                  quote="Our co-founder and CEO Nishith Rastogi previously worked at Amazon.",
+                  subject="Nishith Rastogi", metric="past_employer", value="Amazon")
+    result = check(claim, ctx)
+    assert result.observed["record_date"] == "2014-07-01"
+    v = decide(claim, result, load_rules())
+    assert v.label == VerdictLabel.SUPPORTED and v.reason_code == "employer_listed"

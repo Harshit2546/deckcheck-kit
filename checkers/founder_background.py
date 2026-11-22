@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import date
 from typing import Any
 
 from core.log import log_step
@@ -42,11 +43,31 @@ def _normalize_name(name: str | None) -> str:
     return text.strip()
 
 
-def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | None, str | None, str]:
-    rec_date = None
-    if updated_at:
-        rec_date = str(updated_at).split("T")[0]
+def _iso_day(value: Any) -> date | None:
+    try:
+        return date.fromisoformat(str(value)[:10]) if value else None
+    except ValueError:
+        return None
 
+
+def role_record_date(positions: list[dict[str, Any]], ref_date: str | None) -> str | None:
+    """D19: record date from the matched roles' own dates, never retrieved_at or updated_at.
+
+    Latest start/end date on or before the reference date; if all dates are after it, the earliest
+    start date (the engine then says record_after_as_of); no dated role or no match -> None.
+    """
+    candidates = [d for p in positions for d in (_iso_day(p.get("start_date")), _iso_day(p.get("end_date"))) if d]
+    if not candidates:
+        return None
+    ref = _iso_day(ref_date)
+    on_or_before = [d for d in candidates if ref is None or d <= ref]
+    if on_or_before:
+        return max(on_or_before).isoformat()
+    starts = [d for d in (_iso_day(p.get("start_date")) for p in positions) if d]
+    return min(starts or candidates).isoformat()
+
+
+def _get_dates(claim: Claim, ctx: RunContext) -> tuple[str | None, str]:
     ref_date = None
     if claim.as_of and re.match(r"^\d{4}-\d{2}-\d{2}$", claim.as_of.strip()):
         ref_date = claim.as_of.strip()
@@ -54,7 +75,7 @@ def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | No
         ref_date = ctx.run.input.deck_date.strip()[:10]
 
     ref_source = ctx.run.input.deck_date_source or "input"
-    return rec_date, ref_date, ref_source
+    return ref_date, ref_source
 
 
 def _founder_record(ctx: RunContext, founder: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None, str]:
@@ -137,7 +158,8 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     updated = None
     if person:
         updated = person.get("updated_at") or (person.get("basic_profile") or {}).get("last_updated")
-    rec_date, ref_date, ref_source = _get_dates(claim, ctx, updated)
+    ref_date, ref_source = _get_dates(claim, ctx)
+    rec_date: str | None = None
 
     if not person:
         reason = "founder_not_resolved" if not founder or founder.get("identity") != "confirmed" else "no_record"
@@ -183,6 +205,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
                 matched_positions.append(pos)
 
     employer_found = len(matched_positions) > 0
+    rec_date = role_record_date(matched_positions, ref_date)  # D19; None when nothing matched
 
     # Pick observed title from matched employer roles
     title_observed: str | None = None
@@ -246,6 +269,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
         "employer_found": employer_found,
         "positions": matched_positions,
         "title_observed": title_observed,
+        "profile_updated_at": updated,  # informational only, never the record date (D19)
     }
 
     log_step(
