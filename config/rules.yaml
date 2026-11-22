@@ -7,7 +7,7 @@ limits:
   max_cost_inr: 500          # PLACEHOLDER. Run stops spending; remaining claims become HELD (budget)
   max_seconds: 900           # PLACEHOLDER. Wall time from first start; then HELD (time)
   max_credits: 200           # PLACEHOLDER. Crustdata credits per run
-  per_call_timeout_s: 20     # PLACEHOLDER. A slower call becomes HELD (timeout), never CANNOT_VERIFY
+  per_call_timeout_s: 30     # PLACEHOLDER. A slower call becomes HELD (timeout), never CANNOT_VERIFY. Raised from 20 after live web searches took up to 20+ s (INCIDENTS A6)
 
 costs:                       # rupee rates used to fill ledger.cost_inr
   crustdata:
