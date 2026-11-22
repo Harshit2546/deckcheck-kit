@@ -96,6 +96,14 @@ def _cannot(claim: Claim, result: CheckResult, reason: str, text: str) -> Verdic
     return make(claim, result, None, VerdictLabel.CANNOT_VERIFY, reason, Confidence.LOW, text)
 
 
+def _max_age_days(rules: dict[str, Any], claim: Claim) -> float:
+    """Oldest record that still counts: tolerances.<claim type>.max_record_age_days if set, else the global key."""
+    try:
+        return float(rule(rules, f"tolerances.{claim.type.value}.max_record_age_days"))
+    except KeyError:
+        return float(rule(rules, "tolerances.max_record_age_days"))
+
+
 def _prepare(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> dict[str, Any] | Verdict:
     """Dates, freshness, tolerance and confidence ceiling shared by all rules; or an early Verdict."""
     obs = result.observed
@@ -110,7 +118,7 @@ def _prepare(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> dict[s
                     f"The record is dated {rec}, after the date the claim refers to ({ref}); it cannot support or "
                     "contradict the claim.", missing=f"A record dated on or before {ref}.")
     gap = (ref - rec).days
-    if gap > rule(rules, "tolerances.max_record_age_days"):
+    if gap > _max_age_days(rules, claim):
         return make(claim, result, None, VerdictLabel.NOT_COMPARABLE, "stale_record", Confidence.MEDIUM,
                     f"The record is dated {rec}, {gap} days before the claim's date {ref}; too far apart to compare.")
     ceiling = Confidence.MEDIUM if obs.get("reference_date_source") in ("pdf_metadata", "missing") else Confidence.HIGH

@@ -21,3 +21,4 @@ One line per thing a judge might ask to change. Format: To change X -> edit Y in
 - To add an identity signal -> `_company_signals` or `_person_signals` in resolve/entities.py (and its test in tests/resolve/)
 
 - To change the founder email wording -> `_body()` in actions/email.py (questions come from report/question_templates.yaml)
+- To change how old a record may be for one claim type (for example funding rounds) -> `tolerances.<claim type>.max_record_age_days` in config/rules.yaml; without it `tolerances.max_record_age_days` (global) applies (D14)

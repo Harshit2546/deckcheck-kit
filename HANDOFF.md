@@ -510,3 +510,23 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - none new
 Credits / tokens used this session (rough): none
+
+### 16:25 · claude-verdict@win · lane claude-verdict · task T13 (D14 per-type record age)
+
+Status: done; waits for the rules.yaml key
+Done this session:
+- verdict/engine.py `_max_age_days`: staleness limit read from `tolerances.<claim type>.max_record_age_days` if present, else the global key. D3 untouched. 5 new tests (2021 funding total in a 2026 deck: SUPPORTED low `within_tolerance_undated_rounds`; round amount from 2021 decided; no per-type key means `stale_record`; stricter per-type limit; D3 still wins). 181 tests pass.
+- DECISIONS D14 (key to add), DESIGN.md row 8 and section 6, LIVE_FIX_MAP line.
+In progress / exact next step:
+- Merger / claude-core: add `max_record_age_days: 3650` under `tolerances.funding` in config/rules.yaml (placeholder; finance partner confirms). Until then funding records older than 365 days come out `stale_record`.
+- ag-b: funding checker reports `record_date` = newest dated round, `undated_rounds` = count of undated rounds, `matched_round` = the dated round (D14 note).
+- T10 still waits for sources/crust.py; Deck A still waits for the Locus probe result.
+How to run / test:
+- cd dc-claude-verdict && python -m pytest -q
+Known bugs or shortcuts taken:
+- A funding total with undated rounds is SUPPORTED at low confidence only; it does not prove the undated rounds exist.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D14.
+Open questions for a human:
+- Finance partner: is 10 years a sensible funding age limit?
+Credits / tokens used this session (rough): none

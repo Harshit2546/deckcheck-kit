@@ -130,3 +130,17 @@ Neither option 1 (past decks never get a headcount verdict) nor option 2 (refres
 Why: the handbook's Investing brief asks for calls "replayed from a past date ... with no fact from after that date", and hidden test cases use events after 1 September 2026, so decks will be dated in the past. Crustdata documents dated headcount points (docs/crustdata_fields.md: latest timeseries point dated 2026-11-02), so strict D3 still yields verdicts. The verdict engine needs no change.
 Files affected: checkers/team_size.py, checkers/team_growth.py (ag-b); tests/checkers; verdict/DESIGN.md section 3.1 wording (claude-verdict).
 Who must know (lanes): ag-b, claude-verdict, codex-a (get_company must request the headcount section including timeseries)
+
+### 16:20 · claude-verdict@win · D14: record age limit per claim type (ACTION for the merger / claude-core: add one key to rules.yaml)
+Change: verdict/engine.py now reads the age limit for the staleness row from `tolerances.<claim type>.max_record_age_days` when that key exists, and from the global `tolerances.max_record_age_days` (365) otherwise. D3 is unchanged: a record dated after the reference date is NOT_COMPARABLE `record_after_as_of` whatever the limit. Reason: a funding round is an event, and its date is when it happened, not when we looked. Locus (company 7403) has its last dated round on 2021-06-02; with a 365-day limit every funding claim in a 2026 deck would be `stale_record`.
+Key to add (merger places it, finance partner confirms the value), under `tolerances.funding` in config/rules.yaml:
+```yaml
+  funding:
+    tolerance_pct: 10
+    max_record_age_days: 3650   # PLACEHOLDER. A funding round up to 10 years before the deck date still counts
+```
+Until it is added, funding records older than 365 days stay `stale_record` (safe default, no wrong verdict). Tests inject the key into the rules fixture.
+Checker note for ag-b (funding): `observed.record_date` = date of the newest dated round used (here the Series C, 2021-06-02); `undated_rounds` = rounds with no date (here 6 of 7); `total_raised` stays the provider total. With undated rounds the engine says SUPPORTED low confidence (`within_tolerance_undated_rounds`) when the total matches, never high.
+Why: the age limit made sense for snapshots, not for dated events.
+Files affected: verdict/engine.py, verdict/DESIGN.md (rows 8 and section 6), config/rules.yaml (merger), docs/LIVE_FIX_MAP.md
+Who must know (lanes): claude-core / merger (rules.yaml), ag-b, finance partner

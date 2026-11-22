@@ -35,7 +35,7 @@ Every threshold is read with `core.config.rule()`; there are no code defaults, a
 | 6 | no `observed.record_date` (or not a date) | CANNOT_VERIFY | `missing_record_date` | low |
 | 7 | no reference date | CANNOT_VERIFY | `no_reference_date` | low |
 | 7b | `record_date` is AFTER the reference date (D3: no fact from after the as-of date may support or contradict a claim; one day after is enough) | NOT_COMPARABLE | `record_after_as_of`; `missing` = "A record dated on or before <reference date>." | high |
-| 8 | record date more than `tolerances.max_record_age_days` BEFORE the reference date | NOT_COMPARABLE | `stale_record` | medium |
+| 8 | record date more than `tolerances.<claim type>.max_record_age_days` (if that key exists, else the global `tolerances.max_record_age_days`) BEFORE the reference date | NOT_COMPARABLE | `stale_record` | medium |
 | 9 | metric rules in section 3 (they also return `claim_value_unusable` when the claim's value is not a usable number) | any | see section 3 | see section 3 |
 
 Reference date = `observed.reference_date` (the checker sets it to `claim.as_of` when that is an ISO date, else the run's
@@ -177,7 +177,7 @@ SUPPORTED: `within_tolerance`, `within_tolerance_undated_rounds`, `within_band`,
 
 Existing: `tolerances.team_size.tolerance_pct`, `tolerances.funding.tolerance_pct`,
 `tolerances.founder_background.min_title_level`, `tolerances.founder_background.tenure_tolerance_months`,
-`tolerances.max_record_age_days`, `title_levels.*`, `identity.min_signals`.
+`tolerances.max_record_age_days` (global), optional `tolerances.<claim type>.max_record_age_days` (overrides the global one for that type; D14), `title_levels.*`, `identity.min_signals`.
 
 NEW keys the engine requires (DECISIONS D8; claude-core adds them to rules.yaml and `REQUIRED_KEYS`, the finance partner
 sets the values). The engine has NO fallback: until they exist `decide()` raises ValueError naming them.
