@@ -43,3 +43,4 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T34 | claude-verdict | D17 undated fallback in verdict/engine.py + report flag (reason suffix _undated, low confidence, age guard) | tests pass, eval unchanged | done |
 | T35 | web-checkers | D17 checkers keep undated items: market_size, customer, team_size (use only when nothing dated) | tests pass | done |
 | T36 | web-client | D18 founder lookups: sources/crust.py get_people/search_people, resolve/payloads.py person shapes, checkers/founder_background.py on the person record; founder test deck | tests pass, one approved live probe | done |
+| T37 | web-client | D19 founder_background record_date from the matched role's dates (latest start/end on or before the reference date; else earliest start; else None) | tests pass incl. a past role, a current role, a role starting after the deck, no dates | todo |

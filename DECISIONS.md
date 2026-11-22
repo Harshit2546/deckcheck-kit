@@ -177,3 +177,16 @@ Tasks: T34 (engine + report, claude-verdict), T35 (checkers keep undated items).
 Change: build `get_people(ctx, profile_urls)` (one batched `POST /person/enrich`, 1 credit per person) and `search_people(ctx, name, company_id)` (`POST /person/search`, filtered by name plus employer id, about 0.23 credits per result) in `sources/crust.py`, exactly as D12 specifies: each returns `(payload | None, call_id | None)`, with limits, a ledger row, a timeout, the same 429 retry, a per-run cache, and contact fields (emails, phones) dropped recursively at ingest. Then `checkers/founder_background.py` reads the **resolved** founder's own person record (experience: employer, title, start and end dates) instead of the company payload. Identity comes from `ctx.entities` founders (two-signal rule, D12), not from the company identity. codex-a has not touched this since D12, so the merger gives `sources/` person functions, `resolve/payloads.py` (person shapes) and `checkers/founder_background.py` to task T36.
 Why: founder background is the claim type investors care about most (materiality 5), and today every founder claim is CANNOT_VERIFY or HELD.
 Tasks: T36.
+
+### 16:45 · harshit (merger, on the user's word) · D19: a founder's role dates are the record date for founder_background
+Change: a person record has no `updated_at`, so D3 had no date to check and every founder claim ended CANNOT_VERIFY `missing_record_date`. From now on `checkers/founder_background.py` sets `observed.record_date` (and each Evidence `record_date`) from the **matched role's own dates**, because a role with a start date is a dated fact ("X worked at Y from <start>"):
+1. Take the matched roles (same employer as the claim). For each role, its candidate dates are `start_date` and `end_date` (when present).
+2. record_date = the **latest candidate date on or before the reference date**, over all matched roles. This is the most recent date the role is known to have been held by the deck date (a role that ended after the deck date still counts by its start date).
+3. If matched roles have dates but none is on or before the reference date (the role started after the deck date), record_date = the earliest start_date, so the engine returns NOT_COMPARABLE `record_after_as_of` (D3 unchanged).
+4. If no matched role has any date, record_date stays None, and D17's guarded undated fallback (low confidence, `_undated`) or `missing_record_date` applies. retrieved_at is never used as a record date.
+5. When no employer matches (`employer_not_in_profile`), record_date stays None: the absence of a job has no date.
+Career history does not go stale like a headcount, so founder_background gets its own `tolerances.founder_background.max_record_age_days: 18250` (50 years). Otherwise the global 365-day limit (D14) would make a 2014 role `stale_record`.
+Why: the user chose this over relying on D17 only. A dated role is a real dated fact, so a past job gets a normal (medium/high) confidence verdict instead of a low-confidence undated one, and the D3 rule (nothing dated after the deck date) still holds.
+Config: `tolerances.founder_background.max_record_age_days` (PLACEHOLDER).
+Files affected: checkers/founder_background.py, config/rules.yaml, tests/checkers/; verdict/ unchanged.
+Tasks: T37 (web-client, owner of T36).
