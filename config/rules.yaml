@@ -19,6 +19,13 @@ costs:                       # rupee rates used to fill ledger.cost_inr
   web:
     inr_per_call: 0.0        # PLACEHOLDER (search/fetch cost per call)
 
+web:                         # D16, docs/WEB_SOURCE.md. Crustdata web search + fetch, billed as Crustdata credits
+  sources: [news, web]       # PLACEHOLDER. Crustdata search sources
+  location: IN               # PLACEHOLDER. ISO country for search results
+  results_to_fetch: 3        # PLACEHOLDER. Pages fetched per claim (1 credit each, plus 1 LLM call each)
+  max_page_chars: 12000      # PLACEHOLDER. Page text sent to the LLM to pick a quote
+  human_mode: false          # PLACEHOLDER. Browser-like fetch for bot-protected sites
+
 identity:
   min_signals: 2             # two-signal rule: a person or company matches only on >= 2 signals
 
@@ -41,12 +48,15 @@ tolerances:                  # one entry per claim type: how close observed must
     year_gap_cannot_verify: 1      # PLACEHOLDER (T29). Founded-year gap up to this many years is CANNOT_VERIFY, above it CONTRADICTED
   customer:
     require_exact_quote: true      # PLACEHOLDER. Customer named on a fetched page, verbatim
+    max_record_age_days: 1095      # PLACEHOLDER (D16). A dated web mention up to 3 years before the deck date counts
   hiring:
     tolerance_pct: 30              # PLACEHOLDER. Open roles count gap
   traction:
     tolerance_pct: 15              # PLACEHOLDER
   market_size:
     tolerance_pct: 50              # PLACEHOLDER. Third-party estimates vary widely
+    min_agreeing_sources: 2        # PLACEHOLDER (D16). CONTRADICTED needs this many agreeing estimates from different domains
+    max_record_age_days: 1095      # PLACEHOLDER (D16). Market reports up to 3 years before the deck date count
   competition:
     require_exact_quote: true      # PLACEHOLDER
   max_record_age_days: 365         # PLACEHOLDER. Older evidence than this is NOT_COMPARABLE
