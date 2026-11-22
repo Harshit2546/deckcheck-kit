@@ -71,11 +71,11 @@ verdict:                     # D8: confidence margins read by verdict/engine.py
   undated_max_deck_age_days: 90  # PLACEHOLDER (D17). Only if the deck date is at most this many days before the data was retrieved
 
 title_levels:                # PLACEHOLDER. Used by the founder_background verdict rules
-  c_level: [ceo, cto, coo, cfo, cpo, founder, co-founder]
-  vp: [vp, vice president, head]
+  c_level: [ceo, cto, coo, cfo, cpo, founder, co-founder, cofounder, chief executive officer, chief technology officer, chief operating officer, chief financial officer, chief product officer]
+  vp: [vp, svp, evp, avp, vice president, head]
   director: [director]
   manager: [manager, lead]
-  ic: [engineer, analyst, associate, consultant]
+  ic: [engineer, developer, programmer, sde, scientist, designer, architect, analyst, associate, consultant]   # "developer" also matches "Software Developer" (D19, deck F)
 
 materiality:                 # PLACEHOLDER weights for ranking red flags (higher = worse if wrong)
   founder_background: 5

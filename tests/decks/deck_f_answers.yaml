@@ -13,9 +13,9 @@
 
 - slide: 3
   quote: "Nishith Rastogi was a Software Development Engineer at Amazon."
-  expected_verdict: TBD
-  expected_reason_code: null
+  expected_verdict: SUPPORTED
+  expected_reason_code: title_level_met
   basis: >-
     title. The recorded Amazon title is "Software Developer" (dated 2014-07-01 under
-    D19). Neither title has a keyword in the PLACEHOLDER title_levels, so today the
-    engine says CANNOT_VERIFY title_unmapped; the key waits for real title_levels.
+    D19). title_levels.ic lists both "engineer" and "developer", so the claimed and the
+    recorded title sit at the same level (ic): the level is met.

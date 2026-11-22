@@ -190,6 +190,8 @@ def test_past_employer_namesake_stops_at_identity(rules):
     ("Engineering Manager", "Software Engineer", L.NOT_COMPARABLE, "informal_title", C.LOW),   # below threshold
     ("Head of Growth", "Senior Wizard", L.CANNOT_VERIFY, "title_unmapped", C.LOW),
     ("Chief Wizard", "CEO", L.CANNOT_VERIFY, "title_unmapped", C.LOW),
+    ("Software Development Engineer", "Software Developer", L.SUPPORTED, "title_level_met", C.HIGH),  # deck F
+    ("Chief Executive Officer", "Co-Founder & CEO", L.SUPPORTED, "title_level_met", C.HIGH),
 ])
 def test_title_levels(rules, claimed, observed, label, reason, conf):
     c, r = founder("title", claimed, {"title_observed": observed})
