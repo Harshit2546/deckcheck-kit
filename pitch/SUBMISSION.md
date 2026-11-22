@@ -67,8 +67,8 @@ date, so hiring claims stay open. Full list: docs/INCIDENTS.md.
 
 **Models and tools.** OpenAI gpt-4o-mini (claim extraction and web quote picking), Crustdata APIs
 (company enrich, person enrich and search, web search and fetch), Python, SQLite (checkpoints,
-ledger, inbox), pypdf, Streamlit (UI), pytest (about 480 tests). Built with Claude Code, Codex and
-Gemini agents in separate lanes, coordinated through AGENTS.md, DECISIONS.md and HANDOFF.md.
+ledger, inbox), pypdf, Streamlit (UI), pytest (about 480 tests). Built by two people working in
+separate code lanes, coordinated through AGENTS.md, DECISIONS.md and HANDOFF.md.
 
 **What we would build next.** A job queue and worker pool, a shared cache with expiry, per-client
 ledgers and rules files, recorded evidence for more decks to widen the answer key, and dated
@@ -91,8 +91,8 @@ for credits), YC registration email if different, BITS student ID, personal emai
       @pilani.bits-pilani.ac.in address for credits.
 
 ## Extra material
-Pitch deck (private Claude artifact; the owner must share it before others can open it):
-https://claude.ai/artifact/NKiaffjQ7rzzEWNmpRybPQ. Project explainer: pitch/PROJECT_EXPLAINED.md.
+Live app: https://deckcheck-kit-fduax9papucptjjcvvzxns.streamlit.app/
+Project explainer: pitch/PROJECT_EXPLAINED.md.
 
-Project site (private Claude artifact; the owner must share it, Share > anyone with the link): https://claude.ai/artifact/XGqkLqzG4FgmnLVPAHrtFu. The same page is in the repo at pitch/site.html.
+Project page: pitch/site.html in the repo.
 Business architecture: https://github.com/Harshit2546/deckcheck-kit/blob/main/docs/BUSINESS_ARCHITECTURE.md

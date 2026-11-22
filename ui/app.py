@@ -19,6 +19,15 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st  # noqa: E402
 
+# Streamlit Cloud keeps keys in st.secrets; the background run (cli.py) reads the environment.
+try:
+    import os as _os
+    for _k, _v in st.secrets.items():
+        if isinstance(_v, str) and _v.strip():
+            _os.environ.setdefault(_k, _v.strip())
+except Exception:  # no secrets file locally: keys come from .env (core/env.py)
+    pass
+
 from core import store  # noqa: E402
 from core.config import load_rules  # noqa: E402
 from actions import email  # noqa: E402

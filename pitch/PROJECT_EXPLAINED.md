@@ -36,7 +36,7 @@ forced changes. Each one is a written decision in `DECISIONS.md`.
 
 | # | Plan said | What happened | Why | Where |
 |---|---|---|---|---|
-| 1 | One Claude lane, several Codex accounts | Two Claude lanes (`claude-core`, `claude-verdict`), one Codex lane, Gemini lanes | We had 2 Claude Pro, 1 ChatGPT Plus, 3 Gemini accounts | D2 |
+| 1 | One core lane plus helper lanes | Five lanes split across two laptops: core, verdict, sources, checkers, UI | Matched the people and machines we actually had | D2 |
 | 2 | Data models in a Pydantic-style file | Plain Python dataclasses, times as ISO strings | Simpler, no extra dependency; a first version pushed to `main` by mistake was reverted | D5, `INCIDENTS` E1 |
 | 3 | Adapter at `io/adapter.py` | Still `io/adapter.py`, but loaded by file path | Python's built-in `io` module owns the name, so `import io.adapter` fails. Moved to `kit_io/` (D4), then moved back (D6) with a loader | D4, D6, `core/adapter_loader.py` |
 | 4 | "Use the kickoff kit's format" | No format was in our files, so we defined our own request/result JSON | Handbook says only that formats come at kickoff | D3 |
@@ -45,7 +45,7 @@ forced changes. Each one is a written decision in `DECISIONS.md`.
 | 7 | Use `headcount.total` | Use the latest dated point from `headcount.timeseries[]` | The total is undated; the history point has its own date (349 on 2026-11-02) | D13 |
 | 8 | One record-age limit (365 days) | A limit per claim type (funding 3,650 days, founder 18,250, customer 1,095) | Locus's funding rounds are from 2016 to 2021; a 365-day limit would have made every funding claim "stale" | D14 |
 | 9 | Funding from a list of rounds | Read `funding.milestones[]` | The field the plan assumed (`funding_rounds`) is absent in the live record; milestones holds all 7 rounds with dates | `INCIDENTS` B2 |
-| 10 | Customer claims verified by "web quote verify" in a Codex lane | Built on Crustdata's own web search + fetch; the page's publish date is read from its HTML | Search results carry no date; a fact needs one | D16 |
+| 10 | Customer claims verified by "web quote verify" in the sources lane | Built on Crustdata's own web search + fetch; the page's publish date is read from its HTML | Search results carry no date; a fact needs one | D16 |
 | 11 | Undated records never count | A guarded fallback: an undated record may be used at low confidence if the deck is at most 90 days older than the fetch | Without it, nearly every web claim ended "cannot verify" | D17 |
 | 12 | Founder lookups later | Built live: `get_people` and `search_people` | Needed to check "previously worked at Amazon" | D18, D19 |
 | 13 | Verdict rules for three claim types | Rules for ten (hiring, traction, company fact, prior exit, team growth, market size, customer added) | Claim types the extractor can produce all need an answer | D15 |
@@ -218,10 +218,10 @@ each have `UNIQUE(idempotency_key)`; the key is the hash of run id, action type 
 
 ## 6. How it was built, in one paragraph
 
-Two people, six AI sessions, each owning its own folders ("lanes"): `claude-core` (core, runner,
-adapter, email), `claude-verdict` (resolve, verdict, report, reviews), `codex-a` (Crustdata
-client), `ag-b` (extraction and checkers), `ag` (UI), plus a teammate session (docs, decks) and
-later web-source sessions. Rules in `AGENTS.md` (read first by every session), decisions in
+Two people, working in parallel lanes, each lane owning its own folders: core (core, runner,
+adapter, email), verdict (resolve, verdict, report, reviews), sources (Crustdata client),
+checkers (extraction and checkers), UI, plus docs and test decks, and later the web source.
+Rules in `AGENTS.md`, decisions in
 `DECISIONS.md`, a baton in `HANDOFF.md`, tasks in `TASKS.md`. Merges happened in a scratch copy with
 the full test suite run after each lane; conflicts were only ever in the shared docs.
 `docs/INCIDENTS.md` lists every failure and near miss.
