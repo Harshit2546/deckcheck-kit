@@ -1193,3 +1193,22 @@ Known bugs or shortcuts taken:
 Open questions for a human:
 - Verdict owner (claude-verdict) + merger: may a founder_background record_date be the matched role's own date (end_date, else start_date, else retrieved_at for a current role)? That would let slide 2 become SUPPORTED employer_listed. It is a D3 date-rule decision, so I did not change the checker.
 Credits / tokens used this session (rough): 1 Crustdata credit
+
+### 16:37 · web-client · lane web-client · task T37 (D19 founder record_date)
+
+Status: done
+Done this session:
+- checkers/founder_background.py: new `role_record_date(positions, ref_date)`. observed.record_date and every Evidence.record_date come from the matched roles' start/end dates: the latest on or before the reference date; if all are after it, the earliest start_date (the engine then says NOT_COMPARABLE record_after_as_of); no dated role or no employer match gives None. updated_at / last_updated are no longer the record date; they are kept only as observed.profile_updated_at (informational). retrieved_at is never used.
+- tests/checkers/test_founder_background.py (+9): past role ended before the deck = end_date; current role = start_date; ended after the deck = start_date; started after the deck = start_date and NOT_COMPARABLE through the engine; no dates = None; no employer match = None; latest date over several roles; the recorded Locus fixture through the engine = SUPPORTED employer_listed (medium), not stale_record.
+- tests/decks/deck_f_answers.yaml: slide 2 = SUPPORTED employer_listed. Slide 3 stays TBD: "Software Developer" has no keyword in the PLACEHOLDER title_levels, so it is CANNOT_VERIFY title_unmapped today.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (491 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- An employer missing from the profile now has record_date None (D19 rule 5), and the engine checks the date before the founder rule. So it gives CANNOT_VERIFY missing_record_date (old deck) or employer_not_in_profile_undated (recent deck, D17) instead of employer_not_in_profile. The label is unchanged (CANNOT_VERIFY, never CONTRADICTED); the existing test now accepts either reason code.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (implements D19)
+Open questions for a human:
+- claude-verdict: should the engine route founder_background with employer_found false to employer_not_in_profile before the date check, so the reason code stays the intended one?
+- Finance partner: add "developer" (and similar) to title_levels.ic so deck F slide 3 can be decided.
+Credits / tokens used this session (rough): 0 Crustdata credits

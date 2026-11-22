@@ -1,20 +1,21 @@
 # synthetic test fixture, tests/ only (T36, D18)
 # Founder background targets for Deck F. Live get_people probe 2026-11-22 (call-457fe7a8507b,
-# fixture tests/fixtures/crustdata/person_enrich_locus.json). Still TBD: the record has no
-# profile date (updated_at / last_updated absent), so today both claims stop at
-# CANNOT_VERIFY missing_record_date; the key waits for a human decision on record_date.
+# fixture tests/fixtures/crustdata/person_enrich_locus.json). Record date = the matched
+# role's own dates (D19).
 - slide: 2
   quote: "Our co-founder and CEO Nishith Rastogi previously worked at Amazon."
-  expected_verdict: TBD
-  expected_reason_code: null
+  expected_verdict: SUPPORTED
+  expected_reason_code: employer_listed
   basis: >-
-    past_employer. The record lists Amazon, Software Developer, 2012-07-01 to
-    2014-07-01, so the employer is listed; the verdict needs a record_date.
+    past_employer. The founder's person record lists Amazon, Software Developer,
+    2012-07-01 to 2014-07-01. Under D19 the record date is the role's end date,
+    2014-07-01, which is before the deck date 2026-11-15.
 
 - slide: 3
   quote: "Nishith Rastogi was a Software Development Engineer at Amazon."
   expected_verdict: TBD
   expected_reason_code: null
   basis: >-
-    title. The recorded Amazon title is "Software Developer"; whether it meets the
-    claimed level depends on title_levels and on a record_date.
+    title. The recorded Amazon title is "Software Developer" (dated 2014-07-01 under
+    D19). Neither title has a keyword in the PLACEHOLDER title_levels, so today the
+    engine says CANNOT_VERIFY title_unmapped; the key waits for real title_levels.

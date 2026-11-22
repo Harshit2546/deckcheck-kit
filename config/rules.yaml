@@ -34,6 +34,7 @@ tolerances:                  # one entry per claim type: how close observed must
   founder_background:
     min_title_level: director      # PLACEHOLDER. Claimed title must match at or above this level (title_levels)
     tenure_tolerance_months: 6     # PLACEHOLDER. Allowed gap in claimed start/end dates
+    max_record_age_days: 18250     # PLACEHOLDER (D19). Record date = the matched role's date; career history does not go stale
   prior_exit:
     tolerance_pct: 10              # PLACEHOLDER. Exit value gap, when a value is claimed
   team_size:
