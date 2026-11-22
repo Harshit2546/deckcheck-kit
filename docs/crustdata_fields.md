@@ -2,7 +2,7 @@
 
 This is the T02 field reference for the company and founder probe.
 It lists the documented REST contract and the fields to inspect in Deck A responses.
-Field availability and credit rates for the team account still need live verification.
+The account rates are verified. Field availability still needs a live Deck A probe.
 
 ## Probe status
 
@@ -32,8 +32,7 @@ ledger row (`t02-account-fa48ec8c7d`, `call-d7de68ed98cd`, 2,094 ms) records
 
 Use bearer authentication and the `x-api-version: 2025-11-01` header. Published
 rates are per returned record or result as shown below. A batched request can
-use multiple credits. Confirm the team's rates and endpoint access before
-probing. [Crustdata pricing](https://docs.crustdata.com/general/pricing)
+use multiple credits. Use the verified account rates above to estimate this probe. [Crustdata pricing](https://docs.crustdata.com/general/pricing)
 
 | Method and path | Use in the probe | Published credit cost |
 | --- | --- | --- |
@@ -92,8 +91,8 @@ and describe any missing dates explicitly.
 
 ## Finish the Deck A probe
 
-1. Confirm endpoint access and credit rates for the team account. Look up the
-   company by exact domain and fetch the founders by profile URL. Use the
+1. Look up the company by exact domain and fetch the founders by profile URL.
+   Use the
    limited name and employer search only where a URL is missing.
 2. Log each probe attempt, including failures, with its run ID, endpoint,
    status, duration, timestamp, credits, and INR cost. Label estimated costs
