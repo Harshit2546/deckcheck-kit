@@ -891,3 +891,27 @@ Open questions for a human:
 - Finance partner: values for the two new keys; is a 1-year founded-year gap the right "unclear" band?
 - codex-a / ag-b: the checker asks in DESIGN.md section 5.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:31 · claude-verdict@mac (harshit's account, at the merger session's request) · lane claude-verdict · task T33
+
+Status: done
+Done this session:
+- verdict/market_size.py, verdict/customer.py, verdict/web_common.py (shared date filter for estimates/mentions). verdict/engine.py: identity `not_applicable` passes row 5b for market_size only; market_size added to `_TYPES_WITH_RULES` (tolerance_pct 50); customer is route-only.
+- market_size: only estimates in claim.unit's currency count (none -> NOT_COMPARABLE currency_mismatch); one within tolerance -> SUPPORTED (max medium); CONTRADICTED `sources_agree_otherwise` (max medium) only when >= min_agreeing_sources distinct domains all disagree with the deck AND agree with each other; anything else CANNOT_VERIFY source_may_be_incomplete with market-specific `missing`.
+- customer: `independent is True` -> SUPPORTED `independent_mention` medium; self-published only -> CANNOT_VERIFY self_reported_only; never CONTRADICTED. MISSING_TEXT gains self_reported_only.
+- Both types read `tolerances.<type>.max_record_age_days` (D14) for each estimate/mention's own published_date, and drop items dated after the reference date (D3).
+- tests/verdict/test_t33_rules.py: 19 tests (every label, single disagreeing source, same domain twice, never CONTRADICTED for customer). tests/verdict/test_engine_order.py: the old "customer is unsupported" test now checks customer is routed.
+- verdict/DESIGN.md: row 5b, sections 3.10, 3.11, 4, 5 (asks), 6 (keys).
+In progress / exact next step:
+- Merger merges lane/claude-verdict to main (do not merge from this lane).
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (340 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- No currency conversion: an INR estimate never supports a USD claim (by design, cautious).
+- CONTRADICTED relies on the checker giving the registrable domain; sub-domains of one site would count twice.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none new; follows D16 and the merger's T33 spec.
+Open questions for a human:
+- Finance partner: is min_agreeing_sources 2 and tolerance 50% right for market size?
+Credits / tokens used this session (rough): 0 Crustdata credits

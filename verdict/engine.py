@@ -12,7 +12,8 @@ from typing import Any
 
 from core.config import rule
 from core.models import (CheckResult, Claim, ClaimType, Confidence, Verdict, VerdictLabel)
-from verdict import company_fact, founder, funding, hiring, prior_exit, team_growth, team_size, traction
+from verdict import (company_fact, customer, founder, funding, hiring, market_size, prior_exit, team_growth,
+                     team_size, traction)
 from verdict.common import MISSING_TEXT, headcount_missing, make, num, parse_date
 
 REQUIRED_KEYS = [
@@ -33,6 +34,7 @@ _TYPES_WITH_RULES = {
     ClaimType.TEAM_SIZE: "team_size", ClaimType.FUNDING: "funding", ClaimType.FOUNDER_BACKGROUND: "founder_background",
     ClaimType.HIRING: "hiring", ClaimType.TRACTION: "traction", ClaimType.COMPANY_FACT: "company_fact",
     ClaimType.PRIOR_EXIT: "prior_exit", ClaimType.TEAM_GROWTH: "team_growth",
+    ClaimType.MARKET_SIZE: "market_size",   # customer is route-only: it has no tolerance_pct
 }
 
 
@@ -91,6 +93,8 @@ def _identity_and_comparable(claim: Claim, result: CheckResult, rules: dict[str,
         reason = str(obs.get("not_comparable_reason") or "not_comparable")
         return make(claim, result, None, VerdictLabel.NOT_COMPARABLE, reason, Confidence.MEDIUM,
                     f"The source measures something different from the claim ({reason}).")
+    if claim.type is ClaimType.MARKET_SIZE and ident == "not_applicable":   # D16: a market is not an entity
+        return None
     signals = num(obs.get("identity_signals")) or 0
     if ident != "confirmed" or signals < rule(rules, "identity.min_signals"):
         return _cannot(claim, result, "identity_unclear",
@@ -155,6 +159,10 @@ def _route(claim: Claim, result: CheckResult, rules: dict[str, Any], st: dict[st
         return prior_exit.judge(claim, result, st)
     if claim.type is ClaimType.TEAM_GROWTH:
         return team_growth.judge(claim, result, rules, st)
+    if claim.type is ClaimType.MARKET_SIZE:
+        return market_size.judge(claim, result, rules, st)
+    if claim.type is ClaimType.CUSTOMER:
+        return customer.judge(claim, result, rules, st)
     if claim.type is ClaimType.COMPETITION:   # not in _TYPES_WITH_RULES: it has no tolerance_pct
         return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "competition_not_judged", Confidence.LOW,
                     "Competitor lists are subjective and incomplete, so claims about competitors are not judged "
