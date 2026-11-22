@@ -7,7 +7,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | ID | Lane | Task | Done when | Status |
 |---|---|---|---|---|
 | T00 | human | Add rule files to repo | AGENTS.md etc. on main | done |
-| T01 | claude-core | Skeleton: core/models.py, core/store.py (all tables incl. inbox with UNIQUE key), core/log.py, config/rules.yaml schema, cli.py (run, resume), io/adapter.py stub | `python cli.py run --help` works; tables created | done (claude-core-1; adapter is kit_io/adapter.py, D4) |
+| T01 | claude-core | Skeleton: core/models.py, core/store.py (all tables incl. inbox with UNIQUE key), core/log.py, config/rules.yaml schema, cli.py (run, resume), io/adapter.py stub | `python cli.py run --help` works; tables created | in-progress (harshit, 80%, aligning skeleton to the lane prompt) |
 | T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | todo |
 | T03 | ag-b | extract/pdf.py: text per slide | test on Deck A passes | todo |
 | T04 | ag | ui/app.py shell: upload form, run list from DB | shows a run row | todo |
