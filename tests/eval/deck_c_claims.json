@@ -1,0 +1,16 @@
+[
+  {"slide": 2, "quote": "Apex Logistics operates with 200 staff globally.", "type": "team_size", "subject": "Apex Logistics",
+   "metric": "headcount", "value": 200, "unit": "people", "as_of": null},
+  {"slide": 3, "quote": "Founded in 2021 by veterans in Gurgaon.", "type": "company_fact", "subject": "Apex Logistics",
+   "metric": "year_founded", "value": 2021, "unit": "year", "as_of": null},
+  {"slide": 4, "quote": "Founders successfully completed an earlier $30M acquisition exit.", "type": "prior_exit", "subject": "Apex Logistics",
+   "metric": "exit_valuation", "value": 30000000, "unit": "USD", "as_of": null},
+  {"slide": 5, "quote": "Prior exit was acquired by Global Express Partners.", "type": "prior_exit", "subject": "Apex Logistics",
+   "metric": "acquirer", "value": "Global Express Partners", "unit": null, "as_of": null},
+  {"slide": 6, "quote": "Serving enterprise client Titan Manufacturing across Asia.", "type": "customer", "subject": "Apex Logistics",
+   "metric": "customer", "value": "Titan Manufacturing", "unit": null, "as_of": null},
+  {"slide": 7, "quote": "Global autonomous freight dispatch TAM is valued at $45B.", "type": "market_size",
+   "subject": "Global autonomous freight dispatch", "metric": "market_size", "value": 45000000000, "unit": "USD", "as_of": null},
+  {"slide": 8, "quote": "Revenue exceeded $15M ARR in fiscal year 2026.", "type": "traction", "subject": "Apex Logistics",
+   "metric": "arr", "value": 15000000, "unit": "USD", "as_of": null}
+]
