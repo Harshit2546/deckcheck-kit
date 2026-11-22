@@ -23,3 +23,5 @@ One line per thing a judge might ask to change. Format: To change X -> edit Y in
 
 - To change the founder email wording -> `_body()` in actions/email.py (questions come from report/question_templates.yaml)
 - To change how old a record may be for one claim type (for example funding rounds) -> `tolerances.<claim type>.max_record_age_days` in config/rules.yaml; without it `tolerances.max_record_age_days` (global) applies (D14)
+- To add or remove a column on the UI Claims page -> `output.fields` in config/rules.yaml (same list as the report; ui/data.py `claim_columns`). Renamed for display: `label` -> verdict, `value` -> claimed_value (`DISPLAY_NAMES` in ui/data.py)
+- To change the UI colours -> `.streamlit/config.toml` (theme) and `VERDICT_COLOUR` in ui/app.py

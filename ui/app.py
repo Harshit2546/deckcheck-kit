@@ -49,9 +49,9 @@ def go_to(target: str, run_id: str | None = None) -> None:
         st.session_state["current_run"] = run_id
 
 
-def pick_run(label: str = "Run") -> str | None:
+def pick_run(label: str = "Run", db=None) -> str | None:
     """One run choice shared by every page (kept in session_state across page switches)."""
-    runs = store.list_runs(conn)
+    runs = store.list_runs(db or conn)
     if not runs:
         st.info("No runs yet. Start one on the Run page.")
         return None
@@ -97,12 +97,13 @@ def _kv_table(pairs: list[tuple[str, Any]]) -> str:
 
 # ---------- Run ----------
 
-def _progress_block() -> None:
-    """Run state stepper and per-claim progress for the chosen run."""
-    rid = pick_run("Follow run")
+def _progress_block(db) -> None:
+    """Run state stepper and per-claim progress for the chosen run. `db` is the caller's connection
+    (the auto-refresh fragment runs in its own thread and SQLite connections are per thread)."""
+    rid = pick_run("Follow run", db)
     if rid is None:
         return
-    prog = data.run_progress(conn, rid)
+    prog = data.run_progress(db, rid)
     steps = []
     for i, name in enumerate(prog["order"]):
         if i < prog["index"] or prog["finished"]:
@@ -122,8 +123,6 @@ def _progress_block() -> None:
                                       f"waiting for a verdict · {prog['claims_by_state'].get('pending', 0)} pending")
     else:
         st.caption("No claims extracted yet.")
-    if prog["finished"]:
-        st.button("Open the report", on_click=go_to, args=("Report", rid), type="primary")
 
 
 def page_run() -> None:
@@ -170,15 +169,24 @@ def page_run() -> None:
     @st.fragment(run_every=3 if live else None)
     def live_part() -> None:
         st.subheader("Runs")
-        fresh = data.run_rows(conn)
-        if not fresh:
-            st.info("No runs yet.")
-            return
-        st.dataframe(fresh, use_container_width=True, hide_index=True)
-        st.subheader("Progress")
-        _progress_block()
+        db = store.connect(db_path)                 # fragment reruns run in another thread
+        try:
+            fresh = data.run_rows(db)
+            if not fresh:
+                st.info("No runs yet.")
+                return
+            st.dataframe(fresh, use_container_width=True, hide_index=True)
+            st.subheader("Progress")
+            _progress_block(db)
+        finally:
+            db.close()
+        if live and not any(r["state"] not in ("done", "failed") for r in fresh):
+            st.rerun()                              # a run just finished: redraw the whole page once
 
     live_part()
+    followed = st.session_state.get("current_run")
+    if followed and any(r["run_id"] == followed and r["state"] == "done" for r in data.run_rows(conn)):
+        st.button("Open the report", on_click=go_to, args=("Report", followed), type="primary")
     unfinished = [r["run_id"] for r in rows if r["state"] != "done"]
     if unfinished:
         st.subheader("Resume")
@@ -208,14 +216,16 @@ def page_report() -> None:
                f"report generated {report['generated_at']}")
 
     by = summary["by_label"]
-    cols = st.columns(7)
+    cols = st.columns(5)
     cols[0].metric("Claims", summary["claims"])
     cols[1].metric("Supported", by.get("SUPPORTED", 0))
     cols[2].metric("Contradicted", by.get("CONTRADICTED", 0))
     cols[3].metric("Cannot verify", by.get("CANNOT_VERIFY", 0) + by.get("NOT_COMPARABLE", 0))
     cols[4].metric("Held", by.get("HELD", 0))
-    cols[5].metric("Cost (INR)", f"₹{led['cost_inr']:.2f}")
-    cols[6].metric("Call time", f"{led['duration_ms'] / 1000:.1f} s")
+    cost = st.columns(5)
+    cost[0].metric("Cost (INR)", f"₹{led['cost_inr']:.2f}")
+    cost[1].metric("Calls", f"{led['calls']} ({led['failed']} failed)")
+    cost[2].metric("Call time", f"{led['duration_ms'] / 1000:.1f} s")
     for flag in summary["flags"]:
         st.warning(flag)
 

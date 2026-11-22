@@ -756,3 +756,45 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - None. Ready for merge to main.
 Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
+
+### 15:48 · yash · lane ag-b (in ui/, lane ag's folder, at the user's request) · task T28
+
+Status: done (needs a lane ag look before the human merges)
+Done this session:
+- ui/app.py: two new pages and upgrades, so every result in PLAN.md section 1 "Finished result" is on screen.
+  - Report (new): verdict counts, cost and call time, run flags (deck date source, HELD, pending), red flags
+    by materiality with sources, founder questions, evidence requests, HELD notes, cost by provider,
+    download report.json / report.md. It shows the stored report (store.get_report) and never rebuilds it.
+  - Entities (new): company and founders from store.get_resolution (identity, signals, confidence,
+    reason); a warning for every identity that is not confirmed. Professional fields only.
+  - Run: state stepper (RUN_ORDER), per-claim progress bar, auto-refresh every 3 s (st.fragment) while a
+    run is unfinished, "Open the report" when the followed run is done.
+  - Claims: table columns follow rules.yaml output.fields (label shown as verdict, value as
+    claimed_value), verdict and type filters, and per claim a "claimed in the deck" vs "found by the
+    checker" block (CheckResult.observed, comparable, held_reason). Sources add source_type and call_id.
+  - Ledger: limits used vs rules.yaml, failed calls listed, totals by provider, ledger.csv download.
+  - Approvals: shows the run's red-flag count and a "Read the report first" button.
+  - The chosen run is shared across pages (session_state current_run).
+- ui/data.py: read-only helpers report_view, entities_view, run_progress, claim_columns, ledger_csv,
+  limits_used; claim_rows now also returns observed/comparable/held_reason and all report ROW_FIELDS.
+  Still never writes claims, evidence, verdicts, ledger or inbox (the existing test still passes).
+- .streamlit/config.toml: theme (one accent colour).
+- tests/ui/test_report_entities_pages.py: 9 tests. docs/LIVE_FIX_MAP.md: 2 lines (UI columns, colours).
+In progress / exact next step:
+- Lane ag: read the diff of ui/ on lane/ag-b before merging lane/ag (nobody else had changed ui/ since T18).
+- Then check the Report page on a real Deck A run against tests/decks/deck_a_answers.yaml.
+How to run / test:
+- streamlit run ui/app.py
+- python -m pytest -q tests/ui   (25 passed); python -m pytest -q   (237 passed)
+Known bugs or shortcuts taken:
+- Checked in a browser only on a fixture DB built from tests/ui fixtures (kept outside the repo); no live
+  Deck A run yet (it would spend Crustdata credits).
+- The auto-refresh fragment opens its own SQLite connection on every refresh, because Streamlit runs a
+  fragment in another thread.
+- report_view fills missing report sections with empty defaults, so an older or partial report still renders.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (no contract or schema change)
+Open questions for a human:
+- ui/ is lane ag's folder; this work was done on lane/ag-b because the user asked. Please confirm lane ag
+  accepts it.
+Credits / tokens used this session (rough): 0 Crustdata credits
