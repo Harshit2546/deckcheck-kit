@@ -79,3 +79,9 @@ Change: D9 said both laptops use the same Claude account. That is wrong: there a
 Why: the user clarified after D9 was pushed. DECISIONS is append-only, so this is a new entry instead of an edit.
 Files affected: none in code.
 Who must know (lanes): all lanes, both humans
+
+### 13:25 · yash · D11: Crustdata company lookup and call provenance
+Change: `sources.crust.get_company(ctx, domain) -> tuple[dict, str]` returns the unique exact-domain company record and its ledger call ID. The record includes `retrieved_at` (original fetch time). An empty match list returns an empty record. Multiple exact matches raise a source error because current checkers cannot compare ambiguous records. Checkers should use the record's `retrieved_at` for Evidence.
+Why: all callers share one short-lived company result per run and domain. The authenticated account endpoint supplies current pacing and credit rates, without new rules.yaml keys. With no receipt, charge estimates use credits per returned record. A 429 or 5xx gets one retry after pacing and any Retry-After delay, subject to D7 limits. Every attempt, including the metadata request, produces its own ledger row.
+Files affected: sources/crust.py, docs/crustdata_fields.md, tests/sources/
+Who must know (lanes): codex-a, ag-b, claude-core

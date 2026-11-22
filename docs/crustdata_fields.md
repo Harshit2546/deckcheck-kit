@@ -28,6 +28,14 @@ The account metadata response reported no per-request credit charge. Its
 ledger row (`t02-account-fa48ec8c7d`, `call-d7de68ed98cd`, 2,094 ms) records
 0 credits as an estimate. Actual billing for that call is unverified.
 
+The T08 client reads current company endpoint quota and pricing from
+`GET /account/endpoints`. It records one ledger row for that request and
+for each individual company attempt. Without a charge receipt, company
+credits are estimated from the account rate and number of returned records.
+Failed attempts with no returned receipt or records use a zero estimate.
+Checkers can reuse the original `retrieved_at` and ledger call ID on hits
+in the one-minute, run-scoped company cache.
+
 ## Endpoints and credits
 
 Use bearer authentication and the `x-api-version: 2025-11-01` header. Published
