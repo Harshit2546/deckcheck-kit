@@ -8,7 +8,7 @@ and the last 3 entries of `HANDOFF.md`. This file only adds what Claude needs on
 
 ## Claude's lanes (two Claude Pro accounts, see PLAN.md section 5)
 
-- **claude-core** (branch `lane/claude-core`): `core/`, `io/adapter.py`, `actions/`.
+- **claude-core** (branch `lane/claude-core`): `core/`, `kit_io/adapter.py` (planned as `io/adapter.py`, see DECISIONS.md D4), `actions/`, `cli.py`.
   Tasks T01, T07, T19 and the kill drills.
 - **claude-verdict** (branch `lane/claude-verdict`): `verdict/`, `report/`. Tasks T13,
   T15, T20 (hour-3 change) and T27 (merge reviews).
@@ -46,22 +46,23 @@ before the limit hits.
 
 ## Current state
 
-As of the T00 handoff the repo holds only planning docs; no code exists yet. The first
-Claude task is T01 (skeleton). Check `TASKS.md` and `HANDOFF.md` for the real state before
-trusting anything below that describes code.
+T01 (skeleton) exists: `core/` (models, store, config, log, ledger, runner stub), `cli.py`,
+`config/rules.yaml` (placeholder values), `kit_io/adapter.py` stub. The runner does nothing
+yet (T07). Check `TASKS.md` and `HANDOFF.md` for the real state.
 
-## Commands (planned in PLAN.md / TASKS.md; verify once T01 lands)
+## Commands
 
-- Start a run: `python cli.py run ...` (`python cli.py run --help` is T01's done check)
+- Setup: `python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt`
+- Start a run: `python cli.py run --deck <pdf> --domain <domain> [--deck-date YYYY-MM-DD] [--founder-url URL]`
+  (global `--db` and `--rules` go before the subcommand; logs append to `logs/deckcheck.log`)
 - Resume after a kill: `python cli.py resume <run_id>`
 - All tests (must pass before a human merges to `main`): `pytest -q`
 - One test file: `pytest tests/checkers/test_funding.py -q`; one test: add `-k <name>`
-- Eval against the answer key: `python tests/eval/run_eval.py`
-- UI: `streamlit run ui/app.py`
+- Planned, not built yet: eval `python tests/eval/run_eval.py` (T21), UI `streamlit run ui/app.py` (T04)
 
 ## Architecture in one pass
 
-Pipeline: `io/adapter` (kickoff-kit format to internal) -> `extract` (PDF slide text, LLM
+Pipeline: `kit_io/adapter` (kickoff-kit format to internal) -> `extract` (PDF slide text, LLM
 claims, code confirms each quote is on its slide) -> `resolve` (company by domain, founders
 via two-signal identity rule) -> `checkers/<claim_type>.py` (fetch + normalise, return
 `CheckResult`) -> `verdict/engine.py` (label chosen by code from `config/rules.yaml`) ->
@@ -72,6 +73,12 @@ Things that span files and are easy to break:
 - **Contracts** (`Claim`, `Evidence`, `Verdict`, `LedgerEntry`, `Action`, the checker
   interface) are defined in PLAN.md section 3 and live only in `core/models.py`; the DB
   schema lives in `core/store.py`. Changing either needs a `DECISIONS.md` entry first.
+- **Writing to the DB:** use `core/store.py` helpers. `save_check_result` and `save_verdict`
+  are the per-claim checkpoints (rows + claim state in one transaction). Evidence `call_id`
+  is a foreign key to `ledger.id`, so record the call with `core/ledger.record` first.
+  Ledger and inbox rows are append-only (DB triggers abort UPDATE/DELETE).
+- **Config access:** `core/config.load_rules()` fails fast on missing keys
+  (`REQUIRED_KEYS`); read values with `rule(rules, "limits.max_cost_inr")`.
 - **Checkpointing:** run states `created -> extracted -> resolved -> checking -> decided ->
   reported -> done`, plus per-claim `pending -> checked -> decided`, all in SQLite. Resume
   skips finished work, so no external call may happen outside a checkpointed step.
