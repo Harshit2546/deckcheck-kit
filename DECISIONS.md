@@ -73,3 +73,9 @@ Change: lane claude-verdict (verdict/, report/, docs/reviews/, T13, T15, T20, T2
 Why: two sessions on one lane would edit the same files from two clones; the shared account gives no way to tell sessions apart.
 Files affected: none in code. TASKS.md and HANDOFF.md labels from now on.
 Who must know (lanes): all lanes, both humans
+
+### 14:25 · claude-verdict@win · D10: correction to D9, the two laptops use two different Claude accounts
+Change: D9 said both laptops use the same Claude account. That is wrong: there are two Claude accounts, one per laptop (as in PLAN.md section 5), and different OneDrive accounts. Everything else in D9 stands: this Windows laptop owns lane claude-verdict; the laptops share only origin; coordinate through TASKS.md, HANDOFF.md and DECISIONS.md; labels are `<lane>@<laptop>`. Consequence: each laptop has its own usage limit, so each account writes its own HANDOFF entry before its own limit.
+Why: the user clarified after D9 was pushed. DECISIONS is append-only, so this is a new entry instead of an edit.
+Files affected: none in code.
+Who must know (lanes): all lanes, both humans
