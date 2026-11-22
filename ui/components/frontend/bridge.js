@@ -53,6 +53,7 @@ window.addEventListener("message", function (event) {
   const msg = event.data;
   if (!msg || msg.type !== "streamlit:render") return;
   const args = msg.args || {};
+  DC._last = args;
   const theme = msg.theme || {};
   document.documentElement.classList.toggle("dark", theme.base === "dark");
   const root = document.getElementById("root");
@@ -63,4 +64,14 @@ window.addEventListener("message", function (event) {
   window.setTimeout(DC.height, 60);
 });
 
-window.addEventListener("resize", function () { DC.height(); });
+/* Width-dependent views (the gauge) redraw on resize; each moment's "seen" flag stops a replay. */
+let resizeTimer = null;
+window.addEventListener("resize", function () {
+  window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(function () {
+    if (DC._last && DC._last.kind === "gauge") {
+      DC.renderers.gauge(document.getElementById("root"), DC._last);
+    }
+    DC.height();
+  }, 120);
+});

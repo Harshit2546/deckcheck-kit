@@ -1,7 +1,12 @@
-# DeckCheck UI theme (ui/app.py). Only the accent is set here, so Streamlit follows the viewer's
-# light/dark setting; page colours for both schemes are CSS tokens in ui/theme.py (CSS).
+# DeckCheck UI theme (ui/app.py): dark, high contrast, one red accent for primary actions and
+# brand moments (design spec: netflix.com-design.md tokens, applied to DeckCheck's own brand).
+# Page details (type scale, radii, buttons, cards) are CSS in ui/theme.py.
 [theme]
-primaryColor = "#2D5B8A"
+base = "dark"
+primaryColor = "#E50914"
+backgroundColor = "#000000"
+secondaryBackgroundColor = "#111111"
+textColor = "#FFFFFF"
 font = "sans serif"
 
 [server]

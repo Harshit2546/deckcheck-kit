@@ -34,6 +34,8 @@ def motion(kind: str, payload: dict[str, Any], key: str, default: Any = None) ->
     """Render one motion component. Returns its value, or MISSING if the caller must draw the fallback."""
     if not enabled():
         return MISSING
+    if "key" in payload or "default" in payload:   # reserved by Streamlit's component call
+        raise ValueError(f"motion payload for {kind} must not use the reserved names 'key' or 'default'")
     try:
         return _component(kind=kind, key=key, default=default, **payload)
     except Exception as exc:  # noqa: BLE001

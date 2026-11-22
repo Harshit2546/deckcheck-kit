@@ -24,4 +24,7 @@ One line per thing a judge might ask to change. Format: To change X -> edit Y in
 - To change the founder email wording -> `_body()` in actions/email.py (questions come from report/question_templates.yaml)
 - To change how old a record may be for one claim type (for example funding rounds) -> `tolerances.<claim type>.max_record_age_days` in config/rules.yaml; without it `tolerances.max_record_age_days` (global) applies (D14)
 - To add or remove a column on the UI Claims page -> `output.fields` in config/rules.yaml (same list as the report; ui/data.py `claim_columns`). Renamed for display: `label` -> verdict, `value` -> claimed_value (`DISPLAY_NAMES` in ui/data.py)
-- To change the UI colours -> `.streamlit/config.toml` (theme), `VERDICTS` and `CSS` in ui/theme.py
+- To change the UI colours -> `.streamlit/config.toml` (Streamlit theme), `VERDICTS`, `CSS` and the font stacks in ui/theme.py, and the tokens at the top of ui/components/frontend/style.css
+- To change an animation's timing -> `duration` values in ui/components/frontend/<route|strip|gauge|sent>.js (deck scan length: `SCAN_MS` in strip.js)
+- To turn all animated components off (static HTML instead) -> set env `DECKCHECK_STATIC_UI=1` before `streamlit run ui/app.py`
+- To show the value gauge for another numeric metric -> add `metric: (path in observed)` to `GAUGE_FOUND` in ui/data.py (needs `tolerances.<type>.tolerance_pct`)

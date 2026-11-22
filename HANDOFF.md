@@ -804,3 +804,43 @@ Credits / tokens used this session (rough): 0 Crustdata credits
   the records say. Pages renamed in the sidebar (values unchanged, tests still set "Run", "Claims", ...).
   Fonts: Public Sans + Source Serif 4 from Google Fonts, system fallback when offline. 237 tests pass.
 
+
+### 16:28 · yash · lane ag-b (in ui/, lane ag's folder, at the user's request) · task T29
+
+Status: done (needs a lane ag look before the human merges)
+Done this session:
+- ui/components/: one Streamlit component (deckcheck_motion) in plain HTML/JS, no npm, no build, no CDN script.
+  bridge.js speaks the component protocol by hand; route.js, strip.js, gauge.js, sent.js draw the moments.
+  - Route tracker (Check a deck, Report while not ready): run states as checkpoints, marker moves as the
+    run advances; claim blocks fill with their verdict colour as verdicts are stored. First sight of a run
+    shows its state with no motion (a resumed run's finished steps are just lit).
+  - Deck scan (Report): the slide strip fills left to right once per run, counts count up. Strip blocks
+    are buttons: hover/focus shows the quote, click opens that claim on Every claim (expanded).
+  - Value gauge (red flags, claim detail): claimed value, tolerance band from rules.yaml, found marker.
+    Display only; the label is the engine's. Shown for metrics in GAUGE_FOUND (headcount, total_raised,
+    round_amount).
+  - Exactly-once send (Founder email): the email card moves into the test inbox tray once after approval,
+    then a "Sent once, key ..." stamp; reloads show the settled stamp.
+  - Each moment plays once (sessionStorage flag) and jumps to its end state under prefers-reduced-motion.
+- Dark design applied from the team's design spec (netflix.com-design.md): black canvas, #111111 surfaces,
+  #374151 borders, red #E50914 for primary buttons, brand and Contradicted only; 4px buttons/inputs, 8px
+  cards, pill banners for run notes. Fonts: Inter (text) + Bebas Neue (wordmark, report hero) from Google
+  Fonts, fallback Helvetica Neue/Segoe UI offline. Netflix Sans is proprietary, so it is not used.
+- ui/data.py: gauge_payload, strip_payload, route_payload. tests/ui/test_components.py (15 tests).
+  tests/ui/conftest.py sets DECKCHECK_STATIC_UI=1 (AppTest cannot run component iframes).
+- Bugs found in the browser and fixed: the auto-refresh read the default DB instead of the sidebar one
+  (fragment closure); a payload field named "key" collided with Streamlit's own argument.
+In progress / exact next step:
+- Lane ag: review ui/ on lane/ag-b. Then run Deck A live and watch the route tracker and report.
+How to run / test:
+- streamlit run ui/app.py   (DECKCHECK_STATIC_UI=1 to switch the animated components off)
+- python -m pytest -q
+Known bugs or shortcuts taken:
+- Checked in a browser on a fixture DB only (outside the repo), not on a live Deck A run or a real kill/resume.
+- Reduced-motion path checked in code only (the test browser could not emulate it).
+- Fonts need internet; offline the fallback stack is used (layout unchanged).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (no contract or schema change)
+Open questions for a human:
+- ui/ is lane ag's folder; this was done on lane/ag-b because the user asked.
+Credits / tokens used this session (rough): 0 Crustdata credits

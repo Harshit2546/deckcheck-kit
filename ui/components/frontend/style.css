@@ -1,16 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 /* Tokens match ui/theme.py. html.dark is set from Streamlit's own theme (bridge.js). */
-:root {
-  --ink: #1A2433; --ink-soft: #4A5566; --ink-faint: #8A94A3; --rule: #DDE2E9;
-  --paper: #F7F8FA; --card: #FFFFFF; --accent: #2D5B8A; --red: #B3261E;
-  --band: rgba(45, 91, 138, 0.12);
-  font-family: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+/* Tokens match ui/theme.py (dark design spec): black canvas, #111111 surface, #374151 borders, white text,
+   red #E50914 only for brand moments and Contradicted. The page is always dark, so html.dark is the same. */
+:root, html.dark {
+  --ink: #FFFFFF; --ink-soft: #B3B3B3; --ink-faint: #808080; --rule: #374151;
+  --paper: #000000; --card: #111111; --accent: #E50914; --red: #E50914;
+  --band: rgba(255, 255, 255, 0.10);
+  font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Roboto, Ubuntu, Arial, sans-serif;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
-}
-html.dark {
-  --ink: #E6EAF0; --ink-soft: #AEB7C4; --ink-faint: #7C8796; --rule: #2C3542;
-  --paper: #0F141B; --card: #161D27; --accent: #7FA8D4; --red: #E5675F;
-  --band: rgba(127, 168, 212, 0.16);
 }
 html, body { margin: 0; padding: 0; background: transparent; }
 #root { padding: 2px 2px 6px; }
@@ -18,12 +16,12 @@ button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
 
 /* ---- route tracker ---- */
-.route { position: relative; padding: 14px 10px 0; }
-.route .track { position: relative; height: 4px; background: var(--rule); border-radius: 2px; margin: 0 6px; }
+.route { position: relative; padding: 14px 34px 0; }
+.route .track { position: relative; height: 4px; background: var(--rule); border-radius: 2px; margin: 0; }
 .route .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--accent); border-radius: 2px; }
 .route .marker { position: absolute; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%;
-                 background: var(--accent); box-shadow: 0 0 0 5px var(--band); left: 0; }
-.route .marker.failed { background: var(--red); box-shadow: 0 0 0 5px rgba(179, 38, 30, .18); }
+                 background: var(--accent); box-shadow: 0 0 0 5px rgba(229, 9, 20, .22); left: 0; }
+.route .marker.failed { background: #5C0A0E; border: 2px solid var(--red); box-shadow: 0 0 0 5px rgba(229, 9, 20, .18); }
 .route .stops { display: flex; justify-content: space-between; list-style: none; margin: 0; padding: 0; position: relative; top: -11px; }
 .route .stop { display: flex; flex-direction: column; align-items: center; width: 0; overflow: visible; }
 .route .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--card); border: 2px solid var(--rule); }
@@ -39,12 +37,13 @@ button { font: inherit; color: inherit; }
 
 /* ---- slide strip ---- */
 .strip { position: relative; display: flex; gap: 3px; }
-.strip .seg { flex: 1 1 0; min-width: 30px; height: 58px; border-radius: 3px; border: 1.5px solid var(--rule);
+.strip .seg { flex: 1 1 0; min-width: 30px; height: 58px; border-radius: 4px; border: 1.5px solid var(--rule);
               background: transparent; cursor: pointer; display: flex; align-items: flex-end; padding: 0 0 6px 8px;
               font-size: 12px; font-weight: 600; color: #FFFFFF; text-align: left; }
 .strip .seg.pending { color: var(--ink-soft); }
 .strip .seg:hover, .strip .seg:focus-visible { filter: brightness(1.08); }
 .strip .seg[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+.strip .seg:hover { transform: translateY(-2px); transition: transform 120ms ease; }
 .strip .scanner { position: absolute; top: -4px; bottom: -4px; width: 2px; left: 0; background: var(--accent);
                   box-shadow: 0 0 12px 2px var(--band); opacity: 0; pointer-events: none; }
 .legend { display: flex; flex-wrap: wrap; gap: 18px; margin: 10px 0 2px; font-size: 14px; }
@@ -52,7 +51,7 @@ button { font: inherit; color: inherit; }
 .legend .sq { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
 .legend .n { font-weight: 700; min-width: 1ch; }
 .detail { min-height: 44px; margin-top: 8px; font-size: 14px; color: var(--ink-soft); line-height: 1.45; }
-.detail .q { font-family: 'Source Serif 4', Georgia, serif; font-size: 16px; color: var(--ink); }
+.detail .q { font-size: 16px; font-weight: 500; color: var(--ink); }
 
 /* ---- gauge ---- */
 .gauge svg { width: 100%; height: auto; display: block; overflow: visible; }
@@ -62,15 +61,14 @@ button { font: inherit; color: inherit; }
 
 /* ---- exactly-once send ---- */
 .sent { display: grid; grid-template-columns: 1fr 160px; gap: 16px; align-items: center; }
-.sent .card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 14px; }
+.sent .card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 14px; }
 .sent .card .subj { font-weight: 600; font-size: 14.5px; }
 .sent .card .to { font-size: 12.5px; color: var(--ink-soft); }
-.sent .tray { border: 1.5px dashed var(--rule); border-radius: 6px; height: 62px; display: flex; flex-direction: column;
+.sent .tray { border: 1px dashed var(--rule); border-radius: 8px; height: 62px; display: flex; flex-direction: column;
               align-items: center; justify-content: center; font-size: 13px; color: var(--ink-soft); position: relative; }
 .sent .tray .count { font-size: 20px; font-weight: 700; color: var(--ink); }
-.sent .stamp { grid-column: 1 / -1; justify-self: start; border: 2px solid #2E7D4F; color: #2E7D4F; border-radius: 4px;
+.sent .stamp { grid-column: 1 / -1; justify-self: start; border: 2px solid #2F8F5B; color: #4FC383; border-radius: 4px;
                padding: 4px 10px; font-weight: 700; font-size: 13.5px; letter-spacing: .01em; }
-html.dark .sent .stamp { border-color: #5FB383; color: #5FB383; }
 .sent .stamp small { font-weight: 500; color: var(--ink-soft); margin-left: 6px; }
 
 @media (max-width: 520px) {

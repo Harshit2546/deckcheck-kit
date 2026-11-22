@@ -91,3 +91,11 @@ def test_component_frontend_files_exist():
     assert {"index.html", "bridge.js", "style.css", "route.js", "strip.js", "gauge.js", "sent.js"} <= names
     for js in ("route.js", "strip.js", "gauge.js", "sent.js"):
         assert "innerHTML" not in (components.FRONTEND / js).read_text(encoding="utf-8")   # data stays text
+
+
+def test_motion_rejects_reserved_payload_names(monkeypatch):
+    monkeypatch.delenv("DECKCHECK_STATIC_UI", raising=False)
+    if not components.enabled():
+        pytest.skip("streamlit components not available")
+    with pytest.raises(ValueError, match="reserved"):
+        components.motion("gauge", {"key": "c1"}, key="g")

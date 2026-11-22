@@ -1,5 +1,5 @@
 /* Moment 5: claimed vs found on one scale, with the tolerance band from config/rules.yaml.
-   args: {kind: "gauge", key, claimed, found, tol_pct, unit, metric, label, colours, names}
+   args: {kind: "gauge", gauge_id, claimed, found, tol_pct, unit, metric, label, colours, names}
    Display only: the verdict label comes from verdict/engine.py; this draws the numbers it was given.
    The found marker slides from the claimed value to the found value once per claim in this tab. */
 "use strict";
@@ -22,7 +22,9 @@
     const claimed = Number(a.claimed), found = Number(a.found), tol = Number(a.tol_pct) / 100;
     root.textContent = "";
     const box = DC.el("div", "gauge");
-    const W = 600, H = 92, L = 24, R = 576, Y = 46;
+    // draw at the real width (1 unit = 1 px) so labels stay 13px in a narrow column
+    const W = Math.max(280, Math.round(document.body.getBoundingClientRect().width || 600));
+    const H = 92, L = 40, R = W - 40, Y = 46;
     const lowBand = claimed * (1 - tol), highBand = claimed * (1 + tol);
     let lo = Math.min(found, lowBand), hi = Math.max(found, highBand);
     const pad = (hi - lo) * 0.18 || claimed * 0.2 || 1;
@@ -66,7 +68,7 @@
     box.appendChild(say);
     root.appendChild(box);
 
-    const seenKey = "gauge:" + a.key;
+    const seenKey = "gauge:" + a.gauge_id;
     const play = !DC.load(seenKey);
     DC.save(seenKey, true);
     if (play && !DC.reduced) {

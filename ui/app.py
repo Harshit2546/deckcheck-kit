@@ -48,7 +48,7 @@ st.sidebar.markdown('<p class="dc-brand">DeckCheck</p><p class="dc-brand-sub">Ch
                     'deck against live company records, and shows the proof.</p>', unsafe_allow_html=True)
 page = st.sidebar.radio("Page", PAGES, key="page", format_func=PAGE_NAMES.get, label_visibility="collapsed")
 st.sidebar.divider()
-db_path = st.sidebar.text_input("Database file", str(ROOT / store.DEFAULT_DB))
+db_path = st.sidebar.text_input("Database file", str(ROOT / store.DEFAULT_DB), key="db_path")
 conn = store.connect(db_path)
 rules = load_rules()
 st.sidebar.caption("Decision support for a human reviewer. A verdict is not an automatic rejection.")
@@ -141,7 +141,7 @@ def gauge_view(row: dict[str, Any] | None, where: str) -> None:
     payload = data.gauge_payload(row, rules) if row else None
     if payload is None:
         return
-    components.motion("gauge", {**payload, "key": row["claim_id"], **VERDICT_ARGS},
+    components.motion("gauge", {**payload, "gauge_id": row["claim_id"], **VERDICT_ARGS},
                       key=f"gauge-{where}-{row['claim_id']}")
 
 
@@ -224,7 +224,9 @@ def page_run() -> None:
 
     @st.fragment(run_every=3 if live else None)
     def live_part() -> None:
-        db = store.connect(db_path)                 # fragment reruns run in another thread
+        # Fragment reruns run in another thread and reuse the closure of the run that first drew them,
+        # so read the current database path from session state, not from the captured variable.
+        db = store.connect(st.session_state.get("db_path", db_path))
         try:
             fresh = data.run_rows(db)
             if not fresh:
@@ -302,7 +304,7 @@ def page_report() -> None:
 
     strip_view(claims, rid, "report", summary["by_label"], animate=True)
     for flag in summary["flags"]:
-        st.warning(flag)
+        html(theme.banner(flag, "Note"))
 
     flags = report["red_flags"]
     st.subheader(f"Red flags ({len(flags)})")
