@@ -15,7 +15,7 @@ from typing import Any
 from core.config import rule
 from core.models import CheckResult, Claim, Confidence, Verdict, VerdictLabel
 from verdict.common import make, num, rel_diff
-from verdict.web_common import admissible
+from verdict.web_common import select
 
 MISSING_MARKET = "A dated market report (analyst firm or industry body) giving the market size in the deck's currency."
 
@@ -26,8 +26,9 @@ def judge(claim: Claim, result: CheckResult, rules: dict[str, Any], st: dict[str
         return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "claim_value_unusable", Confidence.LOW,
                     f"The deck's market size {claim.value!r} is not a usable number.")
     max_age = float(rule(rules, "tolerances.market_size.max_record_age_days"))
-    dated = [e for e in admissible(result.observed.get("estimates"), st["ref"], max_age)
-             if num(e.get("value")) is not None and num(e.get("value")) > 0]
+    usable = [e for e in (result.observed.get("estimates") or []) if isinstance(e, dict)
+              and num(e.get("value")) is not None and num(e.get("value")) > 0]
+    dated, st = select(usable, st, max_age)
     if not dated:
         return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "no_evidence", Confidence.LOW,
                     "No dated market-size estimate on or before the deck date was found.", missing=MISSING_MARKET)
@@ -40,7 +41,7 @@ def judge(claim: Claim, result: CheckResult, rules: dict[str, Any], st: dict[str
                     f"{', '.join(found)}.")
     tol = float(rule(rules, "tolerances.market_size.tolerance_pct")) / 100
     values = [(num(e["value"]), e) for e in same]
-    listing = "; ".join(f"{v:,.0f} {currency} ({e.get('domain') or e.get('url')}, {e.get('published_date')})"
+    listing = "; ".join(f"{v:,.0f} {currency} ({e.get('domain') or e.get('url')}, {e.get('published_date') or 'undated'})"
                         for v, e in values)
     facts = f"Deck says {claimed:,.0f} {currency}; estimates found: {listing} (allowed difference {tol:.0%})."
     close = [v for v, _ in values if rel_diff(v, claimed) <= tol]

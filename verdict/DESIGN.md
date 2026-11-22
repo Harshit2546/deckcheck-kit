@@ -32,11 +32,26 @@ Every threshold is read with `core.config.rule()`; there are no code defaults, a
 | 4 | `observed.identity` is `not_found` | CANNOT_VERIFY | `entity_not_found` | low |
 | 5 | `result.comparable` is False | NOT_COMPARABLE | `observed.not_comparable_reason` (default `not_comparable`) | medium |
 | 5b | `identity` is not `confirmed`, or `identity_signals` < `identity.min_signals` (a missing key counts as not confirmed). T33: for claim.type `market_size` only, `identity == "not_applicable"` passes this row (a market is not an entity, D16) | CANNOT_VERIFY | `identity_unclear` | low |
-| 6 | no `observed.record_date` (or not a date) | CANNOT_VERIFY | `missing_record_date` | low |
+| 6 | no `observed.record_date` (or not a date) and the D17 undated fallback does not apply (section 2.1) | CANNOT_VERIFY | `missing_record_date`; `missing` says why (fallback off, deck older than the limit, deck after retrieval) | low |
 | 7 | no reference date | CANNOT_VERIFY | `no_reference_date` | low |
 | 7b | `record_date` is AFTER the reference date (D3: no fact from after the as-of date may support or contradict a claim; one day after is enough) | NOT_COMPARABLE | `record_after_as_of`; `missing` = "A record dated on or before <reference date>." | high |
 | 8 | record date more than `tolerances.<claim type>.max_record_age_days` (if that key exists, else the global `tolerances.max_record_age_days`) BEFORE the reference date | NOT_COMPARABLE | `stale_record` | medium |
 | 9 | metric rules in section 3 (they also return `claim_value_unusable` when the claim's value is not a usable number) | any | see section 3 | see section 3 |
+
+### 2.1 Undated fallback (D17, T34)
+
+When `observed.record_date` is missing, the engine still decides if ALL hold: `verdict.undated_fallback` is true (a
+missing key counts as off); the evidence has a `retrieved_at` (the latest one is used); and the reference date is 0 to
+`verdict.undated_max_deck_age_days` days BEFORE that retrieval date. Then rows 7b and 8 are skipped (there is no record
+date), `st` gets `undated=True`, `rec=None`, `gap=None`, `fresh=False`, ceiling `low`, and the per-type rule runs as usual.
+`make()` then appends `_undated` to the reason code (e.g. `within_tolerance_undated`, `metric_mismatch_undated`), forces
+confidence `low`, prefixes the explanation with "No dated record was found; this uses an undated source retrieved on
+<YYYY-MM-DD>. " and appends MISSING_TEXT `undated` ("A record with its own date on or before <ref>...") to `missing`.
+`no_evidence` never gets the suffix (nothing was used). A dated record always wins: the fallback never runs when
+`record_date` is a date. Rules that need the record date handle `rec=None`: founder tenure ends an open role at the
+reference date; team_growth returns `period_mismatch_undated` (the window end is unknown).
+Web items (market_size, customer; `verdict/web_common.select`): dated items that pass the date filter always win; only
+when none pass, and the guard holds, items with `published_date: None` are used, and that verdict is `_undated` too.
 
 Reference date = `observed.reference_date` (the checker sets it to `claim.as_of` when that is an ISO date, else the run's
 `deck_date`; `decide()` has no access to the run, D7), and if that is absent, `claim.as_of` when it is an ISO date.
@@ -243,6 +258,7 @@ HELD: `timeout`, `error`, `budget`, `time`, `no_checker` (core `HeldReason`). CA
 `round_not_found`, `investor_not_listed`, `employer_not_in_profile`, `title_unmapped`, `missing_dates`,
 T29: `observed_more_than_claimed`, `growth_scale_unclear`, `estimate_gap_unclear`, `founding_year_close`, `location_unclear`,
 `prior_company_not_checked`, `acquirer_differs`, `competition_not_judged`, T33: `self_reported_only`.
+T34 (D17): any rule reason above except `no_evidence` may carry the suffix `_undated` (low confidence) when it was decided from an undated source; the report lane should match on the base code with `reason_code.removesuffix("_undated")`.
 NOT_COMPARABLE: `record_after_as_of`, `stale_record`, `currency_mismatch`, `informal_title`, T29: `metric_mismatch`, `period_mismatch`,
 plus any checker-given `not_comparable_reason`.
 SUPPORTED: `within_tolerance`, `within_tolerance_undated_rounds`, `within_band`, `investor_listed`, `employer_listed`,
@@ -274,6 +290,10 @@ SUPPORTED: `within_tolerance`, `within_tolerance_undated_rounds`, `within_band`,
 - T29, ag-b (extract): for hiring, put the role family in `unit` ("engineers", "sales") so subset claims are caught.
 - T33, extract: for market_size put the ISO currency in `claim.unit` and the value in absolute major units; a missing
   unit makes every estimate `currency_mismatch`. For customer put the customer's name in `claim.value`.
+- T34/T35 (D17), checkers: when a value has no date of its own, send `observed.record_date: None` and Evidence
+  `record_date=None` (not the fetch date, not `updated_at` of a live snapshot), and keep `retrieved_at` real; web items
+  keep `published_date: None`. The hiring checker today sets `record_date` from `updated_at`; Deck A's recorded fixture
+  has no `hiring` block, so offline slide 8 stays `no_evidence`.
 - T33, web checkers (D16): `independent` must be a real boolean; `domain` must be the registrable domain (sub-pages
   of one site count as one source for CONTRADICTED); every estimate/mention needs its own `published_date`.
 
@@ -283,6 +303,9 @@ T29 (read inside each rule, not in REQUIRED_KEYS): `tolerances.hiring.tolerance_
 `tolerances.prior_exit.tolerance_pct`, `tolerances.team_growth.tolerance_pct`, `tolerances.company_fact.tolerance_pct`
 (read by _prepare, unused), NEW `tolerances.company_fact.year_gap_cannot_verify` (PLACEHOLDER 1),
 NEW `tolerances.team_growth.window_tolerance_days` (PLACEHOLDER 45).
+
+T34 (D17, read by `_undated_guard`, optional: absent means the fallback is off): `verdict.undated_fallback`
+(PLACEHOLDER true), `verdict.undated_max_deck_age_days` (PLACEHOLDER 90).
 
 T33 (already in rules.yaml, read inside each rule): `tolerances.market_size.tolerance_pct`,
 `tolerances.market_size.min_agreeing_sources`, `tolerances.market_size.max_record_age_days`,

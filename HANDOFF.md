@@ -1096,3 +1096,27 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - none
 Credits / tokens used this session (rough): 11 Crustdata credits (Rs 11.96 total)
+
+### 16:27 · claude-verdict@mac (harshit's account, at the merger session's request) · lane claude-verdict · task T34
+
+Status: done
+Done this session:
+- verdict/engine.py `_prepare`: D17 guarded undated fallback. No `record_date` + `verdict.undated_fallback` true + reference date 0..`undated_max_deck_age_days` before the latest Evidence `retrieved_at` -> rules run with `st["undated"]=True`, `rec=None`, ceiling low, fresh False; record_after_as_of / stale_record skipped. Otherwise `missing_record_date` with `missing` saying why (fallback off, deck too old, deck after retrieval, keys absent = off).
+- verdict/common.py `make()`: undated verdicts get reason `<code>_undated` (not `no_evidence`), confidence low, explanation prefixed "No dated record was found; this uses an undated source retrieved on <date>. ", MISSING_TEXT `undated` appended to `missing`.
+- founder tenure: an open role ends at the reference date when undated; team_growth undated -> period_mismatch_undated.
+- verdict/web_common.py `select`: dated web items that pass always win; items with `published_date: None` only when none pass and the guard holds. market_size and customer use it.
+- report/render.py: a source with no record date shows "source date: undated (retrieved <date>)" in the Markdown; result JSON keys unchanged (no contract change, no new output field).
+- Tests: tests/verdict/test_t34_undated.py (18), tests/report/test_builder.py (+2). verdict/DESIGN.md section 2 row 6, new 2.1, sections 4, 5, 6.
+In progress / exact next step:
+- Merger merges lane/claude-verdict (do not merge from this lane). T35 (checkers send `record_date: None` for undated values) is what makes the fallback fire on real data.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (460 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: no new FAIL; slides 6-7 HELD offline)
+Known bugs or shortcuts taken:
+- Deck A slide 8 offline is still CANNOT_VERIFY no_evidence: the recorded fixture tests/fixtures/crustdata/deck_a_locus_company.json has no `hiring` block, and checkers/hiring.py sets record_date from `updated_at`. With T35 and live data the engine gives NOT_COMPARABLE metric_mismatch_undated (low) for "40 engineers" vs all openings (unit-tested).
+- An unparseable record_date string (e.g. "last year") is treated as missing, so it can also take the undated path when the guard holds.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none new; implements D17. `no_evidence` is never suffixed.
+Open questions for a human:
+- Finance partner: undated_fallback true / 90 days are PLACEHOLDER values.
+Credits / tokens used this session (rough): 0 Crustdata credits

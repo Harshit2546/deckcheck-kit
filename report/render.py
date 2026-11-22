@@ -20,8 +20,12 @@ def _cell(value: Any) -> str:
 
 
 def _source_text(src: dict[str, Any]) -> str:
-    date = f", record {src['record_date']}" if src.get("record_date") else ""
-    return f"{src['source_type']} {src['locator']} [{src['field_or_quote']}]{date}, retrieved {src['retrieved_at']}"
+    if src.get("record_date"):
+        return (f"{src['source_type']} {src['locator']} [{src['field_or_quote']}], record {src['record_date']}, "
+                f"retrieved {src['retrieved_at']}")
+    # D17: an undated source is marked as such in the Markdown only; the result JSON keys stay as they are
+    return (f"{src['source_type']} {src['locator']} [{src['field_or_quote']}], "
+            f"source date: undated (retrieved {str(src['retrieved_at'])[:10]})")
 
 
 def _table(headers: list[str], rows: list[list[Any]]) -> list[str]:
