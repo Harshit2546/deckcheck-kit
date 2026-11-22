@@ -43,6 +43,7 @@ MISSING_TEXT: dict[str, str] = {
     "location_unclear": "The registered and operating addresses from the company registry or website.",
     "prior_company_not_checked": "The name or domain of the founder's earlier company and a deal announcement for its exit.",
     "acquirer_differs": "The deal announcement naming the acquirer.",
+    "period_mismatch": "Headcount on both dates of the period the deck names (for example a year apart).",
 }
 
 

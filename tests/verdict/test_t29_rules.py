@@ -146,3 +146,34 @@ def test_prior_exit_when_prior_company_was_checked(rules, metric, value, unit, o
 def test_prior_exit_never_contradicted(rules, observed):
     for metric, value, unit in (("acquired_by", "Flipkart", None), ("exit_amount", 10_000_000, "USD")):
         assert verdict(rules, PE, metric, value, unit, {**CHECKED, **observed})[0] is not L.CONTRADICTED
+
+
+# ----------------------------------------------------------------- team_growth (tolerance 25%, window 365 +- 45 days)
+
+TG = ClaimType.TEAM_GROWTH
+
+
+@pytest.mark.parametrize("metric,value,unit,observed,expected", [
+    # today's checker: no baseline_date -> never compared
+    ("headcount_growth_yoy", 50, "%", {"growth_percent": 50}, (L.NOT_COMPARABLE, "period_mismatch", C.MEDIUM)),
+    ("headcount_growth", 50, "%", {"growth_percent": 50, "baseline_date": "2025-01-10"},
+     (L.NOT_COMPARABLE, "period_mismatch", C.MEDIUM)),                                  # no period named
+    ("headcount_growth_yoy", 50, "%", {"growth_percent": 50, "baseline_date": "2023-01-10"},
+     (L.NOT_COMPARABLE, "period_mismatch", C.MEDIUM)),                                  # 3-year window
+    ("headcount_growth_yoy", 50, "%", {"growth_percent": 55, "baseline_date": "2025-01-10"},
+     (L.SUPPORTED, "within_tolerance", C.MEDIUM)),
+    ("headcount_growth_yoy", 50, "%", {"growth_percent": 10, "baseline_date": "2025-01-10"},
+     (L.CANNOT_VERIFY, "estimate_gap_unclear", C.LOW)),
+    ("headcount_growth_yoy", 2, "x", {"growth_percent": 100, "baseline_date": "2025-01-10"},
+     (L.NOT_COMPARABLE, "metric_mismatch", C.MEDIUM)),
+    ("headcount_growth_yoy", 50, "%", {"growth_absolute": 5, "baseline_date": "2025-01-10"},
+     (L.CANNOT_VERIFY, "no_evidence", C.LOW)),
+])
+def test_team_growth(rules, metric, value, unit, observed, expected):
+    assert verdict(rules, TG, metric, value, unit, observed) == expected
+
+
+@pytest.mark.parametrize("growth", [-50, 0, 10, 300])
+def test_team_growth_never_contradicted(rules, growth):
+    obs = {"growth_percent": growth, "baseline_date": "2025-01-10"}
+    assert verdict(rules, TG, "headcount_growth_yoy", 50, "%", obs)[0] is not L.CONTRADICTED

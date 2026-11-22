@@ -12,7 +12,7 @@ from typing import Any
 
 from core.config import rule
 from core.models import (CheckResult, Claim, ClaimType, Confidence, Verdict, VerdictLabel)
-from verdict import company_fact, founder, funding, hiring, prior_exit, team_size, traction
+from verdict import company_fact, founder, funding, hiring, prior_exit, team_growth, team_size, traction
 from verdict.common import MISSING_TEXT, headcount_missing, make, num, parse_date
 
 REQUIRED_KEYS = [
@@ -32,7 +32,7 @@ _HELD_MISSING = {
 _TYPES_WITH_RULES = {
     ClaimType.TEAM_SIZE: "team_size", ClaimType.FUNDING: "funding", ClaimType.FOUNDER_BACKGROUND: "founder_background",
     ClaimType.HIRING: "hiring", ClaimType.TRACTION: "traction", ClaimType.COMPANY_FACT: "company_fact",
-    ClaimType.PRIOR_EXIT: "prior_exit",
+    ClaimType.PRIOR_EXIT: "prior_exit", ClaimType.TEAM_GROWTH: "team_growth",
 }
 
 
@@ -153,6 +153,8 @@ def _route(claim: Claim, result: CheckResult, rules: dict[str, Any], st: dict[st
         return company_fact.judge(claim, result, rules, st)
     if claim.type is ClaimType.PRIOR_EXIT:
         return prior_exit.judge(claim, result, st)
+    if claim.type is ClaimType.TEAM_GROWTH:
+        return team_growth.judge(claim, result, rules, st)
     return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "unsupported_metric", Confidence.LOW,
                 f"No verdict rule exists yet for {claim.type.value} / {claim.metric!r}.")
 

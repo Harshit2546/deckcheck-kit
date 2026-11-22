@@ -32,6 +32,7 @@ tolerances:                  # one entry per claim type: how close observed must
     tolerance_pct: 20              # PLACEHOLDER
   team_growth:
     tolerance_pct: 25              # PLACEHOLDER
+    window_tolerance_days: 45      # PLACEHOLDER (T29). A "yearly" growth window may be 365 +- this many days
   funding:
     tolerance_pct: 10              # PLACEHOLDER
     max_record_age_days: 3650      # PLACEHOLDER (D14). A funding round up to 10 years before the deck date still counts
