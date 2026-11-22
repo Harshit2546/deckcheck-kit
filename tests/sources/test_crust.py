@@ -16,7 +16,7 @@ from unittest.mock import Mock
 import pytest
 
 from checkers._common import get_company
-from core import limits, store
+from core import limits, log, store
 from core.config import load_rules
 from core.models import HeldReason, Run, RunContext, RunInput
 from sources import crust
@@ -39,8 +39,9 @@ class Clock:
 
 
 @pytest.fixture
-def clock(monkeypatch: pytest.MonkeyPatch) -> Clock:
+def clock(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Clock:
     clock = Clock()
+    monkeypatch.setattr(log, "LOG_DIR", tmp_path / "logs")
     monkeypatch.setattr(crust, "monotonic", clock.monotonic)
     monkeypatch.setattr(crust, "sleep", clock.sleep)
     monkeypatch.setattr(crust, "_company_cache", {})
