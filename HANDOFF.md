@@ -756,3 +756,27 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - None. Ready for merge to main.
 Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
+
+### 16:50 · claude-verdict@win · lane claude-verdict · task T21
+
+Status: in-progress (~85%)
+Done this session:
+- tests/eval/run_eval.py: reads tests/decks/deck_<x>_answers.yaml; offline mode runs the REAL runner (runner.start with only the extract stage replaced), resolve stage, checkers and verdict engine on the recorded claims tests/eval/deck_a_claims.json, with only sources.crust.get_company replaced by tests/fixtures/crustdata/deck_a_locus_company.json (one 0-credit ledger row "recorded:<file>" is written for the replayed call because evidence.call_id is a foreign key). Also checks every recorded quote against the real deck PDF text. Prints per-claim PASS/FAIL/SKIP (TBD = SKIP) and a summary; exit 0 / 1 (a FAIL) / 2 (harness error). `--live` runs `cli.py run --request ... --out ...` and compares the D3 result JSON (not run: it spends credits).
+- tests/eval/test_run_eval.py: 10 tests (compare rules, matching, report, regression guard that slides 2 and 5 PASS and slide 8 SKIPs).
+- Result today, offline: slide 2 PASS (SUPPORTED high), slide 5 PASS (CONTRADICTED medium), slides 3 and 4 FAIL (CANNOT_VERIFY missing_record_date: funding checker ignores funding.milestones[], ag-b is fixing), slide 6 FAIL (HELD no_checker: there is no checkers/customer.py), slide 7 FAIL (HELD error: checkers/market_size.py imports sources.web, which does not exist), slide 8 SKIP.
+- T10 resolve ran against the real recorded Locus payload: company confirmed with 2 signals (domain + name), so the payload shapes in resolve/payloads.py are right for the company part.
+In progress / exact next step:
+- ag-b: funding milestones fix (slides 3, 4); customer checker (slide 6, key expects CANNOT_VERIFY no_evidence); sources/web.py or a market_size path that returns "no evidence" instead of a ModuleNotFoundError (slide 7).
+- Decks B and C: add tests/decks/deck_b_*.yaml/json, tests/eval/deck_b_claims.json and tests/fixtures/crustdata/deck_b_*_company.json; run_eval.py --deck b then works unchanged.
+- A person with credits approval: run `python tests/eval/run_eval.py --live` once and paste the table into HANDOFF.
+How to run / test:
+- python tests/eval/run_eval.py          (python tests/eval/run_eval.py --live spends credits)
+- python -m pytest tests/eval -q
+Known bugs or shortcuts taken:
+- The recorded claims (tests/eval/deck_a_claims.json) are my hand-written version of what extraction should produce (types, metrics, units, values); they are not LLM output. Slide 8 uses metric "open_roles", unit "engineers".
+- On this laptop 6 tests in tests/ui fail because Anaconda has NumPy 2.5 with an older pyarrow (Streamlit st.dataframe import). They fail the same way without my changes; not a repo bug. Everything else passes: 230 passed.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- None.
+Open questions for a human:
+- Slides 6 and 7: should the key's CANNOT_VERIFY be reached by a customer checker and a web source, or should a missing checker/source be allowed to give HELD (current behaviour, per D7)?
+Credits / tokens used this session (rough): 0 Crustdata credits (offline only); Claude tokens moderate
