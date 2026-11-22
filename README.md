@@ -7,6 +7,30 @@ a person approves it.
 
 Built at ContextCon 05 (Investing track).
 
+## Links
+
+| What | Link |
+|---|---|
+| **Live app** (runs a real check on live data) | https://deckcheck-kit-fduax9papucptjjcvvzxns.streamlit.app/ |
+| **Demo video** (1:33, narrated) | [pitch/DeckCheck_demo.mp4](https://github.com/Harshit2546/deckcheck-kit/blob/main/pitch/DeckCheck_demo.mp4) |
+| **Technical architecture** (diagram) | [docs/ARCHITECTURE.md](https://github.com/Harshit2546/deckcheck-kit/blob/main/docs/ARCHITECTURE.md) |
+| **Business architecture** (diagram, buyers, pricing, cost per deck) | [docs/BUSINESS_ARCHITECTURE.md](https://github.com/Harshit2546/deckcheck-kit/blob/main/docs/BUSINESS_ARCHITECTURE.md) |
+| Business case and unit economics | [BUSINESS.md](https://github.com/Harshit2546/deckcheck-kit/blob/main/BUSINESS.md) |
+| Ethics, privacy and approvals | [ETHICS.md](https://github.com/Harshit2546/deckcheck-kit/blob/main/ETHICS.md) |
+| Project explained from zero | [pitch/PROJECT_EXPLAINED.md](https://github.com/Harshit2546/deckcheck-kit/blob/main/pitch/PROJECT_EXPLAINED.md) |
+| Project page | [pitch/site.html](https://github.com/Harshit2546/deckcheck-kit/blob/main/pitch/site.html) |
+| What broke during the build, and how it was handled | [docs/INCIDENTS.md](https://github.com/Harshit2546/deckcheck-kit/blob/main/docs/INCIDENTS.md) |
+| Design decisions (D1 to D19) | [DECISIONS.md](https://github.com/Harshit2546/deckcheck-kit/blob/main/DECISIONS.md) |
+| Verdict rules | [verdict/DESIGN.md](https://github.com/Harshit2546/deckcheck-kit/blob/main/verdict/DESIGN.md) |
+| Every tolerance, limit and rate (live-editable) | [config/rules.yaml](https://github.com/Harshit2546/deckcheck-kit/blob/main/config/rules.yaml) and [docs/LIVE_FIX_MAP.md](https://github.com/Harshit2546/deckcheck-kit/blob/main/docs/LIVE_FIX_MAP.md) |
+| Test deck used in the demo, its request and answer key | [deck_a.pdf](https://github.com/Harshit2546/deckcheck-kit/blob/main/tests/decks/deck_a.pdf), [deck_a_request.json](https://github.com/Harshit2546/deckcheck-kit/blob/main/tests/decks/deck_a_request.json), [deck_a_answers.yaml](https://github.com/Harshit2546/deckcheck-kit/blob/main/tests/decks/deck_a_answers.yaml) |
+| Demo script and live-fix drills | [docs/DEMO.md](https://github.com/Harshit2546/deckcheck-kit/blob/main/docs/DEMO.md) |
+
+**Try it in the live app:** open the link, choose **Request file in repo**, keep
+`tests/decks/deck_a_request.json`, press **Check this deck**. In about a minute the run
+reaches the report: red flags with their evidence, every claim with its source, the
+founder email waiting for approval, the test inbox and the cost ledger.
+
 ## The job
 
 **Service it replaces:** a VC analyst or diligence firm checking a deck before the
