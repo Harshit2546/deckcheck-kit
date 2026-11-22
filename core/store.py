@@ -113,6 +113,11 @@ CREATE TABLE IF NOT EXISTS inbox (
     body TEXT NOT NULL,
     received_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS resolutions (
+    run_id TEXT PRIMARY KEY REFERENCES runs(id),
+    entities TEXT NOT NULL,                  -- JSON from resolve: ids + confidence, no raw payloads
+    resolved_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS reports (
     run_id TEXT PRIMARY KEY REFERENCES runs(id),
     report_json TEXT NOT NULL,
@@ -134,7 +139,7 @@ CREATE TRIGGER IF NOT EXISTS inbox_no_delete BEFORE DELETE ON inbox
 """
 
 TABLES = ["runs", "claims", "ledger", "evidence", "check_results", "verdicts", "actions",
-          "inbox", "reports"]
+          "inbox", "resolutions", "reports"]
 
 
 # ---------- connection ----------
@@ -419,6 +424,19 @@ def list_inbox(conn: sqlite3.Connection) -> list[InboxMessage]:
     rows = conn.execute("SELECT * FROM inbox ORDER BY received_at").fetchall()
     return [InboxMessage(r["idempotency_key"], r["action_id"], r["recipient"], r["subject"],
                          r["body"], r["received_at"]) for r in rows]
+
+
+# ---------- resolutions ----------
+
+def save_resolution(conn: sqlite3.Connection, run_id: str, entities: dict[str, Any]) -> None:
+    conn.execute("INSERT OR REPLACE INTO resolutions VALUES (?,?,?)",
+                 (run_id, json.dumps(entities), now_iso()))
+
+
+def get_resolution(conn: sqlite3.Connection, run_id: str) -> dict[str, Any] | None:
+    row = conn.execute("SELECT entities FROM resolutions WHERE run_id = ?",
+                       (run_id,)).fetchone()
+    return json.loads(row["entities"]) if row else None
 
 
 # ---------- reports ----------

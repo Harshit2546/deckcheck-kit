@@ -62,14 +62,12 @@ def main(argv: list[str] | None = None) -> int:
             founder_urls=args.founder_urls))
         store.insert_run(conn, run)
         log_step(run.id, None, "cli.run", "created", deck=args.deck, domain=run.input.domain)
-        runner.start(conn, rules, run.id)
-        return 0
+        return 0 if runner.start(conn, rules, run.id) else 1
 
     if store.get_run(conn, args.run_id) is None:
         log_step(args.run_id, None, "cli.resume", "error", error="unknown run id")
         return 2
-    runner.resume(conn, rules, args.run_id)
-    return 0
+    return 0 if runner.resume(conn, rules, args.run_id) else 1
 
 
 if __name__ == "__main__":

@@ -26,8 +26,10 @@ def test_run_creates_run_row(tmp_path):
     deck = tmp_path / "deck.pdf"
     deck.write_bytes(b"%PDF-1.4")
     db = tmp_path / "d.db"
-    assert cli.main(["--db", str(db), "run", "--deck", str(deck), "--domain", "Example.com"]) == 0
+    # exit 1: run created but not finished, extract/ is not built yet (runner waits)
+    assert cli.main(["--db", str(db), "run", "--deck", str(deck), "--domain", "Example.com"]) == 1
     runs = store.list_runs(store.connect(db))
+    assert "not built yet" in runs[0].error
     assert len(runs) == 1
     assert runs[0].input.domain == "example.com"
     assert runs[0].input.deck_date_source == "missing"

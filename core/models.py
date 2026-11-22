@@ -66,6 +66,15 @@ class VerdictLabel(str, Enum):
     HELD = "HELD"
 
 
+class HeldReason(str, Enum):
+    """Why a claim is HELD. Timeouts and errors are HELD, never CANNOT_VERIFY."""
+    BUDGET = "budget"         # max_cost_inr or max_credits reached
+    TIME = "time"             # max_seconds since the run first started
+    TIMEOUT = "timeout"       # a call took longer than per_call_timeout_s
+    ERROR = "error"           # a source or checker failed
+    NO_CHECKER = "no_checker" # no checker module exists for this claim type (cut or not built)
+
+
 class Confidence(str, Enum):
     HIGH = "high"
     MEDIUM = "medium"
@@ -156,6 +165,16 @@ class CheckResult:
     observed: dict[str, Any] = field(default_factory=dict)
     comparable: bool = True
     held_reason: str | None = None        # timeout | error | budget | time | ...
+
+
+@dataclass
+class RunContext:
+    """Handed to every stage: extract, resolve, each checker (the `ctx` in check(claim, ctx)).
+    `entities` is what resolve returned (company/founder ids + confidence), checkpointed."""
+    conn: Any                             # sqlite3.Connection
+    rules: dict[str, Any]
+    run: Run
+    entities: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
