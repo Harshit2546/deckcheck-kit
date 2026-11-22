@@ -180,6 +180,27 @@ gpt-4o-mini, and the fixes below (market-size relevance, longer timeouts).
 The ledger has 8 calls: 11 Crustdata credits (2 company, 3 web search, 6 web fetch), ₹11.96, and
 74.8 s in calls. The earlier runs below show how we got here.
 
+### Final end-to-end run: kill, resume, 6 of 6
+
+Run `run-20261122-112823-a94b62` on 2026-11-22, Deck A, live Crustdata (company and web) and live gpt-4o-mini.
+The run was killed with `kill -9` after 4 of 7 claims were decided (state `checking`), then continued with
+`python cli.py resume <run_id>`. The resumed run decided the remaining 3 claims and finished (`done`).
+
+| Slide | Verdict | Answer key |
+|---|---|---|
+| 2 | SUPPORTED / within_tolerance | PASS |
+| 3 | SUPPORTED / within_tolerance | PASS |
+| 4 | SUPPORTED / within_tolerance_undated_rounds | PASS |
+| 5 | CONTRADICTED / outside_tolerance | PASS |
+| 6 | CANNOT_VERIFY / no_evidence | PASS |
+| 7 | CANNOT_VERIFY / no_evidence | PASS |
+| 8 | CANNOT_VERIFY / source_may_be_incomplete_undated (undated hiring count, low confidence) | not set (SKIP) |
+
+6 PASS, 0 FAIL, 1 SKIP. The ledger has 15 calls over both parts: 13 Crustdata credits, ₹15.25 at the
+placeholder rates, 79.6 s in calls. The company record is cached only inside one process, so the
+resumed process fetched it once more for slide 8: a resume can cost one extra company call.
+The founder email is drafted and `pending`; it goes out only after a human approves it.
+
 ### Live run, Deck F: founder background, 2 of 2 against the answer key
 
 Run `run-20261122-111231-e7bd42` on 2026-11-22 checked the founder claims on Deck F (Locus,

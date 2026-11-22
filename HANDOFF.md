@@ -1373,3 +1373,17 @@ Open questions for a human:
 - Spend about 11 credits per deck to run decks B and C live and fill their keys?
 Credits / tokens used this session (rough): 0
 
+### 17:20 · claude-core (merger) · lane claude-core · final end-to-end run
+
+Status: done (email approval waits for a human)
+Done this session:
+- UI icon font fix on lane/claude-verdict (488fa92, 518 tests): not yet merged to main.
+- Live Deck A end to end in a fresh DB (out/e2e.db): run killed after 4 of 7 claims, resumed, finished, 6 PASS 0 FAIL 1 SKIP. 15 calls, 13 credits, ₹15.25. Email draft pending, recipient founder-test@deckcheck.invalid.
+How to run / test:
+- Approve in the UI: streamlit run ui/app.py, set Database file to /Users/harshit/dc-core/out/e2e.db, open Founder email, approve with your name, check Test inbox (one row).
+Known bugs or shortcuts taken:
+- The resumed process fetches the company record again (cache is per process): one extra credit-bearing call per resume.
+Open questions for a human:
+- Approve the draft yourself (the rule is a human approves; I did not).
+Credits / tokens used this session (rough): 13 Crustdata credits
+
