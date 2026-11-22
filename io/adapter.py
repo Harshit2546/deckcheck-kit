@@ -1,37 +1,43 @@
-"""Maps the kickoff kit's request and result format to and from DeckCheck's internal models.
+"""Kickoff-kit adapter: maps the organizers' Investing request to our RunInput, and our report
+back to the kit's output format.
 
-Who calls it: cli.py (input side) and report/ (output side), both through core/adapter_loader.py,
-because a top-level package named `io` cannot be imported (it clashes with the stdlib `io` module).
-What it calls: core.models and core.log only.
-TODO(DECISIONS D3, written by the merger after reading the kickoff kit): replace the placeholder mapping below.
+Called by: cli.py / ui via core/adapter_loader.py (import io.adapter is impossible: stdlib io
+owns the name). Calls: core/models.py.
+TODO(T06): field names below are provisional; replace them with the kit format the merger
+records in DECISIONS.md D3.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from core.log import log_step
-from core.models import RunRequest
+from core.models import RunInput
+
+# TODO(T06, DECISIONS.md D3): kit field name -> our field name. Provisional guesses.
+INPUT_FIELDS: dict[str, str] = {
+    "deck_path": "deck_path",
+    "company_domain": "domain",
+    "deck_date": "deck_date",
+    "founder_profile_urls": "founder_urls",
+}
 
 
-def request_from_kit(payload: dict[str, Any]) -> RunRequest:
-    """Kit request -> RunRequest.
-
-    PLACEHOLDER: assumes the kit already uses our field names (deck_path, company_domain, deck_date,
-    founder_urls). TODO(DECISIONS D3): map the real kit field names once the merger has recorded them.
-    """
-    log_step(None, "adapter.request_from_kit", "placeholder_mapping_used")
-    return RunRequest(
-        deck_path=payload["deck_path"],
-        company_domain=payload["company_domain"],
-        deck_date=payload.get("deck_date"),
-        founder_urls=list(payload.get("founder_urls", [])),
+def from_kit(request: dict[str, Any]) -> RunInput:
+    """Kickoff-kit request dict -> RunInput. Missing deck date is flagged for PDF fallback."""
+    mapped = {ours: request[kit] for kit, ours in INPUT_FIELDS.items() if kit in request}
+    for required in ("deck_path", "domain"):
+        if required not in mapped:
+            raise ValueError(f"kit request has no field for '{required}' (see DECISIONS.md D3)")
+    deck_date = mapped.get("deck_date") or None
+    return RunInput(
+        deck_path=str(mapped["deck_path"]),
+        domain=str(mapped["domain"]).strip().lower(),
+        deck_date=deck_date,
+        deck_date_source="input" if deck_date else "missing",
+        founder_urls=list(mapped.get("founder_urls") or []),
     )
 
 
-def result_to_kit(run_id: str, internal_result: dict[str, Any]) -> dict[str, Any]:
-    """Internal report dict -> kit result format.
-
-    TODO(DECISIONS D3): not implemented; the report lane needs the kit's output format first.
-    """
-    raise NotImplementedError("kit output format unknown: see HANDOFF open questions / DECISIONS D3")
+def to_kit(report: dict[str, Any]) -> dict[str, Any]:
+    """Our report dict -> kickoff-kit output. TODO(T06, D3): rename fields to the kit format."""
+    return dict(report)

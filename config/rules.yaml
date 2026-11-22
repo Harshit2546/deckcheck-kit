@@ -1,113 +1,85 @@
-# config/rules.yaml: every number a human may need to change lives here, never in code.
-#
-# !!! PLACEHOLDER VALUES !!!  claude-core wrote the SCHEMA only (T01). The finance partner sets the
-# real values (T05). Every number below marked "placeholder" is a guess to keep the code runnable.
-# The schema is validated by core/models.py `Rules`; a misspelled key fails at load time.
-# Where to change what in a live fix: docs/LIVE_FIX_MAP.md.
+# config/rules.yaml — every tolerance, limit, rate and output field DeckCheck uses.
+# THE FINANCE PARTNER SETS THE REAL VALUES (T05). Code reads them via core/config.py, never hard-codes them.
+# Keys checked at start-up are listed in core/config.py REQUIRED_KEYS.
+# Values marked PLACEHOLDER were set by claude-core for T01 and must be confirmed in T05.
 
-version: 1
-
-# Run limits. The runner checks the ledger total against these before EVERY external call.
-# Hitting one makes the remaining claims HELD (reason: budget | credits | time), never CANNOT_VERIFY.
 limits:
-  max_cost_inr: 500        # placeholder: total rupee cost per run (LLM + data calls)
-  max_seconds: 900         # placeholder: working seconds per run, summed across resumes
-  max_credits: 200         # placeholder: Crustdata credits per run
-  per_call_timeout_s: 30   # placeholder: one external call longer than this becomes HELD (timeout)
+  max_cost_inr: 500          # PLACEHOLDER. Run stops spending; remaining claims become HELD (budget)
+  max_seconds: 900           # PLACEHOLDER. Wall time from first start; then HELD (time)
+  max_credits: 200           # PLACEHOLDER. Crustdata credits per run
+  per_call_timeout_s: 20     # PLACEHOLDER. A slower call becomes HELD (timeout), never CANNOT_VERIFY
 
-# How the ledger turns usage into rupees (used by sources/ when it writes a ledger row).
-pricing:
-  inr_per_credit: 1.0            # placeholder
-  inr_per_1k_tokens_in: 0.25     # placeholder
-  inr_per_1k_tokens_out: 1.25    # placeholder
+costs:                       # rupee rates used to fill ledger.cost_inr
+  crustdata:
+    inr_per_credit: 1.0      # PLACEHOLDER
+  llm:
+    default:                 # used when a model has no entry of its own
+      inr_per_1k_tokens_in: 0.25   # PLACEHOLDER
+      inr_per_1k_tokens_out: 1.25  # PLACEHOLDER
+  web:
+    inr_per_call: 0.0        # PLACEHOLDER (search/fetch cost per call)
 
-# Outward actions. The founder email may only ever go to this team test inbox.
-actions:
-  test_inbox_recipient: test-inbox@deckcheck.invalid   # placeholder: team test inbox address
-  email_subject_template: "Questions on your pitch deck ({company})"
+identity:
+  min_signals: 2             # two-signal rule: a person or company matches only on >= 2 signals
 
-# Per claim type, named tolerances read by verdict/engine.py. Keys are free-form per claim type;
-# whoever writes the engine for a type documents the keys it reads here.
-tolerances:
-  team_size:
-    tolerance_pct: 20      # placeholder: headcount within +-20% of the deck counts as SUPPORTED
-  funding:
-    tolerance_pct: 10      # placeholder: round size within +-10%
-    date_window_days: 90   # placeholder: round date within +-90 days
-  team_growth:
-    tolerance_pct: 15      # placeholder
-  traction:
-    tolerance_pct: 15      # placeholder
-  hiring:
-    tolerance_pct: 25      # placeholder
-  market_size:
-    tolerance_pct: 30      # placeholder
+tolerances:                  # one entry per claim type: how close observed must be to stay SUPPORTED
   founder_background:
-    tenure_months: 6       # placeholder: stated tenure may differ by this many months
+    min_title_level: director      # PLACEHOLDER. Claimed title must match at or above this level (title_levels)
+    tenure_tolerance_months: 6     # PLACEHOLDER. Allowed gap in claimed start/end dates
   prior_exit:
-    tolerance_pct: 10      # placeholder
+    tolerance_pct: 10              # PLACEHOLDER. Exit value gap, when a value is claimed
+  team_size:
+    tolerance_pct: 20              # PLACEHOLDER
+  team_growth:
+    tolerance_pct: 25              # PLACEHOLDER
+  funding:
+    tolerance_pct: 10              # PLACEHOLDER
   company_fact:
-    year_tolerance: 0      # placeholder: founding year must match exactly
+    tolerance_pct: 0               # PLACEHOLDER. Founded year, HQ etc. must match exactly
   customer:
-    min_quote_match: 1.0   # placeholder: 1.0 = quote must appear verbatim on the fetched page
+    require_exact_quote: true      # PLACEHOLDER. Customer named on a fetched page, verbatim
+  hiring:
+    tolerance_pct: 30              # PLACEHOLDER. Open roles count gap
+  traction:
+    tolerance_pct: 15              # PLACEHOLDER
+  market_size:
+    tolerance_pct: 50              # PLACEHOLDER. Third-party estimates vary widely
   competition:
-    min_quote_match: 1.0   # placeholder
+    require_exact_quote: true      # PLACEHOLDER
+  max_record_age_days: 365         # PLACEHOLDER. Older evidence than this is NOT_COMPARABLE
 
-# Title keyword (lower case) -> seniority level, higher = more senior. Used to compare "CEO" with
-# "Chief Executive Officer" style differences in founder / hiring claims.
-title_levels:
-  founder: 5               # placeholder values (all of them)
-  ceo: 5
-  cto: 5
-  coo: 5
-  cfo: 5
-  president: 5
-  vp: 4
-  director: 3
-  head: 3
-  lead: 2
-  manager: 2
-  senior: 2
-  engineer: 1
-  associate: 1
-  intern: 0
+title_levels:                # PLACEHOLDER. Used by the founder_background verdict rules
+  c_level: [ceo, cto, coo, cfo, cpo, founder, co-founder]
+  vp: [vp, vice president, head]
+  director: [director]
+  manager: [manager, lead]
+  ic: [engineer, analyst, associate, consultant]
 
-# Claim type -> materiality weight (how much a wrong claim matters). Ranks the red-flag list.
-materiality_weights:
-  founder_background: 5    # placeholder values (all of them)
+materiality:                 # PLACEHOLDER weights for ranking red flags (higher = worse if wrong)
+  founder_background: 5
   prior_exit: 5
   funding: 5
+  customer: 4
+  traction: 4
   team_size: 3
   team_growth: 3
-  company_fact: 3
-  customer: 4
+  company_fact: 2
   hiring: 2
-  traction: 4
-  market_size: 2
+  market_size: 1
   competition: 1
 
-# Output fields per report section, in order. The hour-3 requirement change usually edits this.
-# Section names are read by report/ ; each list item is a field name of the row it describes.
-output_fields:
-  claim_table:
+output:
+  fields:                    # per-claim fields in the report; the hour-3 change may add one here
     - claim_id
     - slide
     - quote
     - type
-    - verdict
+    - label
     - reason_code
     - explanation
     - confidence
-    - sources
-  red_flags:
-    - claim_id
-    - type
-    - verdict
-    - materiality
-    - explanation
-  founder_questions:
-    - claim_id
-    - question
-  evidence_requests:
-    - claim_id
     - missing
+    - sources
+
+actions:
+  test_inbox: founder-test@deckcheck.invalid   # PLACEHOLDER. The ONLY recipient emails may go to

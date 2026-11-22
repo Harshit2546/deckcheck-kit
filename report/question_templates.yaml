@@ -1,0 +1,20 @@
+# report/question_templates.yaml: the wording of founder questions and evidence requests.
+# PLACEHOLDER WORDING. The finance partner owns this file and may rewrite every line.
+# Placeholders you may use: {slide} {quote} {type} {subject} {explanation} {missing} {reason_code}
+# A misspelled placeholder fails loudly when the report is built.
+# Tone: neutral. The report is advice for a human, never an automatic rejection.
+
+# Asked when a claim is CONTRADICTED. One entry per claim type, `default` is the fallback.
+founder_questions:
+  default: 'Slide {slide} says: "{quote}". Our check found a difference: {explanation} Could you share the source for the figure in the deck?'
+  funding: 'Slide {slide} says: "{quote}". Our check found a difference: {explanation} Could you share the round announcement or term sheet summary?'
+  team_size: 'Slide {slide} says: "{quote}". Our check found a difference: {explanation} How is headcount counted (employees, contractors, part-time)?'
+  founder_background: 'Slide {slide} says: "{quote}". Our check found a difference: {explanation} Could you share the role details for {subject}?'
+
+# Asked for CANNOT_VERIFY and NOT_COMPARABLE claims: what would settle them.
+evidence_requests:
+  default: 'Slide {slide} ({type}): please provide {missing}'
+
+# Internal note for HELD claims (a retry, not a founder request).
+held_notes:
+  default: 'Slide {slide} ({type}) was not checked ({reason_code}). {missing}'

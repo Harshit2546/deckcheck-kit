@@ -1,5 +1,2 @@
-# DeckCheck runtime and test dependencies (Python 3.11).
-# Owned by claude-core: other lanes, ask via HANDOFF to add a package (pin it here, one line each).
-pydantic>=2.6,<3
-PyYAML>=6.0
+pyyaml>=6.0
 pytest>=8.0

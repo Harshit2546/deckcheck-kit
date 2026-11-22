@@ -1,30 +1,48 @@
-"""Loads and validates config/rules.yaml into the `Rules` model (defined in core/models.py).
+"""Loads config/rules.yaml and checks the keys every module relies on are present.
 
-Who calls it: runner, verdict engine, checkers, report, actions. cli.py passes an optional path.
-What it calls: PyYAML and core.models. Env var DECKCHECK_RULES overrides the default path.
-A wrong or misspelled key fails loudly here, so a live edit of rules.yaml cannot silently do nothing.
+Called by: cli.py, core/runner.py, core/ledger.py, verdict/, report/, sources/.
+Calls: PyYAML. Values belong to the finance partner; code reads them, never hard-codes them.
 """
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
+from typing import Any
 
 import yaml
 
-from core.models import Rules
+DEFAULT_RULES = Path(__file__).resolve().parent.parent / "config" / "rules.yaml"
 
-DEFAULT_RULES_PATH = Path(__file__).resolve().parent.parent / "config" / "rules.yaml"
+REQUIRED_KEYS = [
+    "limits.max_cost_inr", "limits.max_seconds", "limits.max_credits",
+    "limits.per_call_timeout_s",
+    "costs.crustdata.inr_per_credit", "costs.llm.default.inr_per_1k_tokens_in",
+    "costs.llm.default.inr_per_1k_tokens_out", "costs.web.inr_per_call",
+    "identity.min_signals", "materiality", "tolerances", "output.fields",
+    "actions.test_inbox",
+]
 
 
-def load_rules(path: str | Path | None = None) -> Rules:
-    """Read the YAML file and return validated rules. Raises ValueError with the file name on bad content."""
-    rules_path = Path(path or os.environ.get("DECKCHECK_RULES") or DEFAULT_RULES_PATH)
-    with open(rules_path, encoding="utf-8") as fh:
-        raw = yaml.safe_load(fh)
-    if not isinstance(raw, dict):
-        raise ValueError(f"{rules_path}: expected a mapping at the top level")
-    try:
-        return Rules.model_validate(raw)
-    except Exception as exc:  # pydantic.ValidationError: add the file name so a human can find it fast
-        raise ValueError(f"{rules_path}: {exc}") from exc
+def rule(rules: dict[str, Any], dotted: str) -> Any:
+    """rule(rules, "limits.max_cost_inr") -> value. KeyError names the missing key."""
+    node: Any = rules
+    for part in dotted.split("."):
+        if not isinstance(node, dict) or part not in node:
+            raise KeyError(f"config/rules.yaml is missing '{dotted}'")
+        node = node[part]
+    return node
+
+
+def load_rules(path: str | Path = DEFAULT_RULES) -> dict[str, Any]:
+    """Read and validate rules.yaml. Fails fast so a bad live edit is caught at start."""
+    with open(path, encoding="utf-8") as f:
+        rules = yaml.safe_load(f) or {}
+    missing = []
+    for key in REQUIRED_KEYS:
+        try:
+            rule(rules, key)
+        except KeyError:
+            missing.append(key)
+    if missing:
+        raise ValueError(f"{path} is missing required keys: {', '.join(missing)}")
+    return rules

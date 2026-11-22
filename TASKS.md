@@ -7,21 +7,21 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | ID | Lane | Task | Done when | Status |
 |---|---|---|---|---|
 | T00 | human | Add rule files to repo | AGENTS.md etc. on main | done |
-| T01 | claude-core | Skeleton: core/models.py, core/store.py (all tables incl. inbox with UNIQUE key), core/log.py, config/rules.yaml schema, cli.py (run, resume), io/adapter.py stub | `python cli.py run --help` works; tables created | todo |
-| T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | todo |
+| T01 | claude-core | Skeleton: core/models.py, core/store.py (all tables incl. inbox with UNIQUE key), core/log.py, config/rules.yaml schema, cli.py (run, resume), io/adapter.py stub | `python cli.py run --help` works; tables created | done (harshit) |
+| T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | blocked (yash, account rates verified. Need Deck A company domain and founder identifiers for enrichment.) |
 | T03 | ag-b | extract/pdf.py: text per slide | test on Deck A passes | done |
 | T04 | ag | ui/app.py shell: upload form, run list from DB | shows a run row | todo |
 | T05 | human | Partner: Deck A (8 claims) + answer key; rules.yaml values | files in tests/decks/ | todo |
 | T06 | human | Read kickoff kit; record Investing request input/output format in DECISIONS.md | D3 written | todo |
-| T07 | claude-core | core/runner.py: state machine, per-claim checkpoints, resume, cost and time limits | kill mid-run then resume finishes with no duplicate calls | todo |
+| T07 | claude-core | core/runner.py: state machine, per-claim checkpoints, resume, cost and time limits | kill mid-run then resume finishes with no duplicate calls | done (harshit) |
 | T08 | codex-a | sources/crust.py: rate limit, backoff on 429/5xx, per-call timeout to HELD, ledger row per call, TTL cache | unit tests for 429, timeout, ledger | todo |
 | T09 | ag-b | extract/claims.py: LLM structured claims + quote-on-slide check | invented quote is rejected in test | done |
 | T10 | codex-a | resolve/entities.py: company by domain, founders, two-signal rule, confidence | namesake fixture returns identity_unclear | todo |
 | T11 | ag-b | checkers: team_size, funding | tests pass | done |
 | T12 | codex-a | checkers: founder_background | tests pass | todo |
-| T13 | claude-verdict | verdict/engine.py for founder, team_size, funding | Deck A matches answer key for those claims | todo |
+| T13 | claude-verdict | verdict/engine.py for founder, team_size, funding | Deck A matches answer key for those claims | in-progress (claude-verdict-1, 85%, engine + 89 tests pass; blocked in real runs until claude-core adds verdict: keys to rules.yaml, D8) |
 | T14 | human | MILESTONE 1 at 12:45: Deck A end to end | report generated | todo |
-| T15 | claude-verdict | report/: red flags by materiality, table, questions, evidence requests, kit-format JSON | output validates against kit format | todo |
+| T15 | claude-verdict | report/: red flags by materiality, table, questions, evidence requests, kit-format JSON | output validates against kit format | in-progress (claude-verdict-1, 80%, report/builder.py + render + 11 tests done; kit-format JSON waits for D3 and io/adapter.to_kit) |
 | T16 | codex-a | checkers: prior_exit, company_fact, customer (web quote verify) | tests pass | todo |
 | T17 | ag-b | checkers: team_growth, hiring, traction, market_size, competition | tests pass | done |
 | T18 | ag | UI: verdict detail with source link and date; approvals page; inbox; ledger view | click-through works | todo |
