@@ -1,0 +1,232 @@
+"""DeckCheck Streamlit UI: Run, Claims, Approvals, Inbox and Ledger pages.
+
+Run from the repo root: streamlit run ui/app.py
+Called by: humans (the demo). Calls: ui/data.py, actions/email.py, core/store.py, core/config.py.
+Shows what the pipeline stored; it never writes claims, evidence or verdicts. The founder email
+is approved or rejected only by a human click here, then sent by the exactly-once sender.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import streamlit as st  # noqa: E402
+
+from core import store  # noqa: E402
+from core.config import load_rules  # noqa: E402
+from actions import email  # noqa: E402
+from core.models import ActionStatus  # noqa: E402
+from ui import data  # noqa: E402
+
+st.set_page_config(page_title="DeckCheck", layout="wide")
+
+db_path = st.sidebar.text_input("Database file", str(ROOT / store.DEFAULT_DB))
+conn = store.connect(db_path)
+rules = load_rules()
+PAGES = ["Run", "Claims", "Approvals", "Inbox", "Ledger"]
+page = st.sidebar.radio("Page", PAGES)
+
+
+def pick_run(label: str = "Run") -> str | None:
+    runs = store.list_runs(conn)
+    if not runs:
+        st.info("No runs yet. Start one on the Run page.")
+        return None
+    return st.selectbox(label, [r.id for r in runs],
+                        format_func=lambda rid: f"{rid} ({store.get_run(conn, rid).state.value})")
+
+
+def page_run() -> None:
+    st.header("Run")
+    st.caption("Start a deck check. The run happens in the background; press Refresh to follow it.")
+    mode = st.radio("Start from", ["Request file in repo", "Upload D3 request", "Deck + domain + date"],
+                    horizontal=True)
+    run_input = None
+    try:
+        if mode == "Request file in repo":
+            files = data.request_files()
+            if not files:
+                st.warning("No request files in tests/decks or tests/requests.")
+            else:
+                chosen = st.selectbox("Request", files, format_func=lambda p: str(p.relative_to(ROOT)))
+                if st.button("Start run", type="primary"):
+                    run_input = data.input_from_request_file(chosen)
+        elif mode == "Upload D3 request":
+            req = st.file_uploader("Request JSON (DECISIONS.md D3)", type=["json"])
+            deck = st.file_uploader("Deck PDF (optional; otherwise deck_path in the request)", type=["pdf"])
+            if req and st.button("Start run", type="primary"):
+                import json
+                override = data.save_upload(deck.name, deck.getvalue()) if deck else None
+                run_input = data.input_from_request(json.loads(req.getvalue()), ROOT, override)
+        else:
+            deck = st.file_uploader("Deck PDF", type=["pdf"])
+            domain = st.text_input("Company domain", placeholder="locus.sh")
+            deck_date = st.text_input("Deck date (YYYY-MM-DD, blank = read from the PDF)")
+            urls = st.text_area("Founder profile URLs (one per line, optional)")
+            if deck and domain and st.button("Start run", type="primary"):
+                run_input = data.input_from_form(data.save_upload(deck.name, deck.getvalue()), domain,
+                                                 deck_date.strip() or None,
+                                                 [u.strip() for u in urls.splitlines() if u.strip()])
+        if run_input is not None:
+            run_id = data.create_run(conn, run_input)
+            data.launch(db_path, run_id)
+            st.success(f"Started {run_id}")
+    except ValueError as e:
+        st.error(str(e))
+
+    st.subheader("Runs")
+    st.button("Refresh")
+    rows = data.run_rows(conn)
+    if not rows:
+        st.info("No runs yet.")
+        return
+    st.dataframe(rows, use_container_width=True, hide_index=True)
+    unfinished = [r["run_id"] for r in rows if r["state"] != "done"]
+    if unfinished:
+        rid = st.selectbox("Resume a run that stopped", unfinished)
+        if st.button("Resume"):
+            data.launch(db_path, rid)
+            st.success(f"Resuming {rid}: finished steps and claims are skipped.")
+
+
+def _cell(value: object) -> str:
+    return str(value if value is not None else "").replace("|", "\\|").replace("\n", " ")
+
+
+def _sources_table(sources: list[dict]) -> str:
+    """Markdown table; URL sources are clickable links, API endpoints are shown as code."""
+    lines = ["| url_or_endpoint | field_or_quote | value | record_date | retrieved_at |",
+             "|---|---|---|---|---|"]
+    for s in sources:
+        where = (f"[{_cell(s['url_or_endpoint'])}]({s['url_or_endpoint']})" if s["is_url"]
+                 else f"`{_cell(s['url_or_endpoint'])}`")
+        lines.append(f"| {where} | {_cell(s['field_or_quote'])} | {_cell(s['value'])} | "
+                     f"{_cell(s['record_date'])} | {_cell(s['retrieved_at'])} |")
+    return "\n".join(lines)
+
+
+def page_claims() -> None:
+    st.header("Claims")
+    rid = pick_run()
+    if rid is None:
+        return
+    run = store.get_run(conn, rid)
+    st.caption(f"{run.input.domain} · deck date {run.input.deck_date or 'unknown'} "
+               f"({run.input.deck_date_source}) · state {run.state.value}")
+    rows = data.claim_rows(conn, rid)
+    if not rows:
+        st.info("No claims yet for this run.")
+        return
+    st.dataframe([{k: r[k] for k in ("slide", "type", "verdict", "confidence", "reason_code", "quote")}
+                  for r in rows], use_container_width=True, hide_index=True)
+    for r in rows:
+        title = f"Slide {r['slide']} · {r['type']} · {r['verdict']}" + (
+            f" ({r['confidence']})" if r["confidence"] else "")
+        with st.expander(title):
+            st.markdown(f"> {r['quote']}")
+            st.write(f"**Claimed value:** {r['claimed_value']} {r['unit'] or ''}")
+            st.write(f"**Verdict:** {r['verdict']} · **Reason:** {r['reason_code'] or '-'}")
+            if r["explanation"]:
+                st.write(r["explanation"])
+            if r["missing"]:
+                st.write(f"**What would settle it:** {r['missing']}")
+            if r["sources"]:
+                st.markdown(_sources_table(r["sources"]))
+            else:
+                st.caption("No sources stored for this claim.")
+
+
+def page_approvals() -> None:
+    st.header("Approvals")
+    st.caption("The founder email is sent only after a human approves it here, and only to the "
+               "local test inbox. Sending happens exactly once, even after a crash.")
+    reviewer = st.text_input("Your name (recorded with the decision)")
+    for msg in st.session_state.pop("approval_msgs", []):
+        st.success(msg)
+
+    pending = data.emails(conn, ActionStatus.PENDING)
+    st.subheader(f"Waiting for approval ({len(pending)})")
+    if not pending:
+        st.info("No founder email is waiting.")
+    for a in pending:
+        with st.container(border=True):
+            st.write(f"**Run:** {a.run_id} · **To:** {a.recipient}")
+            st.write(f"**Subject:** {a.subject}")
+            st.text(a.body)
+            left, right = st.columns(2)
+            if left.button("Approve and send", key=f"approve-{a.id}", type="primary"):
+                try:
+                    email.approve(conn, rules, a.id, reviewer)
+                    sent = email.send_approved(conn, rules)
+                    st.session_state["approval_msgs"] = [
+                        f"Approved by {reviewer}; sent {len(sent)} email(s) to the test inbox."]
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
+            if right.button("Reject", key=f"reject-{a.id}"):
+                try:
+                    email.reject(conn, a.id, reviewer)
+                    st.session_state["approval_msgs"] = [f"Rejected by {reviewer}; it will not be sent."]
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
+
+    stuck = data.emails(conn, ActionStatus.APPROVED) + data.emails(conn, ActionStatus.SENDING)
+    if stuck:
+        st.subheader("Approved but not sent yet (for example after a crash)")
+        st.dataframe([{"action_id": a.id, "run_id": a.run_id, "status": a.status.value,
+                       "approved_by": a.decided_by} for a in stuck], hide_index=True)
+        if st.button("Send now (exactly once)"):
+            sent = email.send_approved(conn, rules)
+            st.session_state["approval_msgs"] = [f"Sent {len(sent)} email(s) to the test inbox."]
+            st.rerun()
+
+    decided = [a for s in (ActionStatus.SENT, ActionStatus.REJECTED) for a in data.emails(conn, s)]
+    if decided:
+        st.subheader("Decided")
+        st.dataframe([{"run_id": a.run_id, "status": a.status.value, "by": a.decided_by,
+                       "decided_at": a.decided_at, "sent_at": a.sent_at} for a in decided],
+                     hide_index=True)
+
+
+def page_inbox() -> None:
+    st.header("Inbox")
+    st.warning("Local test inbox, no real email. Approved founder emails land here and nowhere else.")
+    rows = data.inbox_rows(conn)
+    if not rows:
+        st.info("The test inbox is empty.")
+        return
+    st.dataframe([{k: r[k] for k in ("received_at", "to", "subject", "action_id")} for r in rows],
+                 use_container_width=True, hide_index=True)
+    for r in rows:
+        with st.expander(f"{r['received_at']} · {r['subject']}"):
+            st.text(r["body"])
+
+
+def page_ledger() -> None:
+    st.header("Ledger")
+    st.caption("Every external call of a run, including failed ones: Crustdata, LLM and web.")
+    rid = pick_run()
+    if rid is None:
+        return
+    summary = data.ledger_summary(conn, rid)
+    cols = st.columns(5)
+    cols[0].metric("Calls", summary["calls"])
+    cols[1].metric("Failed", summary["failed"])
+    cols[2].metric("Credits", f"{summary['credits']:g}")
+    cols[3].metric("Cost (INR)", f"₹{summary['cost_inr']:.2f}")
+    cols[4].metric("Seconds in calls", summary["seconds"])
+    if summary["rows"]:
+        st.dataframe(summary["rows"], use_container_width=True, hide_index=True)
+    else:
+        st.info("No external calls recorded for this run yet.")
+
+
+PAGE_FUNCS = {"Run": page_run, "Claims": page_claims, "Approvals": page_approvals,
+              "Inbox": page_inbox, "Ledger": page_ledger}
+PAGE_FUNCS[page]()

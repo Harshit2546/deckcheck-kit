@@ -698,4 +698,30 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 - none
 Open questions for a human:
 - This folder was found checked out on `main` twice; please switch branches only in your own worktree.
+
+### 16:50 · harshit · lane ag · task T04 + T18
+
+Status: done (harshit took lane ag after the partner's Gemini stopped; worktree ../dc-ag, branch lane/ag)
+Done this session:
+- ui/app.py (plain Streamlit, sidebar picks the page and the DB file):
+  - Run: start from a request file in the repo (tests/decks/*_request.json first), an uploaded D3 request (+ optional deck PDF), or deck + domain + date; every input goes through io/adapter.from_kit. The run row is created, then `python cli.py resume <run_id>` runs in a background process (output in logs/ui_runs.log). Run list with state, claims, cost; Resume button for any run not done.
+  - Claims: per run, a table plus one expander per claim: quote, claimed value, verdict, confidence, reason, explanation, what would settle it, and sources (url_or_endpoint, field_or_quote, value, record_date, retrieved_at); web URLs are clickable, API endpoints shown as code.
+  - Approvals: pending founder emails; "Approve and send" needs a typed name and calls actions.email.approve then send_approved; "Reject" calls actions.email.reject. Opening or reloading the page sends nothing. Approved-but-unsent emails (after a crash) have a "Send now (exactly once)" button.
+  - Inbox: rows of the local inbox table, with the notice "Local test inbox, no real email".
+  - Ledger: calls, failed, credits, cost INR, seconds in calls, and every ledger row, per run.
+- ui/data.py: all reads/actions as plain functions (store and actions helpers only). A test checks ui/ never writes claims, evidence, verdicts, ledger or inbox rows.
+- tests/ui/: 16 tests (Streamlit AppTest renders each page; approve/reject clicks; exactly-once on reload).
+In progress / exact next step:
+- Waiting for merge. Remaining ag tasks: T21 eval runner, T23 ARCHITECTURE.md, T25 README draft.
+How to run / test:
+- From the repo root: pip install -r requirements.txt (streamlit is in it on lane/claude-core), then: streamlit run ui/app.py
+- python -m pytest -q tests/ui   (16 passed); full suite 154 passed
+Known bugs or shortcuts taken:
+- The Run page does not auto-refresh; press Refresh to follow a running run.
+- Uploaded files are saved in the system temp folder (deckcheck-uploads), so a resume after a reboot may not find an uploaded deck; request files in the repo do not have this problem.
+- requirements.txt on main has no streamlit until lane/claude-core is merged (claude-core added it).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- none
 Credits / tokens used this session (rough): 0 Crustdata credits
