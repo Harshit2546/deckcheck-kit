@@ -6,10 +6,27 @@ Field availability and credit rates for the team account still need live verific
 
 ## Probe status
 
-Reviewed the official API reference on 2026-11-22. The reference documents
-version `2025-11-01` under `https://api.crustdata.com`. Deck A and the lane
-worktree's ignored `.env` were unavailable during this review. Live observations,
-account charges, and sanitized response fixtures are pending.
+Reviewed the official API reference on 2026-11-22 for version `2025-11-01` at
+`https://api.crustdata.com`. The authenticated account preflight succeeded.
+Deck A's company and founder identifiers are pending, so the enrichment
+field maps below are still based on the reference. Live entity fields,
+enrichment charges, and sanitized entity fixtures are pending.
+
+### Live account metadata
+
+`GET /account/endpoints` returned HTTP 200 at `2026-11-22T06:33:32+00:00`.
+It returned API version `2025-11-01` and `token_limit_rpm: 100`.
+Each relevant endpoint was enabled. These rates came from the response.
+
+| Endpoint | Effective requests per minute | Base credits | Relevant premium rates |
+| --- | ---: | ---: | --- |
+| `POST /company/enrich` | 5 | 2 per company | The requested sections have the base rate. Optional `technographics` adds 2 credits. |
+| `POST /person/enrich` | 5 | 1 per person | The requested professional sections have the base rate. Contact fields were excluded from the probe plan. |
+| `POST /person/search` | 5 | 0.03 per result | `experience` adds 0.1 per result when used as a filter and another 0.1 per result when requested in the response. |
+
+The account metadata response reported no per-request credit charge. Its
+ledger row (`t02-account-fa48ec8c7d`, `call-d7de68ed98cd`, 2,094 ms) records
+0 credits as an estimate. Actual billing for that call is unverified.
 
 ## Endpoints and credits
 
