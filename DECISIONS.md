@@ -23,3 +23,34 @@ Change: the single claude lane splits into claude-core (core/, io/adapter.py, ac
 Why: the team has 2 Claude Pro, 1 ChatGPT Plus and 3 Gemini Pro accounts, not several Codex accounts. Two Claude lanes on separate folders run in parallel and back each other up.
 Files affected: PLAN.md (sections 4-6), TASKS.md, AGENTS.md (section 4), CLAUDE.md
 Who must know: all lanes
+
+### 11:45 · claude-core-1 · D4: adapter lives in kit_io/, not io/
+Change: the kickoff-kit adapter is `kit_io/adapter.py` (`from_kit()`, `to_kit()`), not `io/adapter.py`. D3 stays reserved for the kit format (T06).
+Why: a top-level `io` package cannot be imported; Python's built-in `io` module is already loaded, so `import io.adapter` fails with "'io' is not a package".
+Files affected: kit_io/adapter.py; PLAN.md, AGENT_PROMPTS.md and TASKS.md still say io/adapter.py (human-owned docs, not edited).
+Who must know: all lanes, humans (merger fills the mapping from D3)
+
+### 11:45 · claude-core-1 · D5: T01 contract details beyond PLAN.md section 3
+Change: (1) models are stdlib dataclasses + str Enums in core/models.py; times are ISO UTC strings. (2) Added `Run`, `RunInput`, `InboxMessage` models, `RunState.FAILED`, and `make_idempotency_key()`. (3) Extra tables: `check_results` (checkpoint of each CheckResult so a resume can decide without re-calling) and `reports`. (4) `evidence.call_id` is a foreign key to `ledger.id`. (5) Ledger and inbox are append-only via DB triggers. (6) Claim/Evidence `value` stored as JSON so numbers stay numbers. (7) Rupee rates live under `costs:` in rules.yaml; `core/ledger.record()` computes `cost_inr`.
+Why: resume must not repeat calls; every fact must trace to a logged call; rules forbid editing ledger rows.
+Files affected: core/models.py, core/store.py, core/ledger.py, core/config.py, config/rules.yaml
+Who must know: all lanes (codex-a and ag-b: call `core.ledger.record()` for every external call, in a finally block)
+
+### 12:05 · harshit · D6: D4 withdrawn; adapter stays at io/adapter.py
+Change: D4 is withdrawn. The adapter is `io/adapter.py` (`from_kit()`, `to_kit()`, provisional field map with TODO to D3), as PLAN.md and the lane prompt say. Because `import io.adapter` cannot work (stdlib `io` owns the name), callers load it with `core.adapter_loader.load_adapter()`. `kit_io/` is deleted. D5 still holds.
+Why: stick to the lane prompt and PLAN.md file layout; only the import mechanism needed a workaround.
+Files affected: io/adapter.py, core/adapter_loader.py
+Who must know (lanes): all lanes, merger (fills the mapping from D3)
+
+### 12:35 · harshit · D7: how the runner calls every lane (stage signatures), HELD reasons, resolutions table
+Change: core/runner.py imports each stage by name (`STAGES` in core/runner.py). Each lane must expose exactly:
+- `extract/claims.py: run(ctx: RunContext) -> list[Claim]` (runner assigns ids `<run_id>-c001`...; may call store.update_run_input for the PDF-metadata deck date)
+- `resolve/entities.py: run(ctx: RunContext, claims: list[Claim]) -> dict` (JSON-safe: entity ids + confidence only, no raw person payloads; saved in new table `resolutions`, given back as `ctx.entities`)
+- `checkers/<claim_type>.py: check(claim: Claim, ctx: RunContext) -> CheckResult` (PLAN.md; evidence.claim_id must equal claim.id)
+- `verdict/engine.py: decide(claim: Claim, result: CheckResult, rules: dict) -> Verdict` (must return HELD with reason_code = result.held_reason whenever held_reason is set)
+- `report/builder.py: build(conn, rules, run_id) -> tuple[dict, str]` (JSON, Markdown)
+- `actions/email.py: draft(conn, rules, run_id) -> Action | None` (claude-core, T19)
+New in core/models.py: `RunContext(conn, rules, run, entities)` and `HeldReason` (budget, time, timeout, error, no_checker). New core/limits.py: sources and LLM callers call `limits.ensure_within(ctx)` before every external call (raises `LimitExceeded`), and raise `TimeoutError` when a call exceeds `per_call_timeout_s`. The runner turns LimitExceeded / TimeoutError / any checker exception / a missing checker module into a HELD CheckResult; a missing extract/resolve/verdict/report module leaves the run waiting in its state (resume continues once merged).
+Why: other lanes need fixed function shapes to code against now; resume must not repeat calls; limits must hold before every call, not only per claim.
+Files affected: core/runner.py, core/limits.py, core/models.py, core/store.py; extract/, resolve/, checkers/, verdict/, report/, sources/
+Who must know (lanes): all lanes
