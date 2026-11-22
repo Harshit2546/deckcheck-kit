@@ -1,11 +1,7 @@
-# DeckCheck UI theme (ui/app.py). One accent colour; verdict colours come from Streamlit's
-# markdown colour names in ui/app.py VERDICT_COLOUR and always sit next to the text label.
+# DeckCheck UI theme (ui/app.py). Only the accent is set here, so Streamlit follows the viewer's
+# light/dark setting; page colours for both schemes are CSS tokens in ui/theme.py (CSS).
 [theme]
-base = "light"
-primaryColor = "#1F4E5F"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F3F4F2"
-textColor = "#1B1D1F"
+primaryColor = "#2D5B8A"
 font = "sans serif"
 
 [server]

@@ -11,6 +11,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 os.environ.setdefault("DECKCHECK_LOG_DIR", tempfile.mkdtemp(prefix="deckcheck-logs-"))
+# AppTest cannot run component iframes: draw the static fallbacks (ui/components MISSING path).
+os.environ.setdefault("DECKCHECK_STATIC_UI", "1")
 
 import pytest  # noqa: E402
 

@@ -31,6 +31,15 @@ CSS = """
   --dc-rule: #DDE2E9;
   --dc-accent: #2D5B8A;
   --dc-red: #B3261E;
+  --dc-card: #FFFFFF;
+  --dc-side: #EEF1F5;
+  --dc-faint: #8A94A3;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --dc-paper: #0F141B; --dc-ink: #E6EAF0; --dc-ink-soft: #AEB7C4; --dc-rule: #2C3542;
+    --dc-accent: #7FA8D4; --dc-red: #E5675F; --dc-card: #161D27; --dc-side: #121922; --dc-faint: #7C8796;
+  }
 }
 html, body, [class*="st-"], .stMarkdown, .stText, button, input, textarea, select {
   font-family: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -41,10 +50,10 @@ html, body, [class*="st-"], .stMarkdown, .stText, button, input, textarea, selec
 h1, h2, h3 { color: var(--dc-ink); letter-spacing: -0.01em; }
 h1 { font-weight: 700; font-size: 2.1rem; }
 h3 { font-weight: 600; font-size: 1.15rem; margin-top: 1.6rem; }
-[data-testid="stSidebar"] { background: #EEF1F5; border-right: 1px solid var(--dc-rule); }
+[data-testid="stSidebar"] { background: var(--dc-side); border-right: 1px solid var(--dc-rule); }
 [data-testid="stMetricValue"] { font-weight: 600; color: var(--dc-ink); }
-[data-testid="stExpander"] details { background: #FFFFFF; border-color: var(--dc-rule); }
-[data-testid="stVerticalBlockBorderWrapper"] > div[style*="border"] { background: #FFFFFF; }
+[data-testid="stExpander"] details { background: var(--dc-card); border-color: var(--dc-rule); }
+[data-testid="stVerticalBlockBorderWrapper"] > div[style*="border"] { background: var(--dc-card); }
 a { color: var(--dc-accent); }
 .stMarkdown table { display: block; overflow-x: auto; font-size: 0.86rem; }
 .stMarkdown td, .stMarkdown th { white-space: nowrap; }
@@ -78,10 +87,33 @@ a { color: var(--dc-accent); }
 
 .dc-step { display: flex; gap: 0; margin: 0.4rem 0 0.8rem; flex-wrap: wrap; }
 .dc-step span { padding: 0.35rem 0.8rem; font-size: 0.86rem; border: 1px solid var(--dc-rule);
-                margin-right: -1px; background: #FFFFFF; color: #8A94A3; }
+                margin-right: -1px; background: var(--dc-card); color: var(--dc-faint); }
 .dc-step span.done { color: var(--dc-ink); }
 .dc-step span.now { background: var(--dc-accent); color: #FFFFFF; border-color: var(--dc-accent); font-weight: 600; }
 .dc-step span.failed { background: var(--dc-red); color: #FFFFFF; border-color: var(--dc-red); font-weight: 600; }
+
+/* Response to the viewer's own actions only: press, open, focus. Nothing moves on its own here. */
+.stButton button, .stDownloadButton button { transition: transform 120ms ease, box-shadow 120ms ease; }
+.stButton button:active, .stDownloadButton button:active { transform: translateY(1px) scale(0.985); }
+[data-testid="stExpander"] summary { transition: background-color 150ms ease; }
+[data-testid="stExpander"] summary:hover { background: var(--dc-paper); }
+[data-testid="stExpander"] details[open] > div { animation: dc-open 160ms ease-out; }
+@keyframes dc-open { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+
+/* Print the Report as a clean document (judges may want a PDF) */
+@media print {
+  [data-testid="stSidebar"], header, [data-testid="stToolbar"], .stButton, .stDownloadButton,
+  [data-testid="stDecoration"], [data-testid="stStatusWidget"] { display: none !important; }
+  .stApp { background: #FFFFFF !important; }
+  .block-container { max-width: 100% !important; padding: 0 !important; }
+  [data-testid="stExpander"] details { border: none; }
+  .dc-seg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+@media (max-width: 640px) {
+  .dc-company { font-size: 1.8rem; }
+  .block-container { padding-left: 1rem; padding-right: 1rem; }
+}
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>

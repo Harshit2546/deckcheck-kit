@@ -23,16 +23,26 @@ from core import store  # noqa: E402
 from core.config import load_rules  # noqa: E402
 from actions import email  # noqa: E402
 from core.models import ActionStatus  # noqa: E402
-from ui import data, theme  # noqa: E402
+from ui import components, data, theme  # noqa: E402
 from ui.theme import esc  # noqa: E402
 
 st.set_page_config(page_title="DeckCheck", layout="wide")
 st.markdown(theme.CSS, unsafe_allow_html=True)
 
+# A strip click or a button asked for another page: apply it before the page radio is drawn.
+if "nav_to" in st.session_state:
+    _target, _claim = st.session_state.pop("nav_to")
+    st.session_state["page"] = _target
+    if _claim:
+        st.session_state["focus_claim"] = _claim
+
 PAGES = ["Run", "Report", "Claims", "Entities", "Approvals", "Inbox", "Ledger"]
 PAGE_NAMES = {"Run": "Check a deck", "Report": "Report", "Claims": "Every claim", "Entities": "Who we matched",
               "Approvals": "Founder email", "Inbox": "Test inbox", "Ledger": "Cost and calls"}
 VERDICT_ORDER = ["CONTRADICTED", "HELD", "CANNOT_VERIFY", "NOT_COMPARABLE", "SUPPORTED", "PENDING"]
+# Colours and names for the motion components, from ui/theme.py (one source of truth).
+VERDICT_ARGS = {"colours": {k: v[1] for k, v in theme.VERDICTS.items()},
+                "names": {k: v[0] for k, v in theme.VERDICTS.items()}}
 
 st.sidebar.markdown('<p class="dc-brand">DeckCheck</p><p class="dc-brand-sub">Checks each claim in a pitch '
                     'deck against live company records, and shows the proof.</p>', unsafe_allow_html=True)
@@ -110,15 +120,39 @@ def _type_name(claim_type: str | None) -> str:
     return (claim_type or "").replace("_", " ")
 
 
-# ---------- Run ----------
-
-def _progress_block(db) -> None:
-    """Run state stepper and per-claim progress for the chosen run. `db` is the caller's connection
-    (the auto-refresh fragment runs in its own thread and SQLite connections are per thread)."""
-    rid = pick_run("Follow a run", db)
-    if rid is None:
+def strip_view(rows: list[dict[str, Any]], rid: str, where: str, counts: dict[str, int],
+               animate: bool = False) -> None:
+    """The slide strip: animated, clickable component, or the static HTML strip if components are off."""
+    payload = {"run_id": rid, "animate": animate, "claims": data.strip_payload(rows), "counts": counts,
+               **VERDICT_ARGS}
+    value = components.motion("strip", payload, key=f"strip-{where}-{rid}")
+    if value is components.MISSING:
+        html(theme.strip(rows) + theme.legend(counts))
         return
+    if isinstance(value, dict) and value.get("nonce") != st.session_state.get("strip_nonce"):
+        st.session_state["strip_nonce"] = value.get("nonce")
+        st.session_state["nav_to"] = ("Claims", value.get("claim_id"))
+        st.rerun()
+
+
+def gauge_view(row: dict[str, Any] | None, where: str) -> None:
+    """Claimed vs found on one scale (numeric claims with a tolerance only). Nothing drawn otherwise:
+    the claimed/found tables already show the numbers."""
+    payload = data.gauge_payload(row, rules) if row else None
+    if payload is None:
+        return
+    components.motion("gauge", {**payload, "key": row["claim_id"], **VERDICT_ARGS},
+                      key=f"gauge-{where}-{row['claim_id']}")
+
+
+def route_view(db, rid: str) -> None:
+    """The run as a tracked route with claims landing; static stepper + progress bar if components are off."""
     prog = data.run_progress(db, rid)
+    rows = data.claim_rows(db, rid)
+    value = components.motion("route", {"run_id": rid, **data.route_payload(prog, rows), **VERDICT_ARGS},
+                              key=f"route-{rid}")
+    if value is not components.MISSING:
+        return
     html(theme.stepper(prog["order"], prog["index"], prog["failed"], prog["finished"]))
     if prog["failed"]:
         st.error(f"The run stopped with an error: {prog['error'] or 'no error text stored'}. "
@@ -131,6 +165,17 @@ def _progress_block(db) -> None:
                          f"verdict, {by.get('pending', 0)} not checked yet")
     else:
         st.caption("No claims read from the deck yet.")
+
+
+# ---------- Run ----------
+
+def _progress_block(db) -> None:
+    """Route tracker for the chosen run. `db` is the caller's connection (the auto-refresh fragment runs
+    in its own thread and SQLite connections are per thread)."""
+    rid = pick_run("Follow a run", db)
+    if rid is None:
+        return
+    route_view(db, rid)
 
 
 def page_run() -> None:
@@ -220,6 +265,7 @@ def _red_flag(flag: dict[str, Any], claim: dict[str, Any] | None, rid: str) -> N
             html(f"{theme.mark(flag.get('label'))} "
                  f"<span class='dc-small'>{esc(flag.get('confidence') or '-')} confidence</span>"
                  f"<div class='dc-found'>{esc(flag.get('explanation') or 'No explanation stored.')}</div>")
+            gauge_view(claim, "flag")
             st.button("See the evidence", key=f"flag-{flag.get('claim_id', id(flag))}", on_click=go_to,
                       args=("Claims", rid))
         if flag.get("sources"):
@@ -234,7 +280,8 @@ def page_report() -> None:
     if found is None:
         run = store.get_run(conn, rid)
         st.info(f"The report is not ready yet (the run is at '{run.state.value}'). It appears once every "
-                "claim has a verdict; follow the run on Check a deck.")
+                "claim has a verdict.")
+        route_view(conn, rid)
         return
     report, markdown = found
     run, summary, led = report["run"], report["summary"], report["ledger"]
@@ -253,7 +300,7 @@ def page_report() -> None:
         st.download_button("Download report.md", markdown, file_name=f"{rid}-report.md", mime="text/markdown",
                            use_container_width=True)
 
-    html(theme.strip(claims) + theme.legend(summary["by_label"]))
+    strip_view(claims, rid, "report", summary["by_label"], animate=True)
     for flag in summary["flags"]:
         st.warning(flag)
 
@@ -312,6 +359,7 @@ def _claim_detail(r: dict[str, Any]) -> None:
              f"<div class='dc-found'>{esc(r['explanation'] or '')}</div>")
         if r["missing"]:
             st.markdown(f"**What would settle it:** {r['missing']}")
+        gauge_view(r, "claim")
         if not r["checked"]:
             st.caption("Found by the checker: not checked yet.")
         else:
@@ -341,13 +389,15 @@ def page_claims() -> None:
         st.error(str(e))
         columns = ["claim_id", "slide", "type", "label", "confidence", "reason_code", "quote"]
 
-    html(theme.strip(rows))
+    counts = {label: sum(1 for r in rows if r["verdict"] == label) for label in theme.VERDICTS}
+    strip_view(rows, rid, "claims", counts)
+    focus = st.session_state.pop("focus_claim", None)
     present = [v for v in VERDICT_ORDER if any(r["verdict"] == v for r in rows)]
     f1, f2 = st.columns(2)
     verdicts = f1.multiselect("Verdict", present, default=present, format_func=theme.verdict_name)
     types = sorted({r["type"] for r in rows})
     chosen_types = f2.multiselect("Claim type", types, default=types, format_func=_type_name)
-    shown = [r for r in rows if r["verdict"] in verdicts and r["type"] in chosen_types]
+    shown = [r for r in rows if (r["verdict"] in verdicts and r["type"] in chosen_types) or r["claim_id"] == focus]
 
     table = [{data.DISPLAY_NAMES.get(c, c): data.table_cell(r.get(c)) for c in columns} for r in shown]
     st.dataframe(table, use_container_width=True, hide_index=True)
@@ -358,7 +408,7 @@ def page_claims() -> None:
         colour = {"SUPPORTED": "green", "CONTRADICTED": "red", "HELD": "orange"}.get(r["verdict"], "gray")
         title = (f":{colour}[**{theme.verdict_name(r['verdict'])}**]  Slide {r['slide']}, "
                  f"{_type_name(r['type'])}: {r['quote'][:90]}{'...' if len(r['quote']) > 90 else ''}")
-        with st.expander(title, expanded=r["verdict"] == "CONTRADICTED"):
+        with st.expander(title, expanded=r["verdict"] == "CONTRADICTED" or r["claim_id"] == focus):
             _claim_detail(r)
 
 
@@ -413,6 +463,7 @@ def page_approvals() -> None:
                 try:
                     email.approve(conn, rules, a.id, reviewer)
                     sent = email.send_approved(conn, rules)
+                    st.session_state["just_sent"] = a.id
                     st.session_state["approval_msgs"] = [
                         f"Approved by {reviewer}; sent {len(sent)} email(s) to the test inbox."]
                     st.rerun()
@@ -438,6 +489,19 @@ def page_approvals() -> None:
             sent = email.send_approved(conn, rules)
             st.session_state["approval_msgs"] = [f"Sent {len(sent)} email(s) to the test inbox."]
             st.rerun()
+
+    sent_list = sorted(data.emails(conn, ActionStatus.SENT), key=lambda a: a.sent_at or "", reverse=True)
+    if sent_list:
+        st.subheader(f"Sent ({len(sent_list)})")
+        inbox_count = len(data.inbox_rows(conn))
+        for a in sent_list[:3]:
+            value = components.motion("sent", {
+                "action_id": a.id, "subject": a.subject, "recipient": a.recipient,
+                "key_prefix": a.idempotency_key[:10], "sent_at": a.sent_at, "inbox_count": inbox_count,
+                "just_sent": a.id == st.session_state.get("just_sent")}, key=f"sent-{a.id}")
+            if value is components.MISSING:
+                st.success(f"Sent once: {a.subject} to {a.recipient} at {a.sent_at} "
+                           f"(key {a.idempotency_key[:10]}...).")
 
     decided = [a for s in (ActionStatus.SENT, ActionStatus.REJECTED) for a in data.emails(conn, s)]
     if decided:

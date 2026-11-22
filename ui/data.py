@@ -298,3 +298,70 @@ def table_cell(value: Any) -> Any:
     if isinstance(value, dict):
         return json.dumps(value, ensure_ascii=False)
     return value
+
+
+# ---------- Motion component payloads (ui/components) ----------
+
+# claim.metric -> where checkers put the found number in CheckResult.observed (verdict/DESIGN.md section 3)
+GAUGE_FOUND: dict[str, tuple[str, ...]] = {
+    "headcount": ("headcount",),
+    "total_raised": ("total_raised",),
+    "round_amount": ("matched_round", "amount"),
+}
+
+
+def _number(value: Any) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def gauge_payload(row: dict[str, Any], rules: dict[str, Any]) -> dict[str, Any] | None:
+    """Claimed vs found on one scale, with the tolerance band from rules.yaml. None when the claim has no
+    found number, no claimed number or no tolerance for its type. Display only: the verdict label shown is the
+    one verdict/engine.py stored; nothing here decides anything."""
+    path = GAUGE_FOUND.get(row.get("metric") or "")
+    if not path:
+        return None
+    found: Any = row.get("observed") or {}
+    for part in path:
+        found = found.get(part) if isinstance(found, dict) else None
+    found_n, claimed_n = _number(found), _number(row.get("claimed_value"))
+    tol = _number(((rules.get("tolerances") or {}).get(row.get("type") or "") or {}).get("tolerance_pct"))
+    if found_n is None or claimed_n is None or claimed_n <= 0 or tol is None:
+        return None
+    return {"claimed": claimed_n, "found": found_n, "tol_pct": tol, "unit": row.get("unit") or "",
+            "metric": row.get("metric"), "label": row.get("verdict") or "PENDING"}
+
+
+def strip_payload(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One entry per claim in slide order, for the slide strip and the claims landing row."""
+    ordered = sorted(rows, key=lambda r: (r.get("slide") or 0, str(r.get("claim_id"))))
+    return [{"claim_id": r["claim_id"], "slide": r.get("slide"), "type": r.get("type"),
+             "label": r.get("verdict") or r.get("label") or "PENDING", "quote": r.get("quote") or ""}
+            for r in ordered]
+
+
+def route_payload(progress: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """The run as a tracked route: checkpoints, where it is now, and one block per claim."""
+    by = progress["claims_by_state"]
+    n = progress["claims"]
+    if progress["failed"]:
+        status = f"Stopped with an error: {progress['error'] or 'no error text stored'}. Resume it below."
+    elif progress["finished"]:
+        status = f"Done. {n} claims decided."
+    elif n:
+        status = (f"At {progress['state']}. {by.get('decided', 0)} of {n} claims decided, "
+                  f"{by.get('pending', 0)} not checked yet.")
+    else:
+        status = f"At {progress['state']}. Reading the deck."
+    index = progress["index"]
+    if progress["failed"] and index < 0:
+        # 'failed' is not a checkpoint: place the marker where the stored claims show the run had got to
+        reached = "created" if not n else "decided" if by.get("decided", 0) == n else "checking"
+        index = progress["order"].index(reached)
+    return {"order": progress["order"], "index": index, "failed": progress["failed"],
+            "finished": progress["finished"], "status": status, "claims": strip_payload(rows)}
