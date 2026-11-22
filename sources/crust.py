@@ -23,6 +23,7 @@ from urllib.parse import quote
 from core import ledger, limits, store
 from core.config import rule
 from core.env import get_key
+from core.tls import tls_context
 from core.log import log_step
 from core.models import HeldReason, Provider, RunContext, now_iso
 
@@ -91,7 +92,7 @@ def _send(key: str, path: str, body: dict[str, Any] | None,
     if body is not None:
         headers["Content-Type"] = "application/json"
         data = json.dumps(body)
-    connection = HTTPSConnection(_HOST, timeout=_remaining(deadline))
+    connection = HTTPSConnection(_HOST, timeout=_remaining(deadline), context=tls_context())
     try:
         connection.connect()
         sock = connection.sock

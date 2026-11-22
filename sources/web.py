@@ -18,6 +18,7 @@ from typing import Any
 from core import ledger, limits
 from core.config import rule
 from core.log import log_step
+from core.tls import tls_context
 from core.models import HeldReason, Provider, RunContext, now_iso
 from sources.crust import _api_key, _nonnegative_number, _retry_delay
 
@@ -55,7 +56,7 @@ def _send(key: str, path: str, body: dict[str, Any],
     """POST JSON to the fixed provider host; return (parsed JSON, X-Credits-Used or None)."""
     headers = {"authorization": f"Bearer {key}", "content-type": "application/json",
                "accept": "application/json", "x-api-version": _VERSION}
-    connection = HTTPSConnection(_HOST, timeout=_remaining(deadline))
+    connection = HTTPSConnection(_HOST, timeout=_remaining(deadline), context=tls_context())
     try:
         connection.connect()
         sock = connection.sock

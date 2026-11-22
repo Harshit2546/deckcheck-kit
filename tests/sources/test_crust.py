@@ -276,7 +276,7 @@ def test_https_transport_sends_versioned_json_and_retains_receipt(
 
     assert payload == _recorded("company_enrich_documented.json")
     assert credits == 2
-    factory.assert_called_once_with("api.crustdata.com", timeout=4)
+    factory.assert_called_once_with("api.crustdata.com", timeout=4, context=crust.tls_context())
     method, path, request_body, request_headers = connection.request.call_args.args
     assert (method, path) == ("POST", "/company/enrich")
     assert json.loads(request_body) == {"domains": ["retool.com"]}
