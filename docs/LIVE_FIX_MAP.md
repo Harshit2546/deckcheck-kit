@@ -26,3 +26,7 @@ One line per thing a judge might ask to change. Format: To change X -> edit Y in
 - To run the accuracy check against the answer key -> `python tests/eval/run_eval.py` (offline, no credits); `--live` runs cli.py for real and spends credits; answer keys are tests/decks/deck_<x>_answers.yaml, recorded claims tests/eval/deck_<x>_claims.json
 - To change how far a founded year may be off before it is CONTRADICTED -> `tolerances.company_fact.year_gap_cannot_verify` in config/rules.yaml
 - To change how far a yearly headcount-growth window may be from 365 days -> `tolerances.team_growth.window_tolerance_days` in config/rules.yaml
+- To change how many web pages are fetched per claim (credits and LLM calls), edit `web.results_to_fetch` in config/rules.yaml (D16).
+- To change the web search country or sources, edit `web.location` / `web.sources` in config/rules.yaml (D16).
+- To change how many agreeing web estimates a market-size CONTRADICTED needs, edit `tolerances.market_size.min_agreeing_sources` (D16).
+- To change how old a web page may be and still count, edit `tolerances.market_size.max_record_age_days` / `tolerances.customer.max_record_age_days` (D16).
