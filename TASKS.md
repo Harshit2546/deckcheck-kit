@@ -8,7 +8,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 |---|---|---|---|---|
 | T00 | human | Add rule files to repo | AGENTS.md etc. on main | done |
 | T01 | claude-core | Skeleton: core/models.py, core/store.py (all tables incl. inbox with UNIQUE key), core/log.py, config/rules.yaml schema, cli.py (run, resume), io/adapter.py stub | `python cli.py run --help` works; tables created | todo |
-| T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | in-progress (yash, 0%, locate Deck A and probe Crustdata) |
+| T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | blocked (yash, Deck A and the ignored Crustdata .env are missing. Documented endpoint fields and rates.) |
 | T03 | ag-b | extract/pdf.py: text per slide | test on Deck A passes | todo |
 | T04 | ag | ui/app.py shell: upload form, run list from DB | shows a run row | todo |
 | T05 | human | Partner: Deck A (8 claims) + answer key; rules.yaml values | files in tests/decks/ | todo |
