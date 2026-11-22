@@ -4,7 +4,7 @@ Form opens from 2:30 PM and closes at 6:00 PM. One person submits for the team; 
 submission counts. Fields marked **[human]** must be filled by a team member. Never guess them.
 
 ## Team name
-**[human]** Use the same name every time you submit.
+out of context (the form pre-fills it; use the same name every time).
 
 ## One line
 DeckCheck checks every claim in a startup pitch deck against live data and returns sourced,

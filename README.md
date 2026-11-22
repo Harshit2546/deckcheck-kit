@@ -250,6 +250,58 @@ same verdicts again.
 The ledger has 6 calls: 7 credits, ₹7.79, 47.6 s. Web search times across the two runs were
 6.4 s, 12.0 s, over 20 s and 6.8 s, so the 20 s limit is tight for search (A6).
 
+## What it does now, and where it still needs a person
+
+From start to finish, with no one at the keyboard: reads the deck, extracts the claims and
+quotes, identifies the company and founders, fetches live data, decides every verdict, writes
+the report (red flags, founder questions, evidence to request, cost ledger) and drafts the
+founder email. A person is needed for one thing: approving or rejecting that email before it
+is sent (into a local test inbox). A person also decides what to do with each result; a
+verdict is advice, never an automatic rejection.
+
+## Its sources and checks
+
+| Source | Called from | What it settles |
+|---|---|---|
+| Crustdata company enrich | `sources/crust.py` `get_company` | identity, headcount history, funding milestones, hiring |
+| Crustdata person enrich and search | `sources/crust.py` `get_people`, `search_people` | founder identity and past jobs |
+| Crustdata web search and fetch | `sources/web.py` | customer and market-size claims, with the page's own publish date |
+| OpenAI gpt-4o-mini | `extract/claims.py`, `extract/quotes.py` | lists claims and copies one exact sentence; never decides a verdict |
+
+Every call writes a ledger row (provider, endpoint or model, credits or tokens, rupees,
+duration, success). The person approves on the UI's Approvals page.
+
+## The approaches we tried
+
+- **LLM decides vs code decides.** Letting the model judge claims was faster to build but not
+  repeatable and could not explain a number. We chose code: the LLM extracts, rules decide.
+  Worked.
+- **Provider snapshot vs dated history.** Crustdata's headcount total has only a refresh date.
+  Using it would date a fact by the refresh. We switched to the dated history point (D13).
+  Worked: 349 on 2026-11-02.
+- **Funding from a rounds list.** The field we planned for does not exist in the live record;
+  the dated rounds are in `funding.milestones[]`. Found by the offline eval, fixed (INCIDENTS B2).
+- **Web claims from search results.** Results have no dates, so we read the publish date from
+  each page's HTML. Many pages have none, so customer and market claims often end
+  "cannot verify". Partly worked; a guarded undated fallback (D17) helps a little.
+- **Letting the LLM judge relevance of a web quote.** It matched a logistics-software claim to a
+  home-and-household market. Code now requires the market terms in the quote (INCIDENTS B10).
+- **One global record-age limit.** Made every 2021 funding round "stale". Replaced by a limit
+  per claim type (D14). Worked.
+
+## What it could do next, and why not now
+
+- A job queue with workers, a shared cache with expiry, and per-client ledgers and rules files,
+  so one deployment serves many funds. Not now: that needs real volume to size it.
+- Dated hiring data, image-slide reading, and recorded evidence for more decks to widen the
+  answer key. Not now: each needs data sources or time we did not have in one day.
+
+## The future of this service
+
+Diligence becomes continuous instead of a one-off check: an agent watches every portfolio and
+pipeline company, re-checks each claim when its source changes, and writes to the founder only
+with a person's approval. The analyst's time moves from finding facts to judging them.
+
 ## Known limits (what does not work yet)
 
 - **Web claims depend on page dates.** Search results carry no date, so a page counts only
