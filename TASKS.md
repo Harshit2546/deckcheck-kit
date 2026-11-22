@@ -7,13 +7,13 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | ID | Lane | Task | Done when | Status |
 |---|---|---|---|---|
 | T00 | human | Add rule files to repo | AGENTS.md etc. on main | done |
-| T01 | claude-core | Skeleton: core/models.py, core/store.py (all tables incl. inbox with UNIQUE key), core/log.py, config/rules.yaml schema, cli.py (run, resume), io/adapter.py stub | `python cli.py run --help` works; tables created | todo |
+| T01 | claude-core | Skeleton: core/models.py, core/store.py (all tables incl. inbox with UNIQUE key), core/log.py, config/rules.yaml schema, cli.py (run, resume), io/adapter.py stub | `python cli.py run --help` works; tables created | done (harshit) |
 | T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | todo |
 | T03 | ag-b | extract/pdf.py: text per slide | test on Deck A passes | todo |
 | T04 | ag | ui/app.py shell: upload form, run list from DB | shows a run row | todo |
 | T05 | human | Partner: Deck A (8 claims) + answer key; rules.yaml values | files in tests/decks/ | todo |
 | T06 | human | Read kickoff kit; record Investing request input/output format in DECISIONS.md | D3 written | todo |
-| T07 | claude-core | core/runner.py: state machine, per-claim checkpoints, resume, cost and time limits | kill mid-run then resume finishes with no duplicate calls | todo |
+| T07 | claude-core | core/runner.py: state machine, per-claim checkpoints, resume, cost and time limits | kill mid-run then resume finishes with no duplicate calls | done (harshit) |
 | T08 | codex-a | sources/crust.py: rate limit, backoff on 429/5xx, per-call timeout to HELD, ledger row per call, TTL cache | unit tests for 429, timeout, ledger | todo |
 | T09 | ag-b | extract/claims.py: LLM structured claims + quote-on-slide check | invented quote is rejected in test | todo |
 | T10 | codex-a | resolve/entities.py: company by domain, founders, two-signal rule, confidence | namesake fixture returns identity_unclear | todo |

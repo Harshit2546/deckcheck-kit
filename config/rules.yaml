@@ -1,0 +1,85 @@
+# config/rules.yaml — every tolerance, limit, rate and output field DeckCheck uses.
+# THE FINANCE PARTNER SETS THE REAL VALUES (T05). Code reads them via core/config.py, never hard-codes them.
+# Keys checked at start-up are listed in core/config.py REQUIRED_KEYS.
+# Values marked PLACEHOLDER were set by claude-core for T01 and must be confirmed in T05.
+
+limits:
+  max_cost_inr: 500          # PLACEHOLDER. Run stops spending; remaining claims become HELD (budget)
+  max_seconds: 900           # PLACEHOLDER. Wall time from first start; then HELD (time)
+  max_credits: 200           # PLACEHOLDER. Crustdata credits per run
+  per_call_timeout_s: 20     # PLACEHOLDER. A slower call becomes HELD (timeout), never CANNOT_VERIFY
+
+costs:                       # rupee rates used to fill ledger.cost_inr
+  crustdata:
+    inr_per_credit: 1.0      # PLACEHOLDER
+  llm:
+    default:                 # used when a model has no entry of its own
+      inr_per_1k_tokens_in: 0.25   # PLACEHOLDER
+      inr_per_1k_tokens_out: 1.25  # PLACEHOLDER
+  web:
+    inr_per_call: 0.0        # PLACEHOLDER (search/fetch cost per call)
+
+identity:
+  min_signals: 2             # two-signal rule: a person or company matches only on >= 2 signals
+
+tolerances:                  # one entry per claim type: how close observed must be to stay SUPPORTED
+  founder_background:
+    min_title_level: director      # PLACEHOLDER. Claimed title must match at or above this level (title_levels)
+    tenure_tolerance_months: 6     # PLACEHOLDER. Allowed gap in claimed start/end dates
+  prior_exit:
+    tolerance_pct: 10              # PLACEHOLDER. Exit value gap, when a value is claimed
+  team_size:
+    tolerance_pct: 20              # PLACEHOLDER
+  team_growth:
+    tolerance_pct: 25              # PLACEHOLDER
+  funding:
+    tolerance_pct: 10              # PLACEHOLDER
+  company_fact:
+    tolerance_pct: 0               # PLACEHOLDER. Founded year, HQ etc. must match exactly
+  customer:
+    require_exact_quote: true      # PLACEHOLDER. Customer named on a fetched page, verbatim
+  hiring:
+    tolerance_pct: 30              # PLACEHOLDER. Open roles count gap
+  traction:
+    tolerance_pct: 15              # PLACEHOLDER
+  market_size:
+    tolerance_pct: 50              # PLACEHOLDER. Third-party estimates vary widely
+  competition:
+    require_exact_quote: true      # PLACEHOLDER
+  max_record_age_days: 365         # PLACEHOLDER. Older evidence than this is NOT_COMPARABLE
+
+title_levels:                # PLACEHOLDER. Used by the founder_background verdict rules
+  c_level: [ceo, cto, coo, cfo, cpo, founder, co-founder]
+  vp: [vp, vice president, head]
+  director: [director]
+  manager: [manager, lead]
+  ic: [engineer, analyst, associate, consultant]
+
+materiality:                 # PLACEHOLDER weights for ranking red flags (higher = worse if wrong)
+  founder_background: 5
+  prior_exit: 5
+  funding: 5
+  customer: 4
+  traction: 4
+  team_size: 3
+  team_growth: 3
+  company_fact: 2
+  hiring: 2
+  market_size: 1
+  competition: 1
+
+output:
+  fields:                    # per-claim fields in the report; the hour-3 change may add one here
+    - claim_id
+    - slide
+    - quote
+    - type
+    - label
+    - reason_code
+    - explanation
+    - confidence
+    - missing
+    - sources
+
+actions:
+  test_inbox: founder-test@deckcheck.invalid   # PLACEHOLDER. The ONLY recipient emails may go to

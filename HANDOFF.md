@@ -65,3 +65,84 @@ Open questions for a human:
 - claude-core (partner): please add the `verdict:` block to config/rules.yaml and REQUIRED_KEYS (DESIGN.md section 6).
 - Docs to fix (human-owned; the coordinating session will do it): PLAN.md, TASKS.md and docs/AGENT_PROMPTS.md still say io/adapter.py; D4 moved it to kit_io/adapter.py.
 Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
+
+### 11:50 · claude-core-1 · lane claude-core · task T01
+
+Status: done
+Done this session:
+- core/models.py: every contract (Run, RunInput, Claim, Evidence, CheckResult, Verdict, LedgerEntry, Action, InboxMessage) + enums, make_idempotency_key(), now_iso(). Stdlib dataclasses.
+- core/store.py: SQLite schema (runs, claims, ledger, evidence, check_results, verdicts, actions, inbox, reports) created on connect(); helpers per table; save_check_result()/save_verdict() are atomic per-claim checkpoints; ledger_totals(); ledger+inbox append-only by trigger; actions and inbox UNIQUE(idempotency_key).
+- core/ledger.py: record() writes one ledger row with cost_inr from rules.yaml `costs`; new_call_id().
+- core/config.py: load_rules() fails fast on missing REQUIRED_KEYS; rule(rules, "a.b").
+- core/log.py: log_step()/log_error(), UTC, stderr + logs/deckcheck.log (DECKCHECK_LOG_DIR overrides).
+- core/runner.py: stub start()/resume() (signatures are the contract for T07).
+- cli.py: `run --deck --domain [--deck-date] [--founder-url]`, `resume <run_id>`, global --db/--rules.
+- config/rules.yaml: full schema, every value PLACEHOLDER for the finance partner.
+- kit_io/adapter.py: from_kit()/to_kit() stubs raising NotImplementedError until D3.
+- tests/core/: 12 tests (tables, round trips, rollback, append-only, unique keys, cli).
+In progress / exact next step:
+- claude-core: claim T07, then write core/runner.py steps: extract -> resolve -> per-claim check (skip claims already `checked`) -> verdict -> report, checking store.ledger_totals() and elapsed time since runs.started_at against rules limits before each external call.
+How to run / test:
+- python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
+- .venv/bin/python -m pytest -q
+- .venv/bin/python cli.py run --help
+Known bugs or shortcuts taken:
+- runner is a stub: `run` creates the run row and logs; nothing else happens yet.
+- rules.yaml values are placeholders (costs, limits, tolerances, title levels, materiality, test inbox).
+- tests/conftest.py and pytest.ini are shared files added by claude-core; other lanes may add fixtures there.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D4: adapter is kit_io/adapter.py (a top-level io/ package cannot be imported).
+- D5: extra models/tables (check_results, reports), evidence.call_id FK to ledger, append-only triggers, costs in rules.yaml.
+Open questions for a human:
+- PLAN.md, AGENT_PROMPTS.md and TASKS.md still say io/adapter.py; update them (human-owned) or tell lanes about D4.
+- Finance partner: real rupee rates for a Crustdata credit and for the LLM model we use, plus limits.
+- Merger: kickoff-kit format (D3) so kit_io/adapter.py can be filled.
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
+
+### 12:05 · harshit · lane claude-core · task T01
+
+Status: done (supersedes the 11:50 entry where it differs)
+Done this session:
+- io/adapter.py: from_kit() maps a kit request to RunInput with a provisional field map (TODO to D3); to_kit() passes the report through (TODO to D3). Load it with core/adapter_loader.load_adapter().
+- config/rules.yaml: tolerances now have one entry for every claim type; all values PLACEHOLDER for the finance partner.
+- kit_io/ deleted (D6 withdraws D4). pytest.ini and tests/conftest.py removed; test setup is tests/core/conftest.py. CLAUDE.md and .gitignore are back to main's version.
+- main's T01 (8761021) was reverted on main by its author (8f21500); this branch's T01 is the one to merge.
+In progress / exact next step:
+- T07: core/runner.py.
+How to run / test:
+- python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
+- .venv/bin/pytest -q   (14 tests)
+- .venv/bin/python cli.py run --help
+Known bugs or shortcuts taken:
+- runner is still a stub until T07; rules.yaml values are placeholders.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D6: adapter at io/adapter.py, loaded by file path.
+Open questions for a human:
+- ag-b and codex-a branches start from the reverted Pydantic T01; after this branch is merged, pull main and use core/models.py (dataclasses).
+- Merger: kit format (D3) for io/adapter.py. Finance partner: rules.yaml values.
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 12:40 · harshit · lane claude-core · task T07
+
+Status: done
+Done this session:
+- core/runner.py: start()/resume() walk created -> extracted -> resolved -> checking -> decided -> reported -> done. Each step saves its output and the new state in one transaction; each claim is checkpointed (checked, then decided), so resume skips finished claims. Stages are imported by name from STAGES (signatures in D7); tests inject fakes.
+- core/limits.py: limit_reason() / ensure_within() compare ledger cost, credits and elapsed time since runs.started_at with rules limits; LimitExceeded.
+- core/models.py: RunContext, HeldReason. core/store.py: resolutions table + save/get_resolution.
+- cli.py: exit 0 = done, 1 = not finished (waiting for a stage or failed; see runs.error), 2 = bad input.
+- tests/core/test_runner.py: 9 tests incl. a real `os._exit(137)` kill in a child process, then resume: one ledger call per claim, one action.
+In progress / exact next step:
+- T19: claim it, then actions/email.py draft() (pending founder email to rules actions.test_inbox), approve/reject, and the exactly-once send (approved -> sending -> inbox UNIQUE key -> sent; restart reconciles `sending`).
+How to run / test:
+- .venv/bin/pytest -q   (24 tests)
+- .venv/bin/pytest tests/core/test_runner.py -q -k kill
+Known bugs or shortcuts taken:
+- A claim killed in the middle of its check re-runs on resume, so calls it made before the kill happen again (ledger shows both). Finished claims never repeat.
+- max_seconds counts from the first start, including time the process was dead; a long pause before resume makes remaining claims HELD (time).
+- Until extract/ is merged, `cli.py run` creates the run and stops with exit 1 ("extract.claims is not built yet").
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D7: stage signatures, HeldReason values, ensure_within() before every external call, resolutions table.
+Open questions for a human:
+- Tell every lane about D7 (their function names and signatures).
+- report lane: confirm module name report/builder.py, or tell claude-core to change STAGES.
+Credits / tokens used this session (rough): 0 Crustdata credits
