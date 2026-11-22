@@ -903,13 +903,13 @@ Done this session:
 In progress / exact next step:
 - Merge lane/web-pages to main (merger). T32 can call these functions unchanged.
 How to run / test:
-- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (366 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (376 passed)
 - /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
 Known bugs or shortcuts taken:
 - pick_quote does NOT wrap errors the way extract/claims.py does: it re-raises the original exception (TimeoutError stays TimeoutError, LimitExceeded from ensure_within propagates with no ledger row because no call was made), so the runner can tell HELD timeout from HELD error. T32 checkers should let these propagate.
 - A bad LLM answer (not JSON, no "quote", null) is not an error: the row is ok=1 and the quote is None.
 - Only the first `<time datetime>` is looked at; if it is unreadable the page has no date.
-- A lone lowercase `b`/`m`/`k` after a number is not read as a scale (only uppercase B/M/K or words), to avoid false matches.
+- Lowercase `m`/`b`/`k` count as a scale only when attached to the number (`$5m`); `lac`/`lacs` = 1e5. An unknown letter attached to an amount (`$5x`) makes parse_amount return (None, None) rather than guess a scale. Currency suffixes are exact words (`dollars`, `US dollars`, `rupees`, `USD`, `INR`).
 Decisions made (also in DECISIONS.md if they change behaviour):
 - none (contracts as in D16).
 Open questions for a human:
