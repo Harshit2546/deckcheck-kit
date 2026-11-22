@@ -12,6 +12,7 @@ import json
 import os
 import re
 import time
+import uuid
 from collections.abc import Callable
 from typing import Any
 
@@ -24,9 +25,13 @@ from core.models import (
     LedgerEntry,
     Provider,
     Rules,
-    new_id,
 )
 from core.store import Store
+
+
+def _generate_id() -> str:
+    """Generate a 32-char hex unique id."""
+    return uuid.uuid4().hex
 
 EXTRACTION_SYSTEM_PROMPT = """You are an expert investment diligence analyst.
 Your job is to extract all factual claims from pitch deck slides into structured JSON.
@@ -134,6 +139,7 @@ def _parse_claims_json(raw_json: str, run_id: str) -> list[Claim]:
             as_of = str(as_of).strip()
 
         claim = Claim(
+            id=_generate_id(),
             run_id=run_id,
             slide=slide_num,
             quote=quote,
@@ -268,7 +274,7 @@ def extract_claims(
         )
 
         entry = LedgerEntry(
-            id=new_id(),
+            id=_generate_id(),
             run_id=run_id,
             provider=Provider.LLM,
             endpoint_or_model=model_name,

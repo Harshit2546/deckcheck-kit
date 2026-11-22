@@ -34,6 +34,7 @@ def test_verify_claim_quotes_drops_invented_quote() -> None:
     }
 
     claim_valid = Claim(
+        id="c1",
         run_id="run_1",
         slide=2,
         quote="50 full-time employees",
@@ -45,6 +46,7 @@ def test_verify_claim_quotes_drops_invented_quote() -> None:
     )
 
     claim_invented = Claim(
+        id="c2",
         run_id="run_1",
         slide=2,
         quote="Projected $100M revenue by next year",  # Not on slide 2!
@@ -56,6 +58,7 @@ def test_verify_claim_quotes_drops_invented_quote() -> None:
     )
 
     claim_wrong_slide = Claim(
+        id="c3",
         run_id="run_1",
         slide=1,
         quote="Seed funding: $1.5M",  # On slide 2, NOT on slide 1
