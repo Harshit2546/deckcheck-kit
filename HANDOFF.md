@@ -380,3 +380,23 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - None. Ready for merge.
 Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
+
+### 14:40 · harshit · lane claude-core · task D8
+
+Status: done
+Done this session:
+- config/rules.yaml: `verdict:` block (supported_margin 0.5, strong_margin 2.0, fresh_days 90), all PLACEHOLDER for the finance partner.
+- core/config.py: the three keys are in REQUIRED_KEYS, so a run fails at start if one is missing.
+- requirements.txt: added pypdf and requests (extract/) and reportlab (tests/extract), which merged code imports but were not listed.
+In progress / exact next step:
+- T19 actions/email.py.
+How to run / test:
+- .venv/bin/pip install -r requirements.txt && .venv/bin/python -m pytest -q   (120 passed)
+Known bugs or shortcuts taken:
+- Bare `pytest -q` stops at tests/checkers ("No module named 'core'"): nothing puts the repo root on sys.path for that folder since pytest.ini was removed. `python -m pytest -q` works.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (D8 written by claude-verdict)
+Open questions for a human:
+- Add a root `pytest.ini` with `pythonpath = .` (outside every lane's folders), or tell ag-b to add a sys.path line in tests/checkers/conftest.py.
+- Finance partner: real values for the `verdict:` block.
+Credits / tokens used this session (rough): 0 Crustdata credits
