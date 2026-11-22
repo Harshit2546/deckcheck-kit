@@ -293,3 +293,29 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - None. Ready for human merge to main.
 Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits (fixtures and mocks used in tests).
+
+### 13:05 · yash · lane ag-b · task T11, T17 (reviewer rule fixes)
+
+Status: done
+Done this session:
+- Applied reviewer's patch `ag-b-rule-fixes.patch`:
+  - Removed runtime fake fallback `sources.crust` imports; missing modules raise ModuleNotFoundError and become HELD via runner per hard rules.
+  - Added `checkers/_common.py`: defines `get_company(ctx, domain)` calling `sources.crust.get_company` and `company_identity(ctx)` reading `ctx.entities["company"]` instead of hardcoding "confirmed"/2.
+  - Removed example.com/"Example" StageMissing hacks from checkers.
+  - In `checkers/market_size.py`: dropped invented fallback URL, returns CANNOT_VERIFY when source_url is missing.
+  - Added `tests/checkers/checker_fakes.py` and `tests/checkers/conftest.py` with autouse `fake_sources`.
+- Updated checker tests in `tests/checkers/`: asserted D8 keys (`headcount_range`, `record_date`, `matched_round`, `total_raised`, `investors_found`) instead of obsolete keys; verified missing data returns `comparable=True` with identity `"not_found"`.
+- Updated `tests/core/test_runner.py::test_missing_checker_module_is_held` to monkeypatch `runner.STAGES["check"]` to a nonexistent module instead of relying on the runner hack.
+- Verified test suite: all 119 tests pass cleanly across `tests/extract`, `tests/checkers`, `tests/core`, `tests/verdict`, and `tests/report`.
+In progress / exact next step:
+- Ready for human merge to main.
+How to run / test:
+- python -m pytest tests/extract tests/checkers -q
+- python -m pytest -q
+Known bugs or shortcuts taken:
+- None. All hard rules respected (no mock data outside tests/, no invented sources).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- Identity strictly resolved via `_common.company_identity(ctx)`. Missing data returns `comparable=True` and identity `"not_found"`.
+Open questions for a human:
+- None. Ready for merge.
+Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.

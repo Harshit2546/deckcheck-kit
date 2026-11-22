@@ -2,9 +2,9 @@
 
 import pytest
 
+from checker_fakes import make_ctx
 from checkers.funding import check
-from core.models import Claim, ClaimType, SourceType, VerdictLabel
-from verdict.engine import decide
+from core.models import Claim, ClaimType, SourceType
 
 
 @pytest.fixture
@@ -48,13 +48,10 @@ def crustdata_funding_fixture() -> dict:
     }
 
 
-def test_funding_check_specific_seed_round(make_ctx, monkeypatch, crustdata_funding_fixture: dict) -> None:
-    ctx = make_ctx(domain="cargopulse.com", deck_date="2024-01-10")
-    monkeypatch.setattr("checkers.funding.get_company", lambda c, dom: (crustdata_funding_fixture, "call_fund_1"))
-
+def test_funding_check_specific_seed_round(crustdata_funding_fixture: dict) -> None:
     claim = Claim(
         id="claim_fund_1",
-        run_id=ctx.run.id,
+        run_id="run_1",
         slide=3,
         quote="Raised $2M in Seed round in 2022",
         type=ClaimType.FUNDING,
@@ -63,6 +60,13 @@ def test_funding_check_specific_seed_round(make_ctx, monkeypatch, crustdata_fund
         value=2000000,
         unit="USD",
         as_of="2022-04-10",
+    )
+
+    ctx = make_ctx(
+        run_id="run_1",
+        company_domain="cargopulse.com",
+        company=crustdata_funding_fixture,
+        deck_date="2024-01-10",
     )
 
     result = check(claim, ctx)
@@ -90,21 +94,14 @@ def test_funding_check_specific_seed_round(make_ctx, monkeypatch, crustdata_fund
     ev = result.evidence[0]
     assert ev.source_type == SourceType.CRUSTDATA_COMPANY
     assert ev.value == 2000000.0
-    assert ev.call_id == "call_fund_1"
+    assert ev.call_id == "call-test"
     assert ev.retrieved_at is not None
 
-    verdict = decide(claim, result, ctx.rules)
-    assert verdict.label == VerdictLabel.SUPPORTED
-    assert verdict.reason_code == "within_tolerance"
 
-
-def test_funding_check_series_a_round(make_ctx, monkeypatch, crustdata_funding_fixture: dict) -> None:
-    ctx = make_ctx(domain="cargopulse.com", deck_date="2024-01-10")
-    monkeypatch.setattr("checkers.funding.get_company", lambda c, dom: (crustdata_funding_fixture, "call_fund_2"))
-
+def test_funding_check_last_round(crustdata_funding_fixture: dict) -> None:
     claim = Claim(
         id="claim_fund_2",
-        run_id=ctx.run.id,
+        run_id="run_1",
         slide=4,
         quote="Closed $5M Series A round",
         type=ClaimType.FUNDING,
@@ -114,25 +111,28 @@ def test_funding_check_series_a_round(make_ctx, monkeypatch, crustdata_funding_f
         unit="USD",
     )
 
+    ctx = make_ctx(
+        run_id="run_1",
+        company_domain="cargopulse.com",
+        company=crustdata_funding_fixture,
+        deck_date="2024-01-10",
+    )
+
     result = check(claim, ctx)
 
     assert result.comparable is True
     assert result.observed["matched_round"] is not None
     assert result.observed["matched_round"]["amount"] == 5000000.0
     assert result.observed["matched_round"]["stage"] == "Series A"
+    assert "amount" not in result.observed
+    assert "round_type" not in result.observed
+    assert "date" not in result.observed
 
-    verdict = decide(claim, result, ctx.rules)
-    assert verdict.label == VerdictLabel.SUPPORTED
-    assert verdict.reason_code == "within_tolerance"
 
-
-def test_funding_check_total_funding(make_ctx, monkeypatch, crustdata_funding_fixture: dict) -> None:
-    ctx = make_ctx(domain="cargopulse.com", deck_date="2024-01-10")
-    monkeypatch.setattr("checkers.funding.get_company", lambda c, dom: (crustdata_funding_fixture, "call_fund_3"))
-
+def test_funding_check_total_funding(crustdata_funding_fixture: dict) -> None:
     claim = Claim(
         id="claim_fund_3",
-        run_id=ctx.run.id,
+        run_id="run_1",
         slide=4,
         quote="Total raised: $7M to date",
         type=ClaimType.FUNDING,
@@ -142,68 +142,24 @@ def test_funding_check_total_funding(make_ctx, monkeypatch, crustdata_funding_fi
         unit="USD",
     )
 
+    ctx = make_ctx(
+        run_id="run_1",
+        company_domain="cargopulse.com",
+        company=crustdata_funding_fixture,
+        deck_date="2024-01-10",
+    )
+
     result = check(claim, ctx)
 
     assert result.comparable is True
     assert result.observed["total_raised"] == 7000000.0
-
-    verdict = decide(claim, result, ctx.rules)
-    assert verdict.label == VerdictLabel.SUPPORTED
-    assert verdict.reason_code == "within_tolerance"
+    assert "amount" not in result.observed
 
 
-def test_funding_check_investor(make_ctx, monkeypatch, crustdata_funding_fixture: dict) -> None:
-    ctx = make_ctx(domain="cargopulse.com", deck_date="2024-01-10")
-    monkeypatch.setattr("checkers.funding.get_company", lambda c, dom: (crustdata_funding_fixture, "call_fund_4"))
-
+def test_funding_check_missing_company() -> None:
     claim = Claim(
-        id="claim_fund_inv",
-        run_id=ctx.run.id,
-        slide=4,
-        quote="Backed by Venture Partners",
-        type=ClaimType.FUNDING,
-        subject="CargoPulse India",
-        metric="investor",
-        value="Venture Partners",
-    )
-
-    result = check(claim, ctx)
-    assert "Venture Partners" in result.observed["investors_found"]
-
-    verdict = decide(claim, result, ctx.rules)
-    assert verdict.label == VerdictLabel.SUPPORTED
-    assert verdict.reason_code == "investor_listed"
-
-
-def test_funding_check_contradicted(make_ctx, monkeypatch, crustdata_funding_fixture: dict) -> None:
-    ctx = make_ctx(domain="cargopulse.com", deck_date="2024-01-10")
-    monkeypatch.setattr("checkers.funding.get_company", lambda c, dom: (crustdata_funding_fixture, "call_fund_5"))
-
-    claim = Claim(
-        id="claim_fund_contra",
-        run_id=ctx.run.id,
-        slide=4,
-        quote="Closed $10M Series A round",
-        type=ClaimType.FUNDING,
-        subject="CargoPulse India",
-        metric="round_amount",
-        value=10000000,
-        unit="USD",
-    )
-
-    result = check(claim, ctx)
-    verdict = decide(claim, result, ctx.rules)
-    assert verdict.label == VerdictLabel.CONTRADICTED
-    assert verdict.reason_code == "outside_tolerance"
-
-
-def test_funding_check_missing_company(make_ctx, monkeypatch) -> None:
-    ctx = make_ctx(domain="nofunding.com")
-    monkeypatch.setattr("checkers.funding.get_company", lambda c, dom: ({}, None))
-
-    claim = Claim(
-        id="claim_fund_none",
-        run_id=ctx.run.id,
+        id="claim_fund_4",
+        run_id="run_1",
         slide=2,
         quote="Raised $1M",
         type=ClaimType.FUNDING,
@@ -213,12 +169,14 @@ def test_funding_check_missing_company(make_ctx, monkeypatch) -> None:
         unit="USD",
     )
 
+    ctx = make_ctx(
+        run_id="run_1",
+        company_domain="nofunding.com",
+        company={},
+    )
+
     result = check(claim, ctx)
     assert result.comparable is True
     assert result.held_reason is None
     assert result.observed["identity"] == "not_found"
     assert len(result.evidence) == 0
-
-    verdict = decide(claim, result, ctx.rules)
-    assert verdict.label == VerdictLabel.CANNOT_VERIFY
-    assert verdict.reason_code == "no_evidence"

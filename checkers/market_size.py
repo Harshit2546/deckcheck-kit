@@ -1,7 +1,7 @@
 """Checker for market_size claims against market data and web sources.
 
 Who calls it: core/runner.py (STAGES["check"]).
-What it calls: sources.web (or benchmarks), core/models.py, core/log.py.
+What it calls: sources.web (search_market_data), core/models.py, core/log.py.
 Extracts market size estimates, projections, and industry metrics and returns CheckResult.
 """
 
@@ -41,13 +41,10 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     """Check a market_size claim against industry benchmarks or web sources."""
     rec_date, ref_date, ref_source = _get_dates(claim, ctx, None)
 
-    market_data = None
-    try:
-        from sources.web import search_market_data
+    # Missing module, errors and timeouts propagate: the runner turns them into HELD (D7).
+    from sources.web import search_market_data
 
-        market_data = search_market_data(claim.subject or claim.quote, run_id=ctx.run.id)
-    except (ImportError, Exception):
-        pass
+    market_data = search_market_data(ctx, claim.subject or claim.quote)
 
     if not market_data:
         log_step(ctx.run.id, claim.id, "check.market_size", "cannot_verify", reason="no_market_data")
@@ -73,9 +70,13 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
             pass
 
     record_date: str | None = market_data.get("record_date") or market_data.get("year") or rec_date
-    locator = market_data.get("source_url") or "https://industry-benchmarks.internal/market-size"
+    locator = market_data.get("source_url")
+    if not locator:  # no source, no fact (AGENTS.md): the engine returns CANNOT_VERIFY no_evidence
+        log_step(ctx.run.id, claim.id, "check.market_size", "cannot_verify", reason="no_source_url")
+        return CheckResult(evidence=[], observed={}, comparable=True, held_reason=None)
 
     observed: dict[str, Any] = {
+        # A market has no company or person to resolve, so there is no namesake risk here.
         "identity": "confirmed",
         "identity_signals": 2,
         "record_date": str(record_date) if record_date else None,

@@ -8,8 +8,6 @@ Extracts total_raised, rounds, matched_round, and investors and returns CheckRes
 from __future__ import annotations
 
 import re
-import sys
-import types
 import uuid
 from typing import Any
 
@@ -23,17 +21,7 @@ from core.models import (
     now_iso,
 )
 
-# Ensure sources.crust can be imported even if not yet on disk
-try:
-    from sources.crust import get_company
-except ImportError:
-    if "sources" not in sys.modules:
-        sys.modules["sources"] = types.ModuleType("sources")
-    if "sources.crust" not in sys.modules:
-        _dummy = types.ModuleType("sources.crust")
-        _dummy.get_company = lambda ctx, domain: (None, None)
-        sys.modules["sources.crust"] = _dummy
-    from sources.crust import get_company
+from checkers import _common
 
 CRUSTDATA_ENDPOINT = "https://api.crustdata.com/company/enrich"
 
@@ -62,12 +50,8 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     'reference_date_source', 'currency', 'total_raised', 'excluded_later_rounds',
     'undated_rounds', 'matched_round', and 'investors_found'.
     """
-    if ctx.run.input.domain == "example.com" and claim.subject == "Example":
-        from core.runner import StageMissing
-        raise StageMissing("checkers.funding is not built yet")
-
     domain = ctx.run.input.domain
-    payload, call_id = get_company(ctx, domain)
+    payload, call_id = _common.get_company(ctx, domain)
 
     rec_date, ref_date, ref_source = _get_dates(claim, ctx, payload.get("updated_at") if payload else None)
 
@@ -233,8 +217,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
         )
 
     observed: dict[str, Any] = {
-        "identity": "confirmed",
-        "identity_signals": 2,
+        **_common.company_identity(ctx),
         "record_date": rec_date,
         "reference_date": ref_date,
         "reference_date_source": ref_source,

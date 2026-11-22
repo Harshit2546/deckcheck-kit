@@ -107,8 +107,9 @@ def test_timeouts_and_errors_become_held(conn, rules, exc, reason):
     assert store.get_run(conn, rid).state is RunState.DONE
 
 
-def test_missing_checker_module_is_held(conn, rules):
+def test_missing_checker_module_is_held(conn, rules, monkeypatch):
     rid = _new_run(conn)
+    monkeypatch.setitem(runner.STAGES, "check", "nonexistent_module.{claim_type}:check")
     stages = {k: v for k, v in fakes.STAGES.items() if k != "check"}   # no checkers/ yet
     runner.start(conn, rules, rid, stages=stages)
     assert {v for v in _labels(conn, rid).values()} == {(VerdictLabel.HELD, "no_checker")}

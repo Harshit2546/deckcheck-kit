@@ -8,8 +8,6 @@ Extracts competitor registries, peer lists, and market uniqueness facts and retu
 from __future__ import annotations
 
 import re
-import sys
-import types
 import uuid
 from typing import Any
 
@@ -23,17 +21,7 @@ from core.models import (
     now_iso,
 )
 
-# Ensure sources.crust can be imported even if not yet on disk
-try:
-    from sources.crust import get_company
-except ImportError:
-    if "sources" not in sys.modules:
-        sys.modules["sources"] = types.ModuleType("sources")
-    if "sources.crust" not in sys.modules:
-        _dummy = types.ModuleType("sources.crust")
-        _dummy.get_company = lambda ctx, domain: (None, None)
-        sys.modules["sources.crust"] = _dummy
-    from sources.crust import get_company
+from checkers import _common
 
 CRUSTDATA_ENDPOINT = "https://api.crustdata.com/company/enrich"
 
@@ -56,7 +44,7 @@ def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | No
 def check(claim: Claim, ctx: RunContext) -> CheckResult:
     """Check a competition claim against company competitor data or web sources."""
     domain = ctx.run.input.domain
-    payload, call_id = get_company(ctx, domain)
+    payload, call_id = _common.get_company(ctx, domain)
 
     rec_date, ref_date, ref_source = _get_dates(claim, ctx, payload.get("updated_at") if payload else None)
 
@@ -84,8 +72,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
         return CheckResult(
             evidence=[],
             observed={
-                "identity": "not_found" if not payload else "confirmed",
-                "identity_signals": 0 if not payload else 2,
+                **(_common.company_identity(ctx) if payload else {"identity": "not_found", "identity_signals": 0}),
                 "reference_date": ref_date,
                 "reference_date_source": ref_source,
             },
@@ -108,8 +95,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     ]
 
     observed: dict[str, Any] = {
-        "identity": "confirmed",
-        "identity_signals": 2,
+        **_common.company_identity(ctx),
         "record_date": rec_date,
         "reference_date": ref_date,
         "reference_date_source": ref_source,

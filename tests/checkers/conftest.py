@@ -1,44 +1,27 @@
-"""Test fixtures for checkers: sqlite conn, rules, mock RunContext."""
+"""Patch the source calls for checker tests (fixtures in tests/ only).
+
+Called by: pytest for tests/checkers. Calls: checker_fakes.py.
+"""
+
+from __future__ import annotations
 
 from pathlib import Path
+import sys
+import types
+
 import pytest
 
-from core import store
-from core.config import load_rules
-from core.models import Run, RunContext, RunInput, RunState, now_iso
+# Ensure tests/checkers is on sys.path so checker_fakes can be imported
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import checker_fakes
+from checkers import _common
 
 
-@pytest.fixture
-def conn(tmp_path: Path):
-    c = store.connect(tmp_path / "test.db")
-    yield c
-    c.close()
-
-
-@pytest.fixture
-def rules():
-    r = load_rules()
-    r["verdict"] = {"supported_margin": 0.5, "strong_margin": 2.0, "fresh_days": 90}
-    return r
-
-
-@pytest.fixture
-def make_ctx(conn, rules):
-    def _make(domain: str = "swiftroute.in", deck_date: str = "2024-05-15") -> RunContext:
-        r_input = RunInput(
-            deck_path="tests/decks/deck_a.pdf",
-            domain=domain,
-            deck_date=deck_date,
-            deck_date_source="input",
-        )
-        r = Run(
-            id="run-test-1",
-            input=r_input,
-            state=RunState.CHECKING,
-            created_at=now_iso(),
-            updated_at=now_iso(),
-        )
-        store.insert_run(conn, r)
-        return RunContext(conn=conn, rules=rules, run=r)
-
-    return _make
+@pytest.fixture(autouse=True)
+def fake_sources(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_common, "get_company", checker_fakes.fake_get_company)
+    web = types.ModuleType("sources.web")
+    web.search_market_data = checker_fakes.fake_search_market_data
+    monkeypatch.setitem(sys.modules, "sources", sys.modules.get("sources") or types.ModuleType("sources"))
+    monkeypatch.setitem(sys.modules, "sources.web", web)
