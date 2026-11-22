@@ -71,6 +71,31 @@ def test_missing_deck_is_a_harness_error(capsys):
     assert "eval harness error" in capsys.readouterr().err
 
 
+def test_offline_replay_never_calls_the_live_web(monkeypatch):
+    # A key in the environment must not turn the offline eval into a paid run.
+    import requests
+    monkeypatch.setenv("CRUSTDATA_API_KEY", "test-key-not-real")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-not-real")
+
+    def no_network(*_a, **_k):
+        raise AssertionError("offline eval made a network call")
+    monkeypatch.setattr(requests, "post", no_network)
+    monkeypatch.setattr(requests, "get", no_network)
+    monkeypatch.setattr(requests.Session, "request", no_network)
+    rows, info = run_eval.run_offline("a")
+    assert len(info["blocked_web_calls"]) == 2           # slides 6 and 7 reached the block, nothing else
+    held = {r["slide"]: r["reason_code"] for r in rows if r["verdict"] == "HELD"}
+    assert held == {6: "error", 7: "error"}
+
+
+def test_web_functions_are_restored_after_the_replay():
+    import extract.quotes as quotes
+    import sources.web as web
+    before = (web.search, web.fetch, quotes.pick_quote)
+    evaluate("a")
+    assert (web.search, web.fetch, quotes.pick_quote) == before
+
+
 def test_get_company_is_restored_after_the_replay():
     import sources.crust as crust
     before = crust.get_company

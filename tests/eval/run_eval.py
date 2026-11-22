@@ -2,7 +2,8 @@
 
 Offline (default): runs the REAL runner, resolve stage, checkers and verdict engine on the recorded claims of a deck
 (tests/eval/<deck>_claims.json, what extraction should produce) with ONLY sources.crust.get_company replaced by the
-recorded Crustdata response (tests/fixtures/crustdata/<deck>_*_company.json). No network, no credits.
+recorded Crustdata response (tests/fixtures/crustdata/<deck>_*_company.json). No network, no credits: web search,
+web fetch and the quote-picking LLM call are blocked (no_live_web), so web claims come out HELD even with a key in .env.
 --live: runs `python cli.py run --request <deck>_request.json` for real (LLM and Crustdata credits are spent).
 Who calls it: humans and CI (`python tests/eval/run_eval.py`). Exit code 0 = no FAIL, 1 = at least one FAIL, 2 = harness error.
 Fixtures live in tests/ only; this script is never imported by the pipeline.
@@ -94,6 +95,38 @@ def recorded_company(path: Path) -> Iterator[None]:
         crust.get_company = original
 
 
+class OfflineWebBlocked(RuntimeError):
+    """Raised when an offline replay reaches a web or LLM call; the runner turns it into HELD error."""
+
+
+@contextmanager
+def no_live_web() -> Iterator[list[str]]:
+    """Block sources.web.search/fetch and extract.quotes.pick_quote for the offline replay.
+
+    The offline eval must never spend credits, even when .env holds a key. There is no recorded web
+    response yet, so web claims come out HELD (error); the yielded list names every blocked call.
+    """
+    import extract.quotes as quotes
+    import sources.web as web
+
+    blocked: list[str] = []
+    originals = {(web, "search"): web.search, (web, "fetch"): web.fetch, (quotes, "pick_quote"): quotes.pick_quote}
+
+    def make_block(name: str) -> Any:
+        def block(*_args: Any, **_kwargs: Any) -> Any:
+            blocked.append(name)
+            raise OfflineWebBlocked(f"offline eval: {name} is blocked (no recorded web response)")
+        return block
+
+    for module, name in originals:
+        setattr(module, name, make_block(f"{module.__name__}.{name}"))
+    try:
+        yield blocked
+    finally:
+        for (module, name), original in originals.items():
+            setattr(module, name, original)
+
+
 def check_quotes(deck_pdf: Path, claims: list[dict[str, Any]]) -> list[str]:
     """Problems found when the recorded claims are checked against the real PDF text (empty list = all quotes found)."""
     from extract.claims import verify_claim_quote
@@ -123,7 +156,7 @@ def run_offline(deck: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
                           subject=c["subject"], metric=c["metric"], value=c["value"], unit=c["unit"], as_of=c["as_of"])
                     for c in recorded]
 
-        with recorded_company(company):
+        with recorded_company(company), no_live_web() as blocked_calls:
             done = runner.start(conn, rules, run.id, stages={"extract": fake_extract})
         final = store.get_run(conn, run.id)
         rows = []
@@ -133,7 +166,8 @@ def run_offline(deck: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
                          "verdict": v.label.value if v else "NONE", "reason_code": v.reason_code if v else None,
                          "confidence": v.confidence.value if v else None})
         info = {"done": done, "state": final.state.value if final else "?", "error": final.error if final else None,
-                "problems": check_quotes(ROOT / request["deck_path"], recorded)}
+                "problems": check_quotes(ROOT / request["deck_path"], recorded),
+                "blocked_web_calls": list(blocked_calls)}
         conn.close()
     return rows, info
 
@@ -175,6 +209,9 @@ def render(deck: str, rows: list[dict[str, Any]], info: dict[str, Any], live: bo
     lines = [f"Deck {deck.upper()}: {mode}",
              f"run state: {info['state']}" + (f", error: {info['error']}" if info["error"] else "")]
     lines += [f"WARNING {p}" for p in info["problems"]]
+    if info.get("blocked_web_calls"):
+        lines.append(f"NOTE offline: {len(info['blocked_web_calls'])} web/LLM call(s) blocked, no credits spent; "
+                     "web claims are HELD here (use --live to check them)")
     lines.append(f"{'slide':<6}{'status':<7}{'expected':<44}actual")
     for r in rows:
         a = r["actual"]
