@@ -2,7 +2,8 @@
 
 Who calls it: core/runner.py (STAGES["extract"]), cli.py.
 What it calls: extract/pdf.py, core/limits.py (ensure_within), core/ledger.py (record),
-core/log.py (log_step, log_error), core/models.py (Claim, ClaimType, ClaimState, Provider).
+core/log.py (log_step, log_error), core/models.py (Claim, ClaimType, ClaimState, Provider),
+core/config.py (rule), core/store.py (update_run_input).
 """
 
 from __future__ import annotations
@@ -16,6 +17,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from core import store
+from core.config import rule
 from core.ledger import record
 from core.limits import ensure_within
 from core.log import log_error, log_step
@@ -141,17 +144,29 @@ def _parse_claims_json(raw_json: str, run_id: str) -> list[Claim]:
     claims: list[Claim] = []
     valid_types = {t.value: t for t in ClaimType}
 
-    for idx, item in enumerate(data, start=1):
+    for item in data:
         if not isinstance(item, dict):
             continue
-        raw_type = str(item.get("type", "company_fact")).lower().strip()
-        claim_type = valid_types.get(raw_type, ClaimType.COMPANY_FACT)
+        raw_type = str(item.get("type", "")).lower().strip()
+        if raw_type not in valid_types:
+            log_step(run_id, None, "extract_claim", "dropped", reason="unknown_type", type=raw_type)
+            continue
+        claim_type = valid_types[raw_type]
 
         quote = str(item.get("quote", "")).strip()
         if not quote:
             continue
 
-        slide_num = int(item.get("slide", 1))
+        raw_slide = item.get("slide")
+        if not isinstance(raw_slide, int):
+            try:
+                slide_num = int(raw_slide)
+            except (ValueError, TypeError):
+                log_step(run_id, None, "extract_claim", "dropped", reason="invalid_slide", slide=raw_slide)
+                continue
+        else:
+            slide_num = raw_slide
+
         subject = str(item.get("subject", "")).strip()
         metric = item.get("metric")
         if metric is not None:
@@ -190,7 +205,7 @@ def _parse_claims_json(raw_json: str, run_id: str) -> list[Claim]:
     return claims
 
 
-def _default_llm_call(prompt: str, model: str | None = None) -> tuple[str, str, int, int]:
+def _default_llm_call(prompt: str, model: str | None = None, timeout_s: float = 30.0) -> tuple[str, str, int, int]:
     """Execute live LLM call using available credentials (Gemini or OpenAI).
 
     Returns:
@@ -203,13 +218,23 @@ def _default_llm_call(prompt: str, model: str | None = None) -> tuple[str, str, 
 
     if gemini_key:
         model_name = model or "gemini-2.5-flash"
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_key}"
+        # Key sent in header only, never in URL
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+        headers = {"x-goog-api-key": gemini_key, "Content-Type": "application/json"}
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"response_mime_type": "application/json"},
         }
-        resp = requests.post(url, json=payload, timeout=30)
-        resp.raise_for_status()
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
+            resp.raise_for_status()
+        except requests.exceptions.Timeout as exc:
+            raise TimeoutError(f"Gemini API call timed out after {timeout_s}s") from exc
+        except Exception as exc:
+            # Strip any potential sensitive details from exception string
+            clean_msg = re.sub(r"key=[^\s&]+", "key=REDACTED", str(exc))
+            raise RuntimeError(f"Gemini API call failed: {clean_msg}") from exc
+
         res_data = resp.json()
         content = res_data["candidates"][0]["content"]["parts"][0]["text"]
         usage = res_data.get("usageMetadata", {})
@@ -220,14 +245,21 @@ def _default_llm_call(prompt: str, model: str | None = None) -> tuple[str, str, 
     if openai_key:
         model_name = model or "gpt-4o-mini"
         url = "https://api.openai.com/v1/chat/completions"
-        headers = {"Authorization": f"Bearer {openai_key}"}
+        headers = {"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"}
         payload = {
             "model": model_name,
             "messages": [{"role": "user", "content": prompt}],
             "response_format": {"type": "json_object"},
         }
-        resp = requests.post(url, headers=headers, json=payload, timeout=30)
-        resp.raise_for_status()
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
+            resp.raise_for_status()
+        except requests.exceptions.Timeout as exc:
+            raise TimeoutError(f"OpenAI API call timed out after {timeout_s}s") from exc
+        except Exception as exc:
+            clean_msg = re.sub(r"Bearer\s+[^\s]+", "Bearer REDACTED", str(exc))
+            raise RuntimeError(f"OpenAI API call failed: {clean_msg}") from exc
+
         res_data = resp.json()
         content = res_data["choices"][0]["message"]["content"]
         usage = res_data.get("usage", {})
@@ -244,7 +276,7 @@ def extract_claims(
     slides: dict[int, str],
     ctx: RunContext,
     model: str | None = None,
-    llm_caller: Callable[[str, str | None], tuple[str, str, int, int]] | None = None,
+    llm_caller: Callable[..., tuple[str, str, int, int]] | None = None,
 ) -> list[Claim]:
     """Extract structured claims from slides using an LLM, verify quotes, and record ledger rows."""
     run_id = ctx.run.id
@@ -262,7 +294,6 @@ def extract_claims(
         f"Extract all factual claims from the following pitch deck slides:\n\n{deck_text}"
     )
 
-    caller = llm_caller or _default_llm_call
     t0 = time.perf_counter()
     raw_content = ""
     model_name = model or "llm-extract"
@@ -274,13 +305,22 @@ def extract_claims(
     # Call core.limits.ensure_within(ctx) right before external call
     ensure_within(ctx)
 
+    timeout_s = 30.0
     try:
-        raw_content, model_name, tokens_in, tokens_out = caller(prompt, model)
+        timeout_s = float(rule(ctx.rules, "limits.per_call_timeout_s"))
+    except Exception:
+        pass
+
+    try:
+        if llm_caller:
+            raw_content, model_name, tokens_in, tokens_out = llm_caller(prompt, model)
+        else:
+            raw_content, model_name, tokens_in, tokens_out = _default_llm_call(prompt, model, timeout_s=timeout_s)
         ok = True
     except Exception as exc:
         error = str(exc)
         log_error(run_id, None, "extract.claims", error)
-        raise
+        raise RuntimeError(f"LLM extraction failed: {exc}") from exc
     finally:
         duration_ms = int((time.perf_counter() - t0) * 1000)
         record(
@@ -312,16 +352,40 @@ def extract_claims(
     return verified_claims
 
 
+def _extract_pdf_creation_date(pdf_path: Path) -> str | None:
+    """Read creation date from PDF metadata if available."""
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(str(pdf_path))
+        meta = reader.metadata
+        if meta and meta.creation_date:
+            return meta.creation_date.strftime("%Y-%m-%d")
+    except Exception:
+        pass
+    return None
+
+
 def run(
     ctx: RunContext,
     model: str | None = None,
-    llm_caller: Callable[[str, str | None], tuple[str, str, int, int]] | None = None,
+    llm_caller: Callable[..., tuple[str, str, int, int]] | None = None,
 ) -> list[Claim]:
     """Runner stage entry point (D7): extract.claims:run(ctx: RunContext) -> list[Claim]."""
     deck_path = Path(ctx.run.input.deck_path)
     if not deck_path.is_file() or deck_path.stat().st_size < 100:
         from core.runner import StageMissing
         raise StageMissing("extract.claims is not built yet")
+
+    # If deck_date was not given, fall back to PDF metadata (Item 14)
+    if ctx.run.input.deck_date is None:
+        meta_date = _extract_pdf_creation_date(deck_path)
+        if meta_date:
+            store.update_run_input(ctx.conn, ctx.run.id, meta_date, "pdf_metadata")
+            ctx.run.input.deck_date = meta_date
+            ctx.run.input.deck_date_source = "pdf_metadata"
+        else:
+            store.update_run_input(ctx.conn, ctx.run.id, None, "missing")
+            ctx.run.input.deck_date_source = "missing"
 
     slides = extract_pdf_slides(deck_path, run_id=ctx.run.id)
     return extract_claims(slides, ctx, model=model, llm_caller=llm_caller)

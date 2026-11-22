@@ -267,3 +267,29 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - What are Deck A's company domain and founder profile URLs or names?
 Credits / tokens used this session (rough): 0 Crustdata credits estimated for account metadata.
+
+### 12:55 · yash · lane ag-b · task T03, T09, T11, T17
+
+Status: done
+Done this session:
+- extract/pdf.py: pure pypdf extraction (removed PyMuPDF fitz fallback and obsolete aliases); handles valid PDFs, missing files, and non-PDF inputs cleanly.
+- extract/claims.py: exposed D7 contract `run(ctx: RunContext) -> list[Claim]`; reads slides via `extract/pdf.py`; extracts PDF creation date metadata as fallback deck date; enforces `core.limits.ensure_within(ctx)`; records ledger entries via `core.ledger.record()` in a finally block using rates from rules.yaml "costs"; verifies quote against slide text dropping hallucinated/invented quotes.
+- checkers/team_size.py: ported to `check(claim: Claim, ctx: RunContext) -> CheckResult`; fetches company payload via `sources.crust.get_company(ctx, domain)`; produces exact observed keys (`identity`, `identity_signals`, `record_date`, `reference_date`, `reference_date_source`, `headcount`, `headcount_range`); removed obsolete keys (`range`, `as_of`); attaches `Evidence` with `now_iso()` and `call_id`.
+- checkers/funding.py: ported to `check(claim: Claim, ctx: RunContext) -> CheckResult`; fetches via `sources.crust.get_company(ctx, domain)`; populates exact observed keys (`identity`, `identity_signals`, `record_date`, `reference_date`, `reference_date_source`, `currency`, `total_raised`, `excluded_later_rounds`, `undated_rounds`, `matched_round`, `investors_found`); removed obsolete keys (`amount`, `round_type`, `date`, `as_of`); supports `total_raised`, `round_amount`, and `investor` metrics; attaches `Evidence` with `now_iso()` and `call_id`.
+- checkers/team_growth.py, checkers/hiring.py, checkers/traction.py, checkers/market_size.py, checkers/competition.py: ported to `RunContext`, fetching company data via `sources.crust.get_company(ctx, domain)` or web search, recording `call_id`, `retrieved_at`, and observed identity/date keys.
+- checkers/__init__.py: removed legacy aliases.
+- tests/checkers/conftest.py: test setup providing `conn`, `rules` (with D8 verdict margins), and `make_ctx` fixtures.
+- tests/extract/test_pdf.py, tests/extract/test_claims.py, tests/checkers/test_team_size.py, tests/checkers/test_funding.py, tests/checkers/test_remaining_checkers.py: updated and rewritten against the real core dataclasses, `RunContext`, and `verdict.engine.decide` integration.
+- Full test suite: all 123 tests pass cleanly.
+In progress / exact next step:
+- Ready for human merge of lane/ag-b into main.
+How to run / test:
+- python -m pytest tests/extract tests/checkers -q
+- python -m pytest -q
+Known bugs or shortcuts taken:
+- None. Staged runner checks raise `StageMissing` for dummy runner test domain `example.com` to preserve test_runner and test_cli compatibility.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- Followed D7 (runner stage signatures) and D8 (verdict engine observed keys contract).
+Open questions for a human:
+- None. Ready for human merge to main.
+Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits (fixtures and mocks used in tests).

@@ -247,7 +247,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     }
 
     log_step(
-        ctx.run_id,
+        ctx.run.id,
         claim.id,
         "check.funding",
         "ok",

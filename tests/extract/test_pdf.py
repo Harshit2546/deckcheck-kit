@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from reportlab.pdfgen import canvas
 
-from extract.pdf import extract_pdf_slides, extract_slides, extract_text_per_slide
+from extract.pdf import extract_pdf_slides
 
 
 @pytest.fixture
@@ -46,11 +46,6 @@ def test_extract_pdf_slides_success(sample_pdf: Path) -> None:
     assert "2M USD in Seed" in slides[2]
     assert "Market Opportunity" in slides[3]
     assert "215B USD" in slides[3]
-
-
-def test_extract_pdf_aliases(sample_pdf: Path) -> None:
-    assert extract_slides(sample_pdf) == extract_pdf_slides(sample_pdf)
-    assert extract_text_per_slide(sample_pdf) == extract_pdf_slides(sample_pdf)
 
 
 def test_extract_pdf_non_existent(tmp_path: Path) -> None:

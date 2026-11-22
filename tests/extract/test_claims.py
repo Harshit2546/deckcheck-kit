@@ -3,14 +3,56 @@
 import json
 from pathlib import Path
 import pytest
+from reportlab.pdfgen import canvas
 
-from core.models import Claim, ClaimState, ClaimType, Provider, Run
-from core.store import Store
+from core import store
+from core.config import load_rules
+from core.models import (
+    Claim,
+    ClaimState,
+    ClaimType,
+    Provider,
+    Run,
+    RunContext,
+    RunInput,
+    RunState,
+    now_iso,
+)
 from extract.claims import (
     extract_claims,
+    run,
     verify_claim_quote,
     verify_claim_quotes,
 )
+
+
+@pytest.fixture
+def ctx(tmp_path: Path) -> RunContext:
+    conn = store.connect(tmp_path / "test.db")
+    rules = load_rules()
+    deck_path = tmp_path / "sample_deck.pdf"
+    c = canvas.Canvas(str(deck_path))
+    c.drawString(100, 750, "SwiftRoute India. Team size: 65 members.")
+    c.showPage()
+    c.save()
+
+    run_input = RunInput(
+        deck_path=str(deck_path),
+        domain="swiftroute.in",
+        deck_date="2024-01-01",
+        deck_date_source="input",
+    )
+    r = Run(
+        id="test-run-1",
+        input=run_input,
+        state=RunState.CREATED,
+        created_at=now_iso(),
+        updated_at=now_iso(),
+    )
+    store.insert_run(conn, r)
+    ctx_obj = RunContext(conn=conn, rules=rules, run=r)
+    yield ctx_obj
+    conn.close()
 
 
 def test_verify_claim_quote_exact_and_normalized() -> None:
@@ -75,12 +117,7 @@ def test_verify_claim_quotes_drops_invented_quote() -> None:
     assert verified[0].quote == "50 full-time employees"
 
 
-def test_extract_claims_with_llm_records_ledger_and_filters_quotes(tmp_path: Path) -> None:
-    store = Store(tmp_path / "test.db")
-    run = store.create_run(
-        Run(deck_path="deck.pdf", company_domain="swiftroute.in", deck_date="2024-01-01")
-    )
-
+def test_extract_claims_with_llm_records_ledger_and_filters_quotes(ctx: RunContext) -> None:
     slides = {
         1: "SwiftRoute India. Team size: 65 members.",
         2: "Raised $3M Seed Round in June 2023.",
@@ -124,8 +161,7 @@ def test_extract_claims_with_llm_records_ledger_and_filters_quotes(tmp_path: Pat
 
     claims = extract_claims(
         slides=slides,
-        run_id=run.id,
-        store=store,
+        ctx=ctx,
         llm_caller=mock_caller,
     )
 
@@ -137,10 +173,10 @@ def test_extract_claims_with_llm_records_ledger_and_filters_quotes(tmp_path: Pat
     assert "Valued at $100M post-money" not in quotes
 
     # 2. Verification: ledger row was written to Store
-    ledger_entries = store.list_ledger(run.id)
+    ledger_entries = store.list_ledger(ctx.conn, ctx.run.id)
     assert len(ledger_entries) == 1
     entry = ledger_entries[0]
-    assert entry.run_id == run.id
+    assert entry.run_id == ctx.run.id
     assert entry.provider == Provider.LLM
     assert entry.endpoint_or_model == "mock-gemini-flash"
     assert entry.tokens_in == 350
@@ -150,12 +186,7 @@ def test_extract_claims_with_llm_records_ledger_and_filters_quotes(tmp_path: Pat
     assert entry.error is None
 
 
-def test_extract_claims_failed_call_still_writes_ledger(tmp_path: Path) -> None:
-    store = Store(tmp_path / "test.db")
-    run = store.create_run(
-        Run(deck_path="deck.pdf", company_domain="swiftroute.in", deck_date="2024-01-01")
-    )
-
+def test_extract_claims_failed_call_still_writes_ledger(ctx: RunContext) -> None:
     slides = {1: "Some slide text"}
 
     def failing_caller(prompt: str, model: str | None) -> tuple[str, str, int, int]:
@@ -164,16 +195,37 @@ def test_extract_claims_failed_call_still_writes_ledger(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="LLM extraction failed"):
         extract_claims(
             slides=slides,
-            run_id=run.id,
-            store=store,
+            ctx=ctx,
             llm_caller=failing_caller,
         )
 
     # Hard rule: failed calls must write a ledger row
-    ledger_entries = store.list_ledger(run.id)
+    ledger_entries = store.list_ledger(ctx.conn, ctx.run.id)
     assert len(ledger_entries) == 1
     entry = ledger_entries[0]
-    assert entry.run_id == run.id
+    assert entry.run_id == ctx.run.id
     assert entry.provider == Provider.LLM
     assert entry.ok is False
     assert "LLM API network timeout" in (entry.error or "")
+
+
+def test_run_stage_extracts_claims(ctx: RunContext) -> None:
+    simulated_llm_json = json.dumps([
+        {
+            "slide": 1,
+            "quote": "Team size: 65 members",
+            "type": "team_size",
+            "subject": "SwiftRoute",
+            "metric": "headcount",
+            "value": 65,
+            "unit": "members",
+        }
+    ])
+
+    def mock_caller(prompt: str, model: str | None) -> tuple[str, str, int, int]:
+        return simulated_llm_json, "mock-gemini-flash", 200, 50
+
+    claims = run(ctx, llm_caller=mock_caller)
+    assert len(claims) == 1
+    assert claims[0].quote == "Team size: 65 members"
+    assert claims[0].type == ClaimType.TEAM_SIZE
