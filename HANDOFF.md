@@ -1241,3 +1241,98 @@ Open questions for a human:
 - Finance partner: confirm the title_levels additions (all PLACEHOLDER).
 Credits / tokens used this session (rough): 3 Crustdata credits
 
+### 15:48 · yash · lane ag-b (in ui/, lane ag's folder, at the user's request) · task T28
+
+Status: done (needs a lane ag look before the human merges)
+Done this session:
+- ui/app.py: two new pages and upgrades, so every result in PLAN.md section 1 "Finished result" is on screen.
+  - Report (new): verdict counts, cost and call time, run flags (deck date source, HELD, pending), red flags
+    by materiality with sources, founder questions, evidence requests, HELD notes, cost by provider,
+    download report.json / report.md. It shows the stored report (store.get_report) and never rebuilds it.
+  - Entities (new): company and founders from store.get_resolution (identity, signals, confidence,
+    reason); a warning for every identity that is not confirmed. Professional fields only.
+  - Run: state stepper (RUN_ORDER), per-claim progress bar, auto-refresh every 3 s (st.fragment) while a
+    run is unfinished, "Open the report" when the followed run is done.
+  - Claims: table columns follow rules.yaml output.fields (label shown as verdict, value as
+    claimed_value), verdict and type filters, and per claim a "claimed in the deck" vs "found by the
+    checker" block (CheckResult.observed, comparable, held_reason). Sources add source_type and call_id.
+  - Ledger: limits used vs rules.yaml, failed calls listed, totals by provider, ledger.csv download.
+  - Approvals: shows the run's red-flag count and a "Read the report first" button.
+  - The chosen run is shared across pages (session_state current_run).
+- ui/data.py: read-only helpers report_view, entities_view, run_progress, claim_columns, ledger_csv,
+  limits_used; claim_rows now also returns observed/comparable/held_reason and all report ROW_FIELDS.
+  Still never writes claims, evidence, verdicts, ledger or inbox (the existing test still passes).
+- .streamlit/config.toml: theme (one accent colour).
+- tests/ui/test_report_entities_pages.py: 9 tests. docs/LIVE_FIX_MAP.md: 2 lines (UI columns, colours).
+In progress / exact next step:
+- Lane ag: read the diff of ui/ on lane/ag-b before merging lane/ag (nobody else had changed ui/ since T18).
+- Then check the Report page on a real Deck A run against tests/decks/deck_a_answers.yaml.
+How to run / test:
+- streamlit run ui/app.py
+- python -m pytest -q tests/ui   (25 passed); python -m pytest -q   (237 passed)
+Known bugs or shortcuts taken:
+- Checked in a browser only on a fixture DB built from tests/ui fixtures (kept outside the repo); no live
+  Deck A run yet (it would spend Crustdata credits).
+- The auto-refresh fragment opens its own SQLite connection on every refresh, because Streamlit runs a
+  fragment in another thread.
+- report_view fills missing report sections with empty defaults, so an older or partial report still renders.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (no contract or schema change)
+Open questions for a human:
+- ui/ is lane ag's folder; this work was done on lane/ag-b because the user asked. Please confirm lane ag
+  accepts it.
+Credits / tokens used this session (rough): 0 Crustdata credits
+- Follow-up (same session): visual redesign of the UI. New ui/theme.py (CSS, verdict colours, slide strip,
+  verdict mark, serif deck quotes; every outside text is html.escape'd). Report opens with the company, a
+  strip with one block per claim in slide order coloured by verdict, then red flags as deck quote vs what
+  the records say. Pages renamed in the sidebar (values unchanged, tests still set "Run", "Claims", ...).
+  Fonts: Public Sans + Source Serif 4 from Google Fonts, system fallback when offline. 237 tests pass.
+
+
+### 16:28 · yash · lane ag-b (in ui/, lane ag's folder, at the user's request) · task T29
+
+Status: done (needs a lane ag look before the human merges)
+Done this session:
+- ui/components/: one Streamlit component (deckcheck_motion) in plain HTML/JS, no npm, no build, no CDN script.
+  bridge.js speaks the component protocol by hand; route.js, strip.js, gauge.js, sent.js draw the moments.
+  - Route tracker (Check a deck, Report while not ready): run states as checkpoints, marker moves as the
+    run advances; claim blocks fill with their verdict colour as verdicts are stored. First sight of a run
+    shows its state with no motion (a resumed run's finished steps are just lit).
+  - Deck scan (Report): the slide strip fills left to right once per run, counts count up. Strip blocks
+    are buttons: hover/focus shows the quote, click opens that claim on Every claim (expanded).
+  - Value gauge (red flags, claim detail): claimed value, tolerance band from rules.yaml, found marker.
+    Display only; the label is the engine's. Shown for metrics in GAUGE_FOUND (headcount, total_raised,
+    round_amount).
+  - Exactly-once send (Founder email): the email card moves into the test inbox tray once after approval,
+    then a "Sent once, key ..." stamp; reloads show the settled stamp.
+  - Each moment plays once (sessionStorage flag) and jumps to its end state under prefers-reduced-motion.
+- Dark design applied from the team's design spec (netflix.com-design.md): black canvas, #111111 surfaces,
+  #374151 borders, red #E50914 for primary buttons, brand and Contradicted only; 4px buttons/inputs, 8px
+  cards, pill banners for run notes. Fonts: Inter (text) + Bebas Neue (wordmark, report hero) from Google
+  Fonts, fallback Helvetica Neue/Segoe UI offline. Netflix Sans is proprietary, so it is not used.
+- ui/data.py: gauge_payload, strip_payload, route_payload. tests/ui/test_components.py (15 tests).
+  tests/ui/conftest.py sets DECKCHECK_STATIC_UI=1 (AppTest cannot run component iframes).
+- Bugs found in the browser and fixed: the auto-refresh read the default DB instead of the sidebar one
+  (fragment closure); a payload field named "key" collided with Streamlit's own argument.
+In progress / exact next step:
+- Lane ag: review ui/ on lane/ag-b. Then run Deck A live and watch the route tracker and report.
+How to run / test:
+- streamlit run ui/app.py   (DECKCHECK_STATIC_UI=1 to switch the animated components off)
+- python -m pytest -q
+Known bugs or shortcuts taken:
+- Checked in a browser on a fixture DB only (outside the repo), not on a live Deck A run or a real kill/resume.
+- Reduced-motion path checked in code only (the test browser could not emulate it).
+- Fonts need internet; offline the fallback stack is used (layout unchanged).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (no contract or schema change)
+Open questions for a human:
+- ui/ is lane ag's folder; this was done on lane/ag-b because the user asked.
+Credits / tokens used this session (rough): 0 Crustdata credits
+- Follow-up (same session): one theme mixed from the two design specs (netflix.com-design.md +
+  apple.com-design.md): dark canvas, Apple ink #1D1D1F panels and #F5F5F7 text, Apple blue #0071E3 for
+  actions and motion, red #E50914 only for the wordmark and Contradicted, Apple pill buttons (44px), 12px
+  cards, Apple type scale, centred report hero. SF Pro via system names, Inter as stand-in, Bebas Neue for
+  the wordmark/hero (SF Pro and Netflix Sans are proprietary, not shipped). Checked with the webapp-testing
+  skill (Playwright, headless): no console errors, no sideways scroll at 390px, components honour
+  prefers-reduced-motion. kill-ai-slop scan: clean. Springy stamp easing in sent.js replaced by a plain fade; round checkpoints and the Inter stand-in are pinned with deslop-ignore comments that give the reason.
+

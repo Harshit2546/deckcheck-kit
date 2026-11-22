@@ -34,7 +34,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T25 | ag + human | README: job, who pays, input, result, pass mark, data sources, how to run, credits | every claim in it is true | done (claude-core@mac) |
 | T26 | human | Rehearse demo with kill, 3 live-fix drills, design question | done twice | todo |
 | T27 | claude-verdict | Merge reviews before each human merge to main (12:15, 12:45, then every merge) | review notes in HANDOFF | in-progress (claude-verdict@win: reviews of ag-b and codex-a in docs/reviews/; repeat before each merge to main) |
-| T28 | ag | UI polish: ui/app.py looks bad. Clear layout and theme, verdict colour badges, run summary metrics, readable claim cards, auto-refresh while a run is running | looks good in the demo, tests/ui pass | todo |
+| T28 | ag-b (user asked; ui/ is lane ag) | UI shows every stored result: Report page, claimed vs found, entities, run progress, config-driven claim columns, ledger CSV | every field in PLAN section 1 'Finished result' visible in the UI; tests/ui green | done (yash@claude) |
 | T29 | claude-verdict | verdict rules for hiring, team_growth, company_fact, prior_exit, traction, competition (engine had rules only for team_size, funding, founder) | tests/verdict pass, cautious labels | done (claude-verdict@mac, harshit) |
 | T30 | web-client | sources/web.py: Crustdata web search + fetch client (docs/WEB_SOURCE.md, D16) | tests pass with recorded fixtures | done |
 | T31 | web-pages | sources/pages.py (page text, publish date) + extract/quotes.py (pick_quote, parse_amount) | tests pass | done (web-pages) |
@@ -44,3 +44,4 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T35 | web-checkers | D17 checkers keep undated items: market_size, customer, team_size (use only when nothing dated) | tests pass | done |
 | T36 | web-client | D18 founder lookups: sources/crust.py get_people/search_people, resolve/payloads.py person shapes, checkers/founder_background.py on the person record; founder test deck | tests pass, one approved live probe | done |
 | T37 | web-client | D19 founder_background record_date from the matched role's dates (latest start/end on or before the reference date; else earliest start; else None) | tests pass incl. a past role, a current role, a role starting after the deck, no dates | done |
+| T38 | ag-b (user asked; ui/ is lane ag) | UI motion (ag-b called it T29; renumbered, T29 is the verdict rules): route tracker, claims landing, deck scan strip, value gauge, exactly-once send stamp; dark mode, print | each moment works in the browser, stops under reduced motion; tests green | done (yash@claude) |
