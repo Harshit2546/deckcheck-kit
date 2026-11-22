@@ -2,12 +2,14 @@
 so the pages stay thin and tests can call these directly.
 
 Called by: ui/app.py, tests/ui/. Calls: core/store.py, core/adapter_loader.py (io/adapter.py),
-actions/email.py, cli.py (as a background process to run or resume a run).
+report/builder.py (ROW_FIELDS only), cli.py (as a background process to run or resume a run).
 Never writes claims, evidence or verdicts: only a new run row, and email approval through actions/.
 """
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import os
 import sqlite3
@@ -21,7 +23,9 @@ from typing import Any
 
 from core import store
 from core.adapter_loader import load_adapter
-from core.models import ActionStatus, Run, RunInput
+from core.config import rule
+from core.models import RUN_ORDER, ActionStatus, ClaimState, Run, RunInput, RunState
+from report.builder import ROW_FIELDS
 
 ROOT = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = Path(tempfile.gettempdir()) / "deckcheck-uploads"
@@ -104,23 +108,38 @@ def _is_url(text: str) -> bool:
     return text.startswith(("http://", "https://"))
 
 
-def claim_rows(conn: sqlite3.Connection, run_id: str) -> list[dict[str, Any]]:
-    """Each claim with its verdict and sources, read only from the store."""
+def claim_rows(conn: sqlite3.Connection, run_id: str,
+               rules: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Each claim with its verdict, sources and check result, read only from the store.
+    Also carries every report field (report/builder.py ROW_FIELDS) so rules.yaml output.fields
+    can pick the Claims-table columns."""
     rows = []
     for claim in store.list_claims(conn, run_id):
         v = store.get_verdict(conn, claim.id)
-        sources = [{"url_or_endpoint": e.locator, "is_url": _is_url(e.locator),
-                    "field_or_quote": e.field_or_quote, "value": e.value,
-                    "record_date": e.record_date, "retrieved_at": e.retrieved_at}
-                   for e in store.list_evidence(conn, claim.id)]
+        evidence = store.list_evidence(conn, claim.id)
+        sources = [{"source_type": e.source_type.value, "url_or_endpoint": e.locator,
+                    "is_url": _is_url(e.locator), "field_or_quote": e.field_or_quote, "value": e.value,
+                    "record_date": e.record_date, "retrieved_at": e.retrieved_at, "call_id": e.call_id}
+                   for e in evidence]
+        result = store.get_check_result(conn, claim.id)
+        materiality = None
+        if rules is not None:
+            materiality = (rules.get("materiality") or {}).get(claim.type.value)
         rows.append({"claim_id": claim.id, "slide": claim.slide, "type": claim.type.value,
-                     "quote": claim.quote, "claimed_value": claim.value, "unit": claim.unit,
-                     "state": claim.state.value,
+                     "subject": claim.subject, "metric": claim.metric, "as_of": claim.as_of,
+                     "quote": claim.quote, "claimed_value": claim.value, "value": claim.value,
+                     "unit": claim.unit, "state": claim.state.value,
                      "verdict": v.label.value if v else "PENDING",
+                     "label": v.label.value if v else "PENDING",
                      "confidence": v.confidence.value if v else None,
                      "reason_code": v.reason_code if v else None,
                      "explanation": v.explanation if v else None,
-                     "missing": v.missing if v else None, "sources": sources})
+                     "missing": v.missing if v else None, "sources": sources,
+                     "evidence_ids": list(v.evidence_ids) if v else [], "materiality": materiality,
+                     "checked": result is not None,
+                     "observed": result.observed if result else {},
+                     "comparable": result.comparable if result else None,
+                     "held_reason": result.held_reason if result else None})
     return rows
 
 
@@ -140,10 +159,142 @@ def inbox_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 def ledger_summary(conn: sqlite3.Connection, run_id: str) -> dict[str, Any]:
     entries = store.list_ledger(conn, run_id)
     totals = store.ledger_totals(conn, run_id)
+    by_provider: dict[str, dict[str, Any]] = {}
+    for e in entries:
+        p = by_provider.setdefault(e.provider.value, {"provider": e.provider.value, "calls": 0, "failed": 0,
+                                                      "credits": 0.0, "cost_inr": 0.0, "seconds": 0.0})
+        p["calls"] += 1
+        p["failed"] += 0 if e.ok else 1
+        p["credits"] += e.credits
+        p["cost_inr"] = round(p["cost_inr"] + e.cost_inr, 2)
+        p["seconds"] = round(p["seconds"] + e.duration_ms / 1000, 1)
     return {"calls": int(totals["calls"]), "failed": int(totals["failed"]),
             "credits": totals["credits"], "cost_inr": round(totals["cost_inr"], 2),
             "seconds": round(sum(e.duration_ms for e in entries) / 1000, 1),
-            "rows": [{"ts": e.ts, "provider": e.provider.value, "endpoint_or_model": e.endpoint_or_model,
+            "by_provider": sorted(by_provider.values(), key=lambda p: p["provider"]),
+            "rows": [{"call_id": e.id, "ts": e.ts, "provider": e.provider.value,
+                      "endpoint_or_model": e.endpoint_or_model,
                       "credits": e.credits, "tokens_in": e.tokens_in, "tokens_out": e.tokens_out,
                       "cost_inr": e.cost_inr, "ms": e.duration_ms, "ok": e.ok, "error": e.error}
                      for e in entries]}
+
+
+def ledger_csv(conn: sqlite3.Connection, run_id: str) -> str:
+    """Every ledger row of a run as CSV (PLAN section 7: ledger table + CSV export)."""
+    rows = ledger_summary(conn, run_id)["rows"]
+    out = io.StringIO()
+    fields = ["call_id", "ts", "provider", "endpoint_or_model", "credits", "tokens_in", "tokens_out",
+              "cost_inr", "ms", "ok", "error"]
+    writer = csv.DictWriter(out, fieldnames=fields, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    return out.getvalue()
+
+
+def limits_used(rules: dict[str, Any], summary: dict[str, Any]) -> list[dict[str, Any]]:
+    """Ledger totals next to the rules.yaml limits the runner enforces."""
+    lim = rules.get("limits") or {}
+    out = []
+    for label, key, used in (("Cost (INR)", "max_cost_inr", summary["cost_inr"]),
+                             ("Credits", "max_credits", summary["credits"])):
+        if key in lim and lim[key]:
+            out.append({"limit": label, "used": used, "max": lim[key],
+                        "share": min(1.0, float(used) / float(lim[key]))})
+    return out
+
+
+# ---------- Run progress ----------
+
+def run_progress(conn: sqlite3.Connection, run_id: str) -> dict[str, Any]:
+    """Where a run is: its state in RUN_ORDER and how many claims reached each claim state."""
+    run = store.get_run(conn, run_id)
+    if run is None:
+        raise ValueError(f"unknown run {run_id}")
+    claims = store.list_claims(conn, run_id)
+    by_state = {s.value: sum(1 for c in claims if c.state == s) for s in ClaimState}
+    order = [s.value for s in RUN_ORDER]
+    return {"state": run.state.value, "order": order,
+            "index": order.index(run.state.value) if run.state.value in order else -1,
+            "failed": run.state == RunState.FAILED, "error": run.error,
+            "claims": len(claims), "claims_by_state": by_state,
+            "finished": run.state == RunState.DONE}
+
+
+# ---------- Report page ----------
+
+def report_view(conn: sqlite3.Connection, run_id: str) -> tuple[dict[str, Any], str] | None:
+    """The report the runner stored at its `report` stage (report/builder.py), or None if not built yet.
+    The UI shows the stored report as is; it never rebuilds it. Missing sections (an older or partial
+    report) are filled with empty defaults so a page never fails on a stored report's shape."""
+    found = store.get_report(conn, run_id)
+    if found is None:
+        return None
+    report, markdown = dict(found[0] or {}), found[1] or ""
+    run = store.get_run(conn, run_id)
+    report.setdefault("run", {})
+    for key, value in (("id", run_id), ("domain", run.input.domain if run else ""),
+                       ("deck_date", run.input.deck_date if run else None),
+                       ("deck_date_source", run.input.deck_date_source if run else "unknown")):
+        report["run"].setdefault(key, value)
+    report.setdefault("generated_at", "")
+    summary = report.setdefault("summary", {})
+    summary.setdefault("by_label", {})
+    summary.setdefault("flags", [])
+    summary.setdefault("claims", sum(summary["by_label"].values()))
+    for key in ("red_flags", "claims", "founder_questions", "evidence_requests", "held"):
+        report.setdefault(key, [])
+    led = report.setdefault("ledger", {})
+    for key, value in (("calls", 0), ("failed", 0), ("credits", 0.0), ("cost_inr", 0.0),
+                       ("duration_ms", 0), ("by_provider", {})):
+        led.setdefault(key, value)
+    return report, markdown
+
+
+# ---------- Entities ----------
+
+_ENTITY_FIELDS = ("name", "id", "identity", "confidence", "identity_signals", "signals", "reason",
+                  "profile_url", "call_id")
+
+
+def entities_view(conn: sqlite3.Connection, run_id: str) -> dict[str, Any] | None:
+    """What resolve/entities.py matched: the company and each founder, professional fields only."""
+    found = store.get_resolution(conn, run_id)
+    if found is None:
+        return None
+
+    def clean(entity: dict[str, Any] | None, role: str) -> dict[str, Any]:
+        entity = entity or {}
+        row = {"role": role, **{k: entity.get(k) for k in _ENTITY_FIELDS}}
+        row["signals"] = ", ".join(row["signals"] or [])
+        return row
+
+    company = found.get("company")
+    return {"company": clean(company, "company") if company else None,
+            "founders": [clean(f, "founder") for f in found.get("founders") or []]}
+
+
+# ---------- Claims table columns (rules.yaml output.fields) ----------
+
+# D3 names in the kit output; the UI uses the same column names as the report.
+DISPLAY_NAMES = {"label": "verdict", "value": "claimed_value"}
+
+
+def claim_columns(rules: dict[str, Any]) -> list[str]:
+    """Claims-table columns from rules.yaml output.fields, so an hour-3 field change shows in the UI with
+    no code edit. Unknown names raise the same error report/builder.py raises."""
+    wanted = list(rule(rules, "output.fields"))
+    unknown = [f for f in wanted if f not in ROW_FIELDS]
+    if unknown:
+        raise ValueError(f"config/rules.yaml output.fields has unknown field(s) {unknown}; "
+                         f"report/builder.py can show: {list(ROW_FIELDS)}")
+    return wanted
+
+
+def table_cell(value: Any) -> Any:
+    """Flatten list/dict values (sources, evidence_ids) so st.dataframe can show them."""
+    if isinstance(value, list):
+        return "; ".join(f"{v.get('source_type', '')} {v.get('field_or_quote', '')}".strip()
+                         if isinstance(v, dict) else str(v) for v in value)
+    if isinstance(value, dict):
+        return json.dumps(value, ensure_ascii=False)
+    return value

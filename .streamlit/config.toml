@@ -1,0 +1,12 @@
+# DeckCheck UI theme (ui/app.py). One accent colour; verdict colours come from Streamlit's
+# markdown colour names in ui/app.py VERDICT_COLOUR and always sit next to the text label.
+[theme]
+base = "light"
+primaryColor = "#1F4E5F"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F3F4F2"
+textColor = "#1B1D1F"
+font = "sans serif"
+
+[server]
+runOnSave = false
