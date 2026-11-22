@@ -8,13 +8,13 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 |---|---|---|---|---|
 | T00 | human | Add rule files to repo | AGENTS.md etc. on main | done |
 | T01 | claude-core | Skeleton: core/models.py, core/store.py (all tables incl. inbox with UNIQUE key), core/log.py, config/rules.yaml schema, cli.py (run, resume), io/adapter.py stub | `python cli.py run --help` works; tables created | done (harshit) |
-| T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | blocked (yash, account rates verified. Need Deck A company domain and founder identifiers for enrichment.) |
+| T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | blocked (yash, Locus company probe recorded. Founder enrichment paused by the human.) |
 | T03 | ag-b | extract/pdf.py: text per slide | test on Deck A passes | done |
 | T04 | ag | ui/app.py shell: upload form, run list from DB | shows a run row | todo |
 | T05 | human | Partner: Deck A (8 claims) + answer key; rules.yaml values | files in tests/decks/ | todo |
 | T06 | human | Read kickoff kit; record Investing request input/output format in DECISIONS.md | D3 written | todo |
 | T07 | claude-core | core/runner.py: state machine, per-claim checkpoints, resume, cost and time limits | kill mid-run then resume finishes with no duplicate calls | done (harshit) |
-| T08 | codex-a | sources/crust.py: rate limit, backoff on 429/5xx, per-call timeout to HELD, ledger row per call, TTL cache | unit tests for 429, timeout, ledger | todo |
+| T08 | codex-a | sources/crust.py: rate limit, backoff on 429/5xx, per-call timeout to HELD, ledger row per call, TTL cache | unit tests for 429, timeout, ledger | done (yash) |
 | T09 | ag-b | extract/claims.py: LLM structured claims + quote-on-slide check | invented quote is rejected in test | done |
 | T10 | claude-verdict | resolve/entities.py: company by domain, founders, two-signal rule, confidence | namesake fixture returns identity_unclear | in-progress (claude-verdict@win, 90%: resolve/entities.py + 29 tests pass against a fake sources.crust; waits for codex-a get_company/get_people/search_people, D12) |
 | T11 | ag-b | checkers: team_size, funding | tests pass | done |

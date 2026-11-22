@@ -144,3 +144,9 @@ Checker note for ag-b (funding): `observed.record_date` = date of the newest dat
 Why: the age limit made sense for snapshots, not for dated events.
 Files affected: verdict/engine.py, verdict/DESIGN.md (rows 8 and section 6), config/rules.yaml (merger), docs/LIVE_FIX_MAP.md
 Who must know (lanes): claude-core / merger (rules.yaml), ag-b, finance partner
+
+### 13:25 · yash · D11: Crustdata company lookup and call provenance
+Change: `sources.crust.get_company(ctx, domain) -> tuple[dict, str]` returns the unique exact-domain company record and its ledger call ID. The record includes `retrieved_at` (original fetch time). An empty match list returns an empty record. Multiple exact matches raise a source error because current checkers cannot compare ambiguous records. Checkers should use the record's `retrieved_at` for Evidence.
+Why: all callers share one short-lived company result per run and domain. The authenticated account endpoint supplies current pacing and credit rates, without new rules.yaml keys. With no receipt, charge estimates use credits per returned record. A 429 or 5xx gets one retry after pacing and any Retry-After delay, subject to D7 limits. Every attempt, including the metadata request, produces its own ledger row.
+Files affected: sources/crust.py, docs/crustdata_fields.md, tests/sources/
+Who must know (lanes): codex-a, ag-b, claude-core

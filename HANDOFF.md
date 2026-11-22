@@ -552,3 +552,43 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - Finance partner: is 10 years a sensible funding age limit?
 Credits / tokens used this session (rough): none
+
+### 13:33 · yash · lane codex-a · task T08
+
+Status: done
+Done this session:
+- sources/crust.py (c4dea5f): get_company(ctx, domain) returns the unique exact-domain record and call ID. Checks D7 limits before each request, paces attempts using account policy, retries 429/5xx once, enforces configured timeouts and writes each attempt through core.ledger.record() in finally. The run-scoped cache keeps the original retrieved_at and call ID.
+- tests/sources/test_crust.py: tested the caller, recorded response shape, timeout, credit accounting, cache and retry paths. Test-only provider example and recorded account fields are under tests/fixtures/crustdata/.
+In progress / exact next step:
+- T02: after the human supplies Deck A's domain and founder identifiers, call exact-domain company enrich and batched person enrich. Record provider fields, record dates and charged or estimated credits in docs/crustdata_fields.md. Save sanitized entity fixtures, verify, and push. Then continue with sources/web.py and customer.
+How to run / test:
+- uv run --no-project --python 3.11 --with-requirements requirements.txt python -m pytest tests/sources -q
+- uv run --no-project --python 3.11 --with-requirements requirements.txt --with pypdf --with requests --with reportlab python -m pytest -q (132 passed).
+Known bugs or shortcuts taken:
+- Without a provider billing receipt, company charges are estimated from current account rates and returned records. The company fixture is a provider-published example. Live Deck A enrichment is still pending.
+- Existing ag-b checkers stamp their Evidence.retrieved_at when creating evidence. For a cache hit, ag-b should use the payload's retrieved_at as described in D11. The source preserves the original value.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D11 records the company client contract, dynamic account rates and request provenance.
+Open questions for a human:
+- Deck A company domain and founder profile URLs or names are needed for T02.
+Credits / tokens used this session (rough): 0 Crustdata credits (fixture tests only).
+
+### 13:51 · yash · lane codex-a · task T02
+
+Status: blocked (company probe done, founder enrichment paused by the human)
+Done this session:
+- docs/crustdata_fields.md: recorded one exact-domain Locus company lookup, the observed identity and metrics, and the available dates.
+- tests/fixtures/crustdata/deck_a_locus_company.json: sanitized the live company response and scanned for contact information and secrets before staging.
+- The company matched Crustdata ID 7403. Headcount total 349 has no own date. The latest dated point is 349 on 2026-11-02. Funding total is USD 78.75M, with last fundraise date 2021-06-02. The individual funding_rounds key is absent although num_funding_rounds is 7.
+In progress / exact next step:
+- Wait for explicit authorization to probe founders. Then use supplied or verified profile URLs for one batched /person/enrich call and record the results in the T02 field reference and sanitized test fixtures.
+How to run / test:
+- python -m json.tool tests/fixtures/crustdata/deck_a_locus_company.json > $null
+- git diff --check
+Known bugs or shortcuts taken:
+- No per-call receipt. The 2.0-credit ledger amount is an estimate. The aggregate investment amount and undated headcount total carry no as-of timestamp. Individual round dates were unavailable.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- No contract changes. Limited the single request to basic_info, headcount and funding.
+Open questions for a human:
+- Founder enrichment awaits authorization.
+Credits / tokens used this session (rough): 2.0 Crustdata credits estimated (call-c1500cda7977).
