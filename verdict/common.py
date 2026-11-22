@@ -37,6 +37,8 @@ MISSING_TEXT: dict[str, str] = {
     # T29
     "metric_mismatch": "A figure for exactly the metric the deck states (same scope, same unit).",
     "observed_more_than_claimed": "The company's own count and date for this figure.",
+    "growth_scale_unclear": "Audited or management accounts for both periods of the growth figure.",
+    "estimate_gap_unclear": "Audited or management accounts for the period the deck refers to.",
 }
 
 

@@ -39,3 +39,38 @@ def test_hiring(rules, metric, value, unit, observed, expected):
 def test_hiring_never_contradicted(rules, observed):
     label, _, conf = verdict(rules, HI, "open_roles", 40, "roles", {"openings_count": observed})
     assert label is not L.CONTRADICTED and conf is not C.HIGH
+
+
+# ----------------------------------------------------------------- traction (tolerance 15%, strong margin 2.0 -> 30%)
+
+TR = ClaimType.TRACTION
+
+
+@pytest.mark.parametrize("metric,value,unit,observed,expected", [
+    ("revenue", 1_000_000, "USD", {"revenue": 1_000_000}, (L.SUPPORTED, "within_tolerance", C.MEDIUM)),
+    ("arr", 1_000_000, "USD", {"arr": 880_000}, (L.SUPPORTED, "within_tolerance", C.LOW)),          # 12%: in, not close
+    ("revenue", 1_000_000, "USD", {"revenue": 800_000}, (L.CANNOT_VERIFY, "estimate_gap_unclear", C.LOW)),  # 20%
+    ("revenue", 1_000_000, "USD", {"revenue": 500_000}, (L.CONTRADICTED, "outside_tolerance", C.MEDIUM)),   # 50%
+    ("arr", 1_000_000, "USD", {"revenue": 1_000_000}, (L.CANNOT_VERIFY, "no_evidence", C.LOW)),       # ARR vs revenue
+    ("gmv", 1_000_000, "USD", {"revenue": 1_000_000}, (L.NOT_COMPARABLE, "metric_mismatch", C.MEDIUM)),
+    ("revenue_run_rate", 1_000_000, "USD", {"revenue": 1_000_000}, (L.NOT_COMPARABLE, "metric_mismatch", C.MEDIUM)),
+    ("customers", 50, None, {"revenue": 1}, (L.NOT_COMPARABLE, "metric_mismatch", C.MEDIUM)),
+    ("revenue", 80_000_000, "INR", {"revenue": 1_000_000}, (L.NOT_COMPARABLE, "currency_mismatch", C.MEDIUM)),
+    ("revenue", 1_000_000, None, {"revenue": 1_000_000}, (L.NOT_COMPARABLE, "currency_mismatch", C.MEDIUM)),
+    ("revenue_growth", 50, "%", {"growth_rate": 0.5}, (L.CANNOT_VERIFY, "growth_scale_unclear", C.LOW)),
+    ("revenue", "big", "USD", {"revenue": 1}, (L.CANNOT_VERIFY, "claim_value_unusable", C.LOW)),
+])
+def test_traction(rules, metric, value, unit, observed, expected):
+    assert verdict(rules, TR, metric, value, unit, observed) == expected
+
+
+def test_traction_never_high_confidence(rules):
+    for obs in (1, 500_000, 1_000_000, 5_000_000):
+        assert verdict(rules, TR, "revenue", 1_000_000, "USD", {"revenue": obs})[2] is not C.HIGH
+
+
+@pytest.mark.parametrize("metric,unit", [("gmv", "USD"), ("revenue", "INR"), ("revenue_growth", "%"),
+                                         ("mrr", "USD")])
+def test_traction_cautious_paths_never_contradicted(rules, metric, unit):
+    label = verdict(rules, TR, metric, 1_000_000, unit, {"revenue": 1, "arr": 1, "growth_rate": 99})[0]
+    assert label is not L.CONTRADICTED
