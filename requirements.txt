@@ -1,2 +1,5 @@
 pyyaml>=6.0
 pytest>=8.0
+pypdf>=4.0        # extract/pdf.py (ag-b)
+requests>=2.31     # extract/claims.py LLM call (ag-b)
+reportlab>=4.0     # tests/extract: builds test PDFs (ag-b)
