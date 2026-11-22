@@ -118,8 +118,8 @@ class _FakeResponse:
 def _fake_connection(status: int, payload: object, headers: dict[str, str],
                      seen: list[dict[str, Any]]) -> type:
     class FakeConnection:
-        def __init__(self, host: str, timeout: float) -> None:
-            seen.append({"host": host, "timeout": timeout})
+        def __init__(self, host: str, timeout: float, context: object = None) -> None:
+            seen.append({"host": host, "timeout": timeout, "context": context})
             self.sock: _FakeSocket | None = None
 
         def connect(self) -> None:

@@ -2,5 +2,6 @@ pyyaml>=6.0
 pytest>=8.0
 pypdf>=4.0        # extract/pdf.py (ag-b)
 requests>=2.31     # extract/claims.py LLM call (ag-b)
+certifi            # core/tls.py: CA bundle for sources/crust.py and sources/web.py
 reportlab>=4.0     # tests/extract: builds test PDFs (ag-b)
 streamlit>=1.35     # ui/app.py (lane ag)
