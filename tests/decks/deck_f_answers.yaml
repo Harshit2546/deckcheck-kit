@@ -1,0 +1,18 @@
+# synthetic test fixture, tests/ only (T36, D18)
+# Founder background targets for Deck F. All TBD until the one approved live
+# get_people probe shows the founder's recorded employment facts.
+- slide: 2
+  quote: "Our co-founder and CEO Nishith Rastogi previously worked at Amazon."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >-
+    past_employer. Needs the founder's person record (experience.employment_details)
+    from POST /person/enrich; no live probe yet.
+
+- slide: 3
+  quote: "Nishith Rastogi was a Software Development Engineer at Amazon."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >-
+    title. Needs the title and dates of the Amazon role in the founder's person
+    record; no live probe yet.
