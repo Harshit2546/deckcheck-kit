@@ -40,6 +40,6 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T31 | web-pages | sources/pages.py (page text, publish date) + extract/quotes.py (pick_quote, parse_amount) | tests pass | done (web-pages) |
 | T32 | web-checkers | checkers/market_size.py rewrite + checkers/customer.py (observed keys per WEB_SOURCE.md section 3) | tests pass with fakes | done |
 | T33 | claude-verdict | verdict rules market_size + customer; engine skips identity for market_size | tests/verdict pass, cautious labels | done |
-| T34 | claude-verdict | D17 undated fallback in verdict/engine.py + report flag (reason suffix _undated, low confidence, age guard) | tests pass, eval unchanged | in-progress (claude-verdict@mac) |
+| T34 | claude-verdict | D17 undated fallback in verdict/engine.py + report flag (reason suffix _undated, low confidence, age guard) | tests pass, eval unchanged | done |
 | T35 | web-checkers | D17 checkers keep undated items: market_size, customer, team_size (use only when nothing dated) | tests pass | todo |
 | T36 | web-client | D18 founder lookups: sources/crust.py get_people/search_people, resolve/payloads.py person shapes, checkers/founder_background.py on the person record; founder test deck | tests pass, one approved live probe | todo |
