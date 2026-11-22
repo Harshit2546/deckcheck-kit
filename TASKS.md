@@ -32,7 +32,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T23 | ag | docs/ARCHITECTURE.md + diagram (components, data flow, data calls, approvals, retries, ledger) | in repo | done (claude-core@mac) |
 | T24 | human | ETHICS.md, BUSINESS.md (measured cost per deck in rupees) | in repo | todo |
 | T25 | ag + human | README: job, who pays, input, result, pass mark, data sources, how to run, credits | every claim in it is true | done (claude-core@mac) |
-| T26 | human | Rehearse demo with kill, 3 live-fix drills, design question | done twice | todo |
+| T26 | teammate | Rehearse demo with kill, 3 live-fix drills, design question | done twice | in-progress (teammate, 20%, writing docs/DEMO.md) |
 | T27 | claude-verdict | Merge reviews before each human merge to main (12:15, 12:45, then every merge) | review notes in HANDOFF | in-progress (claude-verdict@win: reviews of ag-b and codex-a in docs/reviews/; repeat before each merge to main) |
 | T28 | ag | UI polish: ui/app.py looks bad. Clear layout and theme, verdict colour badges, run summary metrics, readable claim cards, auto-refresh while a run is running | looks good in the demo, tests/ui pass | todo |
 | T29 | claude-verdict | verdict rules for hiring, team_growth, company_fact, prior_exit, traction, competition (engine had rules only for team_size, funding, founder) | tests/verdict pass, cautious labels | done (claude-verdict@mac, harshit) |
