@@ -850,5 +850,5 @@ Credits / tokens used this session (rough): 0 Crustdata credits
   cards, Apple type scale, centred report hero. SF Pro via system names, Inter as stand-in, Bebas Neue for
   the wordmark/hero (SF Pro and Netflix Sans are proprietary, not shipped). Checked with the webapp-testing
   skill (Playwright, headless): no console errors, no sideways scroll at 390px, components honour
-  prefers-reduced-motion. kill-ai-slop scan: 1 finding open (springy stamp easing in sent.js), 2 kept on purpose.
+  prefers-reduced-motion. kill-ai-slop scan: clean. Springy stamp easing in sent.js replaced by a plain fade; round checkpoints and the Inter stand-in are pinned with deslop-ignore comments that give the reason.
 

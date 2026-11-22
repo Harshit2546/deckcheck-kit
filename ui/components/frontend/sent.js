@@ -38,8 +38,8 @@ DC.renderers.sent = function (root, a) {
       count.textContent = String(a.inbox_count);
       DC.animate(tray, [{ transform: "scale(1)" }, { transform: "scale(1.06)" }, { transform: "scale(1)" }], { duration: 260 });
       DC.animate(card, [{ transform: "none", opacity: 0 }, { transform: "none", opacity: 0.55 }], { duration: 300 });
-      DC.animate(stamp, [{ opacity: 0, transform: "rotate(-4deg) scale(1.25)" },
-                         { opacity: 1, transform: "rotate(-2deg) scale(1)" }], { duration: 320, easing: "cubic-bezier(.2,1.4,.4,1)" });
+      DC.animate(stamp, [{ opacity: 0, transform: "translateY(4px)" },
+                         { opacity: 1, transform: "none" }], { duration: 200, easing: "ease-out" });
     });
   });
 };
