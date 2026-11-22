@@ -25,7 +25,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T16 | codex-a / ag-b | checkers: prior_exit, company_fact (done by ag-b), customer (web quote verify) | tests pass | in-progress |
 | T17 | ag-b | checkers: team_growth, hiring, traction, market_size, competition | tests pass | done |
 | T18 | ag | UI: verdict detail with source link and date; approvals page; inbox; ledger view | click-through works | todo |
-| T19 | claude-core | actions/: draft, approve, exactly-once send | kill between approve and send, restart, one inbox row | todo |
+| T19 | claude-core | actions/: draft, approve, exactly-once send | kill between approve and send, restart, one inbox row | done (harshit) |
 | T20 | claude-verdict | Hour-3 requirement change | DECISIONS entry + tests | todo (claude-verdict@win: waiting for the hour-3 requirement text) |
 | T21 | ag | tests/eval/run_eval.py: accuracy vs answer key for decks A, B, C | prints per-claim pass/fail | todo |
 | T22 | human | MILESTONE 2 at 15:00: 3 decks, kill/resume, send once | all green | todo |

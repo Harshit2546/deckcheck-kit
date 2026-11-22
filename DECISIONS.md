@@ -79,3 +79,43 @@ Change: D9 said both laptops use the same Claude account. That is wrong: there a
 Why: the user clarified after D9 was pushed. DECISIONS is append-only, so this is a new entry instead of an edit.
 Files affected: none in code.
 Who must know (lanes): all lanes, both humans
+
+### 15:20 · human (written by harshit on the merger's word) · D3: request and result format (Investing track, 2.2 The Diligence Desk)
+Change: the problem statement and builder handbook give no fixed Investing I/O format, so this is our own; `io/adapter.py` `from_kit()` / `to_kit()` are the only places to change if the organizers publish one.
+Input (one request, JSON):
+```json
+{ "request": "<customer's words>", "deck_path": "deck.pdf",
+  "company_domain": "example.in", "deck_date": "YYYY-MM-DD or null",
+  "founder_urls": ["https://..."] }
+```
+`deck_date` is the "as of" date. When null, extract uses PDF metadata and sets `deck_date_source = "pdf_metadata"` (confidence capped at medium).
+Output (one report, JSON + Markdown):
+```
+{ "run_id", "company": {name, domain, identity, source}, "as_of": deck_date,
+  "claims": [ { "slide", "quote", "type", "claimed_value",
+                "verdict": SUPPORTED|CONTRADICTED|NOT_COMPARABLE|CANNOT_VERIFY|HELD,
+                "reason_code", "explanation", "confidence",
+                "missing": "what would settle it" | null,
+                "sources": [ { "url_or_endpoint", "field_or_quote", "value",
+                               "record_date", "retrieved_at" } ] } ],
+  "red_flags", "founder_questions", "evidence_requests",
+  "ledger": { "calls", "credits", "cost_inr", "seconds" },
+  "founder_email": { "status": pending|approved|sent, "recipient": test inbox } }
+```
+Claim field list and order come from rules.yaml `output.fields` (hour-3 changes land there).
+Rule from the handbook ("calls replayed from a past date, no fact from after that date"): evidence whose record_date is after as_of must not support or contradict a claim. It is excluded or NOT_COMPARABLE.
+Implementation notes (claude-core): `output.fields` keeps report/builder.py names and gains `value`; `to_kit()` renames label -> verdict, value -> claimed_value, source locator -> url_or_endpoint, and leaves any other field name as is. `ledger.seconds` = total duration of external calls. `company` and `founder_email` are passed to `to_kit()` by the caller (resolution entities, the run's Action), since the report does not hold them. The customer's `request` text is read and checked but not stored (storing it is a schema change).
+Why: no published format; one adapter keeps a later format change to two functions.
+Files affected: io/adapter.py, config/rules.yaml (output.fields), verdict/ (date rule), report/, ui/, checkers/
+Who must know (lanes): claude-verdict (report/ builds this; verdict must apply the after-as_of rule), ag (UI shows it), all checkers
+
+### 15:40 · human (merger, answering claude-verdict) · D13: D3 stays strict; snapshot fields use their dated history point
+Change: D3 is unchanged: no record dated after the reference date (claim.as_of, else the deck date) may support or contradict a claim. For fields whose snapshot value has only a refresh date (headcount total, growth), checkers must NOT use the snapshot. They read the dated history instead and pick the latest point dated on or before the reference date:
+- team_size: `headcount.timeseries[]` point (`employee_count`, its own date) -> observed `headcount`, `record_date` = that point's date, Evidence field_or_quote `headcount.timeseries[<date>].employee_count`.
+- team_growth: two timeseries points on or before the reference date, spanning the claimed window; growth computed by code from them.
+- funding: rounds already carry dates (excluded_later_rounds), unchanged.
+- No history point on or before the reference date -> no headcount evidence -> CANNOT_VERIFY `no_evidence`, `missing` = "a headcount record dated on or before <reference date>". The snapshot `headcount.total` and `updated_at` are never used as a dated fact.
+Neither option 1 (past decks never get a headcount verdict) nor option 2 (refresh date as as-of) is taken: option 2 would date a number by when Crustdata refreshed it, which breaks "every fact has the record's own date".
+Why: the handbook's Investing brief asks for calls "replayed from a past date ... with no fact from after that date", and hidden test cases use events after 1 September 2026, so decks will be dated in the past. Crustdata documents dated headcount points (docs/crustdata_fields.md: latest timeseries point dated 2026-11-02), so strict D3 still yields verdicts. The verdict engine needs no change.
+Files affected: checkers/team_size.py, checkers/team_growth.py (ag-b); tests/checkers; verdict/DESIGN.md section 3.1 wording (claude-verdict).
+Who must know (lanes): ag-b, claude-verdict, codex-a (get_company must request the headcount section including timeseries)
