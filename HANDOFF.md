@@ -468,3 +468,24 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - none new (the after-as_of date rule for claude-verdict from the 15:30 entry is still open)
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:05 · harshit · lane claude-core · task demo commands
+
+Status: done
+Done this session:
+- Demo commands now use the real Deck A request Codex is adding (Locus, locus.sh, deck date 2026-11-15). They replace the commands in the 15:55 entry:
+  - python cli.py run --request tests/decks/deck_a_request.json --out out/result.json
+  - python cli.py resume <run_id> --out out/result.json
+- tests/requests/example_request.json: marked "FORMAT EXAMPLE ONLY" (`_note` key, which from_kit ignores); deck_path is format-example-only.pdf, so it can never be mistaken for the demo.
+- requirements.txt: streamlit (for lane ag's ui/app.py).
+In progress / exact next step:
+- harshit now also drives lane ag (UI) in worktree ../dc-ag on lane/ag.
+How to run / test:
+- .venv/bin/python -m pytest -q   (143 passed)
+Known bugs or shortcuts taken:
+- The demo command fails with "deck not found" until tests/decks/deck_a.pdf and deck_a_request.json are merged (Codex).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- This folder was found checked out on `main` twice; please switch branches only in your own worktree.
+Credits / tokens used this session (rough): 0 Crustdata credits
