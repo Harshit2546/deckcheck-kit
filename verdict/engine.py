@@ -155,6 +155,10 @@ def _route(claim: Claim, result: CheckResult, rules: dict[str, Any], st: dict[st
         return prior_exit.judge(claim, result, st)
     if claim.type is ClaimType.TEAM_GROWTH:
         return team_growth.judge(claim, result, rules, st)
+    if claim.type is ClaimType.COMPETITION:   # not in _TYPES_WITH_RULES: it has no tolerance_pct
+        return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "competition_not_judged", Confidence.LOW,
+                    "Competitor lists are subjective and incomplete, so claims about competitors are not judged "
+                    "automatically; the competitors the source names are in the evidence.")
     return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "unsupported_metric", Confidence.LOW,
                 f"No verdict rule exists yet for {claim.type.value} / {claim.metric!r}.")
 

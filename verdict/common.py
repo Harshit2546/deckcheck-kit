@@ -44,6 +44,7 @@ MISSING_TEXT: dict[str, str] = {
     "prior_company_not_checked": "The name or domain of the founder's earlier company and a deal announcement for its exit.",
     "acquirer_differs": "The deal announcement naming the acquirer.",
     "period_mismatch": "Headcount on both dates of the period the deck names (for example a year apart).",
+    "competition_not_judged": "An analyst's review of the competitor landscape; this is not checked automatically.",
 }
 
 

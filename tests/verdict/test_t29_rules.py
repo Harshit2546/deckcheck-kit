@@ -177,3 +177,21 @@ def test_team_growth(rules, metric, value, unit, observed, expected):
 def test_team_growth_never_contradicted(rules, growth):
     obs = {"growth_percent": growth, "baseline_date": "2025-01-10"}
     assert verdict(rules, TG, "headcount_growth_yoy", 50, "%", obs)[0] is not L.CONTRADICTED
+
+
+# ----------------------------------------------------------------- competition (never decided)
+
+@pytest.mark.parametrize("metric,value", [("competitors", "Shipsy"), ("market_position", "leader"),
+                                          ("competitor_count", 3)])
+def test_competition_is_never_decided(rules, metric, value):
+    obs = {"competitors": ["Shipsy", "FarEye"]}
+    assert verdict(rules, ClaimType.COMPETITION, metric, value, None, obs) == \
+        (L.CANNOT_VERIFY, "competition_not_judged", C.LOW)
+
+
+def test_every_new_reason_has_missing_text():
+    from verdict.common import MISSING_TEXT
+    for code in ("metric_mismatch", "observed_more_than_claimed", "growth_scale_unclear", "estimate_gap_unclear",
+                 "founding_year_close", "location_unclear", "prior_company_not_checked", "acquirer_differs",
+                 "period_mismatch", "competition_not_judged"):
+        assert MISSING_TEXT.get(code), code
