@@ -227,6 +227,16 @@ def test_fetch_keeps_successes_matched_by_url_in_request_order(
     assert "USD 9.2 bn" in pages[1]["html"]
 
 
+def test_fetch_skips_non_https_urls_and_keeps_the_rest(make_context: MakeContext,
+                                                     serve: Serve) -> None:
+    ctx = make_context("mixed-scheme")
+    calls = serve((_recorded("fetch_mixed.json"), None))
+    pages, _ = web.fetch(ctx, ["http://plain.example.com/a", "https://example-news.in/hr-tech-market"])
+    assert calls[0][2]["urls"] == ["https://example-news.in/hr-tech-market"]
+    assert [page["url"] for page in pages] == ["https://example-news.in/hr-tech-market"]
+    assert store.list_ledger(ctx.conn, ctx.run.id)[0].credits == 1.0
+
+
 def test_ledger_row_on_http_error_without_retry(make_context: MakeContext, serve: Serve) -> None:
     ctx = make_context("http-500")
     calls = serve(web._HttpError(500, None, None))
@@ -323,8 +333,7 @@ def test_fetch_url_cap_and_empty_input(make_context: MakeContext, serve: Serve) 
     calls = serve()
     with pytest.raises(ValueError):
         web.fetch(ctx, [f"https://example.com/{n}" for n in range(11)])
-    with pytest.raises(ValueError):
-        web.fetch(ctx, ["http://example.com/insecure"])
+    assert web.fetch(ctx, ["http://example.com/insecure"]) == ([], None)
     assert web.fetch(ctx, []) == ([], None)
     assert calls == [] and store.list_ledger(ctx.conn, ctx.run.id) == []
 

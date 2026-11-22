@@ -899,17 +899,19 @@ Done this session:
 - sources/web.py: `search(ctx, query, *, sources, site, location, end_date)` -> POST /web/search/live and `fetch(ctx, urls)` -> POST /web/enrich/live, exactly the D16 / WEB_SOURCE.md section 3 signatures and return shapes. Also a public helper `end_of_day_unix('YYYY-MM-DD')` (23:59:59 UTC; 1970-01-01 -> 86399).
 - Same pattern as sources/crust.py: `limits.ensure_within` before every attempt; one ledger row per HTTP call in `finally` (Provider.CRUSTDATA, endpoints `POST /web/search/live` / `POST /web/enrich/live`); TimeoutError at `limits.per_call_timeout_s`; key from crust's `_api_key` (env, then .env), never logged.
 - Differences from crust.py, on purpose (per the T30 brief): retry once on HTTP 429 ONLY (crust also retries 5xx); credits read from `X-Credits-Used`; no account-endpoint call, rpm pacing or 60 s cache TTL (cache lives for the run).
-- tests/sources/test_web.py (17 tests) + hand-built fixtures in tests/fixtures/web/ (shapes from WEB_SOURCE.md; no live call made, 0 credits). Covers headers/body via a fake HTTPSConnection, end_date conversion, failed-URL shape, ledger rows on success/HTTP error/malformed/timeout, 429 retry and second 429, cache, 10-URL cap, limit hit. An autouse fixture makes any real HTTPS connection fail the test.
+- tests/sources/test_web.py (18 tests) + hand-built fixtures in tests/fixtures/web/ (shapes from WEB_SOURCE.md; no live call made, 0 credits). Covers headers/body via a fake HTTPSConnection, end_date conversion, failed-URL shape, ledger rows on success/HTTP error/malformed/timeout, 429 retry and second 429, cache, 10-URL cap, limit hit. An autouse fixture makes any real HTTPS connection fail the test.
 In progress / exact next step:
 - Merger: merge lane/web-client. T32 checkers can now call `sources.web.search` / `fetch` for real.
 How to run / test:
-- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q tests/sources/test_web.py   (17 passed)
-- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (338 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q tests/sources/test_web.py   (18 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (339 passed)
 - /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
 Known bugs or shortcuts taken:
 - Credits when there is no X-Credits-Used header: search 1; fetch 1 per URL SENT (not per success), the cautious choice for budget limits. Failed HTTP calls record 0 credits unless the header says otherwise (same as crust). A 2xx with a malformed body records the fallback credits and ok=0.
-- Fetch matches results to requested URLs ignoring a trailing "/", returns them in request order under the requested URL, and drops successes for URLs we did not send. Non-https URLs raise ValueError before any call. Duplicate URLs are sent once.
+- Fetch matches results to requested URLs ignoring a trailing "/", returns them in request order under the requested URL, and drops successes for URLs we did not send. Non-https URLs are skipped and logged (one plain-http search result must not lose the whole claim). Duplicate URLs are sent once. Only more than 10 URLs raises ValueError (checked on the raw list, before any call).
 - Fetch cache key is the run plus the order-independent SET of URLs, so the single returned call_id is always the call that really fetched those pages. Two claims fetching overlapping but different URL sets pay again for the overlap.
+- The cache is in-process (like crust's), so after a kill the claim that was in progress pays again on resume; finished claims are skipped by checkpointing. A cache that survives restarts needs a schema change.
+- Errors: TimeoutError, limits.LimitExceeded, RuntimeError (web._HttpError for HTTP status), ValueError (bad end_date, >10 URLs, bad query). core/runner.py catches Exception per claim, so all become HELD.
 - Untested against the live API: response field names come from the docs as written in WEB_SOURCE.md.
 Decisions made (also in DECISIONS.md if they change behaviour):
 - none (contract unchanged)

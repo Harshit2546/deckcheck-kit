@@ -198,6 +198,7 @@ def search(ctx: RunContext, query: str, *, sources: list[str] | None = None, sit
     """Results [{"title", "url", "snippet", "position", "source"}] and the ledger call_id.
     end_date is 'YYYY-MM-DD' and is sent as the Unix seconds at the END of that day (UTC).
     sources defaults to rules web.sources; location defaults to rules web.location."""
+    limits.ensure_within(ctx)
     query = query.strip()
     if not query or len(query) > MAX_QUERY_CHARS:
         raise ValueError(f"Web search query must be 1 to {MAX_QUERY_CHARS} characters")
@@ -228,10 +229,13 @@ def fetch(ctx: RunContext, urls: list[str]) -> tuple[list[dict[str, Any]], str |
     if len(urls) > MAX_FETCH_URLS:
         raise ValueError(f"Web fetch takes at most {MAX_FETCH_URLS} URLs, got {len(urls)}")
     wanted = list(dict.fromkeys(url.strip() for url in urls if url and url.strip()))
+    skipped = [url for url in wanted if not url.startswith("https://")]
+    if skipped:  # the API takes https URLs only; drop the others instead of failing the claim
+        log_step(ctx.run.id, None, "source.crustdata_web", "skip_non_https", count=len(skipped))
+        wanted = [url for url in wanted if url.startswith("https://")]
     if not wanted:
         return [], None
-    if any(not url.startswith("https://") for url in wanted):
-        raise ValueError("Web fetch URLs must start with https://")
+    limits.ensure_within(ctx)
     body = {"urls": wanted, "human_mode": bool(rule(ctx.rules, "web.human_mode"))}
     key_id = sha256(_api_key().encode()).hexdigest()
     cache_key = (ctx.run.id, ctx.run.created_at, key_id, tuple(sorted(wanted)))
