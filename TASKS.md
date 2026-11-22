@@ -31,6 +31,6 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T22 | human | MILESTONE 2 at 15:00: 3 decks, kill/resume, send once | all green | todo |
 | T23 | ag | docs/ARCHITECTURE.md + diagram (components, data flow, data calls, approvals, retries, ledger) | in repo | todo |
 | T24 | human | ETHICS.md, BUSINESS.md (measured cost per deck in rupees) | in repo | todo |
-| T25 | ag + human | README: job, who pays, input, result, pass mark, data sources, how to run, credits | every claim in it is true | todo |
+| T25 | ag + human | README: job, who pays, input, result, pass mark, data sources, how to run, credits | every claim in it is true | in-progress (claude-core@mac, merger) |
 | T26 | human | Rehearse demo with kill, 3 live-fix drills, design question | done twice | todo |
 | T27 | claude-verdict | Merge reviews before each human merge to main (12:15, 12:45, then every merge) | review notes in HANDOFF | in-progress (claude-verdict@win: reviews of ag-b and codex-a in docs/reviews/; repeat before each merge to main) |
