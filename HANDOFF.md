@@ -1096,3 +1096,29 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - none
 Credits / tokens used this session (rough): 11 Crustdata credits (Rs 11.96 total)
+
+### 16:28 · web-client (claude, side session of the merger) · lane web-client · task T36 (D18 founder lookups)
+
+Status: in-progress (code and tests done; the one live probe waits for the user's yes)
+Done this session:
+- sources/crust.py: `get_people(ctx, profile_urls)` (ONE batched POST /person/enrich, fields basic_profile, social_handles, experience, education) and `search_people(ctx, name, company_id)` (POST /person/search, filters op=and: basic_profile.name "=" name, experience.employment_details.company_id "in" [id], limit 10). Both return (payload | None, call_id | None), go through crust's existing `_request` (limits before each attempt, one ledger row per call in finally, per_call_timeout_s, the same retry as get_company: once on 429/5xx), and have a per-run cache (enrich by URL set, search by name + id). `_attempt` gained an optional `parse` hook; get_company is unchanged.
+- Payloads are normalised to `{"matches": [{confidence_score, person_data}]}` (enrich answers a top-level array of {matched_on, match_status, matches[]}) and `{"profiles": [...]}`, so resolve/payloads.py reads them unchanged. `drop_contact_fields` removes, recursively, every key containing "email", "phone" or "contact" before cache or caller.
+- Credits when no header: enrich 1 per URL sent; search 0.23 per profile returned (docs/crustdata_fields.md).
+- resolve/payloads.py: new `person_records(payload)` (raw records); shapes checked against the docs, no change needed.
+- checkers/founder_background.py: uses `find_founder(ctx.entities, claim.subject)`. Only a CONFIRMED founder is looked up; its record is picked by `crustdata_person_id == founder id` (a namesake in the same payload is never used). Profile-URL founders reuse resolve's cached get_people call (same URL set); search-found founders reuse search_people(name, company id). Identity keys come from the founder entity. Observed keys for verdict/founder.py unchanged; Evidence locator is the enrich or search endpoint.
+- tests: tests/sources/test_crust.py (+5: contacts dropped, ledger success/failure, 429 retry, cache, search body, payload feeds resolve candidates); tests/checkers/test_founder_background.py (rewritten onto ctx.entities, +4: namesake never used, unconfirmed founder never looked up, search route, Crustdata role shape). Hand-built fixtures tests/fixtures/crustdata/person_enrich_handbuilt.json, person_search_handbuilt.json.
+- tests/decks/make_deck_f.py, deck_f.pdf (3 slides, Locus, 2026-11-15, synthetic footer), deck_f_request.json, deck_f_answers.yaml (all TBD).
+In progress / exact next step:
+- With the user's yes: one live probe (1 credit), `get_people` for deck_f_request.json's founder URL. Check the real role keys (name, title, start_date, end_date, crustdata_company_id) and profile_url; record the response (contact fields dropped) as tests/fixtures/crustdata/person_enrich_locus.json; fill deck_f_answers.yaml.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (450 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- Not verified live: role key names (start_date/end_date, crustdata_company_id on roles), whether enrich returns social_handles.profile_url with the "social_handles" field name, and whether the search filter path experience.employment_details.company_id accepts our id type (sent as int when numeric).
+- The founder URL in deck_f_request.json (https://www.linkedin.com/in/nishithrastogi/) is NOT verified; if the probe returns not_found, resolve marks the founder url_not_returned and the deck's name search path still runs.
+- Deck F's two claims (Amazon, SDE title) are test claims to check, not known facts.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (D12/D18 signatures kept)
+Open questions for a human:
+- Approve the 1-credit probe, and confirm or replace the founder profile URL.
+Credits / tokens used this session (rough): 0 Crustdata credits
