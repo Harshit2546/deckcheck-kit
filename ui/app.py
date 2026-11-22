@@ -26,7 +26,7 @@ st.set_page_config(page_title="DeckCheck", layout="wide")
 db_path = st.sidebar.text_input("Database file", str(ROOT / store.DEFAULT_DB))
 conn = store.connect(db_path)
 rules = load_rules()
-PAGES = ["Run"]
+PAGES = ["Run", "Claims"]
 page = st.sidebar.radio("Page", PAGES)
 
 
@@ -92,5 +92,52 @@ def page_run() -> None:
             st.success(f"Resuming {rid}: finished steps and claims are skipped.")
 
 
-PAGE_FUNCS = {"Run": page_run}
+def _cell(value: object) -> str:
+    return str(value if value is not None else "").replace("|", "\\|").replace("\n", " ")
+
+
+def _sources_table(sources: list[dict]) -> str:
+    """Markdown table; URL sources are clickable links, API endpoints are shown as code."""
+    lines = ["| url_or_endpoint | field_or_quote | value | record_date | retrieved_at |",
+             "|---|---|---|---|---|"]
+    for s in sources:
+        where = (f"[{_cell(s['url_or_endpoint'])}]({s['url_or_endpoint']})" if s["is_url"]
+                 else f"`{_cell(s['url_or_endpoint'])}`")
+        lines.append(f"| {where} | {_cell(s['field_or_quote'])} | {_cell(s['value'])} | "
+                     f"{_cell(s['record_date'])} | {_cell(s['retrieved_at'])} |")
+    return "\n".join(lines)
+
+
+def page_claims() -> None:
+    st.header("Claims")
+    rid = pick_run()
+    if rid is None:
+        return
+    run = store.get_run(conn, rid)
+    st.caption(f"{run.input.domain} · deck date {run.input.deck_date or 'unknown'} "
+               f"({run.input.deck_date_source}) · state {run.state.value}")
+    rows = data.claim_rows(conn, rid)
+    if not rows:
+        st.info("No claims yet for this run.")
+        return
+    st.dataframe([{k: r[k] for k in ("slide", "type", "verdict", "confidence", "reason_code", "quote")}
+                  for r in rows], use_container_width=True, hide_index=True)
+    for r in rows:
+        title = f"Slide {r['slide']} · {r['type']} · {r['verdict']}" + (
+            f" ({r['confidence']})" if r["confidence"] else "")
+        with st.expander(title):
+            st.markdown(f"> {r['quote']}")
+            st.write(f"**Claimed value:** {r['claimed_value']} {r['unit'] or ''}")
+            st.write(f"**Verdict:** {r['verdict']} · **Reason:** {r['reason_code'] or '-'}")
+            if r["explanation"]:
+                st.write(r["explanation"])
+            if r["missing"]:
+                st.write(f"**What would settle it:** {r['missing']}")
+            if r["sources"]:
+                st.markdown(_sources_table(r["sources"]))
+            else:
+                st.caption("No sources stored for this claim.")
+
+
+PAGE_FUNCS = {"Run": page_run, "Claims": page_claims}
 PAGE_FUNCS[page]()
