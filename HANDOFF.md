@@ -403,3 +403,69 @@ Open questions for a human:
 - Is `identity_signals` = 2 for an exact-domain company match acceptable (domain + deck company name)? If the deck never names the company, the company stays `unclear`.
 - Merger: D11 is cited in checkers/_common.py but missing from DECISIONS.md.
 Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
+
+### 14:40 · harshit · lane claude-core · task D8
+
+Status: done
+Done this session:
+- config/rules.yaml: `verdict:` block (supported_margin 0.5, strong_margin 2.0, fresh_days 90), all PLACEHOLDER for the finance partner.
+- core/config.py: the three keys are in REQUIRED_KEYS, so a run fails at start if one is missing.
+- requirements.txt: added pypdf and requests (extract/) and reportlab (tests/extract), which merged code imports but were not listed.
+In progress / exact next step:
+- T19 actions/email.py.
+How to run / test:
+- .venv/bin/pip install -r requirements.txt && .venv/bin/python -m pytest -q   (120 passed)
+Known bugs or shortcuts taken:
+- Bare `pytest -q` stops at tests/checkers ("No module named 'core'"): nothing puts the repo root on sys.path for that folder since pytest.ini was removed. `python -m pytest -q` works.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (D8 written by claude-verdict)
+Open questions for a human:
+- Add a root `pytest.ini` with `pythonpath = .` (outside every lane's folders), or tell ag-b to add a sys.path line in tests/checkers/conftest.py.
+- Finance partner: real values for the `verdict:` block.
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:05 · harshit · lane claude-core · task T19
+
+Status: done
+Done this session:
+- actions/email.py:
+  - draft(conn, rules, run_id) -> Action | None: pending founder email built from the saved report's founder_questions and evidence_requests; None when there is nothing to ask; one per run (UNIQUE idempotency key). The runner calls it as its last step (D7).
+  - approve(conn, rules, action_id, decided_by) / reject(conn, action_id, decided_by): pending only, a human name is required.
+  - send_approved(conn, rules): first reconcile() (every `sending` row: key already in inbox -> mark sent, else deliver), then each approved row: approved -> sending (own commit), then inbox insert + sent (one transaction). Safe to call any number of times.
+  - check_recipient(): anything other than rules actions.test_inbox raises RecipientRefused, at draft, approve, send and reconcile.
+  - "Send" is an insert into the local inbox table. No smtplib / email.mime / requests / urllib / http in actions/ (a test checks this).
+- core/store.py: set_action_status() (compare-and-set), insert_inbox(), inbox_has_key().
+- tests/actions/: 12 tests incl. a real os._exit(137) kill after approve and after `sending`, restart, exactly one inbox row; wrong and tampered recipients never sent.
+In progress / exact next step:
+- io/adapter.py from_kit()/to_kit() once D3 (kit format) is in DECISIONS.md.
+How to run / test:
+- .venv/bin/python -m pytest -q tests/actions   (12 passed); full suite: .venv/bin/python -m pytest -q (132 passed)
+Known bugs or shortcuts taken:
+- Email text is fixed English in actions/email.py `_body()`; the per-claim questions come from report/.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none beyond PLAN.md section 3
+Open questions for a human:
+- ui lane (ag): the approvals page should call actions.email.approve/reject and then send_approved; the inbox page reads store.list_inbox().
+- Finance partner: the real actions.test_inbox address.
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:30 · harshit · lane claude-core · task D3 adapter
+
+Status: done
+Done this session:
+- DECISIONS.md D3 written on the merger's word (request/result format, after-as_of rule).
+- io/adapter.py: from_kit(request) -> RunInput (requires deck_path and company_domain; deck_date YYYY-MM-DD or null -> PDF-metadata fallback; founder_urls list). to_kit(report, company=None, founder_email=None) -> D3 result JSON (label -> verdict, value -> claimed_value, source locator -> url_or_endpoint, ledger seconds from call durations).
+- config/rules.yaml output.fields: added `value` (shown as claimed_value).
+- Note: the D8 and T19 commits (b4c983d..6237c64) were made and pushed while this folder was checked out on `main`, not lane/claude-core, so they reached main without a human merge. Code and tests are fine (132 passed then). lane/claude-core was fast-forwarded to match; all work since is on the lane branch.
+In progress / exact next step:
+- Wire the adapter into an entry point if the merger wants one (e.g. `cli.py run --request request.json` and `cli.py export <run_id>` writing the D3 JSON + Markdown). Not started; ask first.
+How to run / test:
+- .venv/bin/python -m pytest -q tests/core/test_adapter.py   (full suite: 138 passed)
+Known bugs or shortcuts taken:
+- The customer's `request` text is checked but not stored (would need a runs column, a schema change).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D3 implementation notes (field renames, ledger seconds, company/email passed by the caller).
+Open questions for a human:
+- claude-verdict: verdict/engine.py `_prepare` uses abs(record_date - reference_date), so a record dated AFTER as_of can still support or contradict. D3 says it must be excluded or NOT_COMPARABLE.
+- Should cli.py accept a D3 request file and export the D3 result? (claude-core can add it.)
+Credits / tokens used this session (rough): 0 Crustdata credits

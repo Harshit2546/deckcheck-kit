@@ -20,6 +20,7 @@ REQUIRED_KEYS = [
     "costs.llm.default.inr_per_1k_tokens_out", "costs.web.inr_per_call",
     "identity.min_signals", "materiality", "tolerances", "output.fields",
     "actions.test_inbox",
+    "verdict.supported_margin", "verdict.strong_margin", "verdict.fresh_days",   # D8
 ]
 
 

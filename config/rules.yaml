@@ -48,6 +48,11 @@ tolerances:                  # one entry per claim type: how close observed must
     require_exact_quote: true      # PLACEHOLDER
   max_record_age_days: 365         # PLACEHOLDER. Older evidence than this is NOT_COMPARABLE
 
+verdict:                     # D8: confidence margins read by verdict/engine.py
+  supported_margin: 0.5      # PLACEHOLDER. diff <= 0.5 x tolerance = clearly close match (high confidence)
+  strong_margin: 2.0         # PLACEHOLDER. diff >= 2.0 x tolerance = clearly wrong number (high confidence)
+  fresh_days: 90             # PLACEHOLDER. record within 90 days of the claim's date = fresh
+
 title_levels:                # PLACEHOLDER. Used by the founder_background verdict rules
   c_level: [ceo, cto, coo, cfo, cpo, founder, co-founder]
   vp: [vp, vice president, head]
@@ -74,7 +79,8 @@ output:
     - slide
     - quote
     - type
-    - label
+    - value                  # D3: shown as claimed_value
+    - label                  # D3: shown as verdict
     - reason_code
     - explanation
     - confidence
