@@ -275,3 +275,31 @@ def test_crustdata_role_shape_name_key(fake_people: list) -> None:
     result = check(_employer_claim(), _ctx(record))
     assert result.observed["positions"] == [{"employer": "Flipkart", "title": "Director, Engineering",
                                              "start_date": "2016-04-01", "end_date": "2019-03-01"}]
+
+
+def test_recorded_locus_founder_record(fake_people: list) -> None:
+    """Live T36 probe (call-457fe7a8507b, 2026-11-22), contact fields dropped and trimmed."""
+    import json
+    from pathlib import Path
+
+    from resolve import payloads
+    from sources.crust import _parse_people
+
+    raw = json.loads((Path(__file__).resolve().parents[1] / "fixtures" / "crustdata"
+                      / "person_enrich_locus.json").read_text(encoding="utf-8"))
+    payload, credits = _parse_people(1)(raw)
+    assert credits == 1.0
+    [cand] = payloads.person_candidates(payload)
+    assert cand["id"] == "44441" and cand["name"] == "Nishith Rastogi"
+    assert "7403" in cand["company_ids"]  # Locus' crustdata_company_id in the company record
+
+    url = "https://www.linkedin.com/in/nishithrastogi/"
+    ctx = _ctx(None, founder=_founder(person_id="44441", name="Nishith Rastogi", profile_url=url))
+    PEOPLE["enrich"] = payload
+    claim = Claim(id="c_f2", run_id="run_1", slide=2, type=ClaimType.FOUNDER_BACKGROUND,
+                  quote="Our co-founder and CEO Nishith Rastogi previously worked at Amazon.",
+                  subject="Nishith Rastogi", metric="past_employer", value="Amazon")
+    result = check(claim, ctx)
+    assert result.observed["employer_found"] is True
+    assert result.observed["positions"] == [{"employer": "Amazon", "title": "Software Developer",
+                                             "start_date": "2012-07-01", "end_date": "2014-07-01"}]

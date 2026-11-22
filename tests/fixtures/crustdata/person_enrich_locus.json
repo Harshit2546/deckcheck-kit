@@ -1,0 +1,66 @@
+[
+ {
+  "matched_on": "https://www.linkedin.com/in/nishithrastogi/",
+  "match_type": "professional_network_profile_url",
+  "match_status": "matched",
+  "matches": [
+   {
+    "confidence_score": 1.0,
+    "person_data": {
+     "crustdata_person_id": 44441,
+     "updated_at": null,
+     "basic_profile": {
+      "name": "Nishith Rastogi",
+      "current_title": "Co Chief Technology Officer",
+      "last_updated": null
+     },
+     "social_handles": {
+      "professional_network_identifier": {
+       "profile_url": "https://www.linkedin.com/in/nishithrastogi"
+      }
+     },
+     "experience": {
+      "employment_details": {
+       "current": [
+        {
+         "name": "Locus",
+         "title": "Co Chief Technology Officer",
+         "crustdata_company_id": 7403,
+         "start_date": "2026-01-01T00:00:00+00:00",
+         "end_date": null
+        },
+        {
+         "name": "Locus",
+         "title": "Founder and CEO",
+         "crustdata_company_id": 7403,
+         "start_date": "2015-03-01T00:00:00+00:00",
+         "end_date": null
+        }
+       ],
+       "past": [
+        {
+         "name": "Amazon",
+         "title": "Software Developer",
+         "crustdata_company_id": 6034577,
+         "start_date": "2012-07-01T00:00:00+00:00",
+         "end_date": "2014-07-01T00:00:00+00:00"
+        }
+       ]
+      }
+     },
+     "education": {
+      "schools": [
+       {
+        "school": "Birla Institute of Technology and Science",
+        "degree": "Dual Degree (B.E. Electrical and Electronics Engineering and M.Sc. Economics)",
+        "field_of_study": "",
+        "start_year": 2007,
+        "end_year": 2012
+       }
+      ]
+     }
+    }
+   }
+  ]
+ }
+]

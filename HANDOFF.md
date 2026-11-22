@@ -1122,3 +1122,18 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - Approve the 1-credit probe, and confirm or replace the founder profile URL.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:30 · web-client · lane web-client · task T36 live probe (user said yes in chat)
+
+Status: done
+Done this session:
+- One live probe: get_people(["https://www.linkedin.com/in/nishithrastogi/"]), ledger call-457fe7a8507b, POST /person/enrich, ok, 1.0 credit (no X-Credits-Used header), 1.6 s, in a scratch DB (not dc-core). Response matched (match_status matched, confidence 1.0): Nishith Rastogi, crustdata_person_id 44441; roles at Locus (crustdata_company_id 7403, same id as the Locus company record) and Amazon (Software Developer, 2012-07-01 to 2014-07-01).
+- Checked against the code: the top-level array shape, crustdata_person_id present with our fields, role keys name/title/start_date/end_date/crustdata_company_id as coded, returned profile_url (no trailing slash) normalises equal to the sent URL. Resolve gets profile_url + name + employer = 3 signals.
+- tests/fixtures/crustdata/person_enrich_locus.json: the response trimmed to the fields the code reads (ids, name, title, profile_url, roles, schools); no emails, phones, or long digit runs. New test test_recorded_locus_founder_record.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q
+Known bugs or shortcuts taken:
+- The live person record has NO updated_at and no basic_profile.last_updated, so record_date is None and every founder claim ends CANNOT_VERIFY missing_record_date (deck_f_answers.yaml stays TBD for that reason).
+Open questions for a human:
+- Verdict owner (claude-verdict) + merger: may a founder_background record_date be the matched role's own date (end_date, else start_date, else retrieved_at for a current role)? That would let slide 2 become SUPPORTED employer_listed. It is a D3 date-rule decision, so I did not change the checker.
+Credits / tokens used this session (rough): 1 Crustdata credit
