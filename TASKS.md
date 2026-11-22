@@ -23,7 +23,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T14 | human | MILESTONE 1 at 12:45: Deck A end to end | report generated | todo |
 | T15 | claude-verdict | report/: red flags by materiality, table, questions, evidence requests, kit-format JSON | output validates against kit format | todo |
 | T16 | codex-a | checkers: prior_exit, company_fact, customer (web quote verify) | tests pass | todo |
-| T17 | ag-b | checkers: team_growth, hiring, traction, market_size, competition | tests pass | in-progress (yash, 0%, start checkers) |
+| T17 | ag-b | checkers: team_growth, hiring, traction, market_size, competition | tests pass | done |
 | T18 | ag | UI: verdict detail with source link and date; approvals page; inbox; ledger view | click-through works | todo |
 | T19 | claude-core | actions/: draft, approve, exactly-once send | kill between approve and send, restart, one inbox row | todo |
 | T20 | claude-verdict | Hour-3 requirement change | DECISIONS entry + tests | todo |
