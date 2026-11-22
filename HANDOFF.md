@@ -75,3 +75,26 @@ Open questions for a human:
 - Finance partner: real rupee rates for a Crustdata credit and for the LLM model we use, plus limits.
 - Merger: kickoff-kit format (D3) so kit_io/adapter.py can be filled.
 Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
+
+### 12:05 · harshit · lane claude-core · task T01
+
+Status: done (supersedes the 11:50 entry where it differs)
+Done this session:
+- io/adapter.py: from_kit() maps a kit request to RunInput with a provisional field map (TODO to D3); to_kit() passes the report through (TODO to D3). Load it with core/adapter_loader.load_adapter().
+- config/rules.yaml: tolerances now have one entry for every claim type; all values PLACEHOLDER for the finance partner.
+- kit_io/ deleted (D6 withdraws D4). pytest.ini and tests/conftest.py removed; test setup is tests/core/conftest.py. CLAUDE.md and .gitignore are back to main's version.
+- main's T01 (8761021) was reverted on main by its author (8f21500); this branch's T01 is the one to merge.
+In progress / exact next step:
+- T07: core/runner.py.
+How to run / test:
+- python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
+- .venv/bin/pytest -q   (14 tests)
+- .venv/bin/python cli.py run --help
+Known bugs or shortcuts taken:
+- runner is still a stub until T07; rules.yaml values are placeholders.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D6: adapter at io/adapter.py, loaded by file path.
+Open questions for a human:
+- ag-b and codex-a branches start from the reverted Pydantic T01; after this branch is merged, pull main and use core/models.py (dataclasses).
+- Merger: kit format (D3) for io/adapter.py. Finance partner: rules.yaml values.
+Credits / tokens used this session (rough): 0 Crustdata credits

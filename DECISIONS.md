@@ -35,3 +35,9 @@ Change: (1) models are stdlib dataclasses + str Enums in core/models.py; times a
 Why: resume must not repeat calls; every fact must trace to a logged call; rules forbid editing ledger rows.
 Files affected: core/models.py, core/store.py, core/ledger.py, core/config.py, config/rules.yaml
 Who must know: all lanes (codex-a and ag-b: call `core.ledger.record()` for every external call, in a finally block)
+
+### 12:05 · harshit · D6: D4 withdrawn; adapter stays at io/adapter.py
+Change: D4 is withdrawn. The adapter is `io/adapter.py` (`from_kit()`, `to_kit()`, provisional field map with TODO to D3), as PLAN.md and the lane prompt say. Because `import io.adapter` cannot work (stdlib `io` owns the name), callers load it with `core.adapter_loader.load_adapter()`. `kit_io/` is deleted. D5 still holds.
+Why: stick to the lane prompt and PLAN.md file layout; only the import mechanism needed a workaround.
+Files affected: io/adapter.py, core/adapter_loader.py
+Who must know (lanes): all lanes, merger (fills the mapping from D3)
