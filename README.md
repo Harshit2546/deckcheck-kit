@@ -172,8 +172,20 @@ on. Slides 2 to 5 and 8 gave the same verdicts as the first live run. The web sl
 
 The ledger has 8 calls: 8 Crustdata credits, ₹9.72 and 69.7 s in calls (web: 2 searches, 2 fetches, 1 timed out).
 
-**Fix needed:** the market-size checker must make code check that the quote names the claim's
-market, and must skip forecasts for a later year. See docs/INCIDENTS.md B10.
+After this run, the market-size checker was fixed: code now requires the claim's market
+terms in the quote and skips forecasts for a later year (docs/INCIDENTS.md B10). Page fetches got
+their own 45 s timeout, `web.fetch_timeout_s` (A5).
+
+**Second live run with the fixes** (`run-20261122-103822-1686da`): slides 2 to 5 and 8 gave the
+same verdicts again.
+
+| Slide | Verdict | What happened |
+|---|---|---|
+| 6, customer | HELD / timeout | This time the web **search** took longer than the 20 s `limits.per_call_timeout_s`. |
+| 7, market size | CANNOT_VERIFY / no_evidence | 3 pages fetched, none had a machine-readable publish date, so no quote was used. This matches the answer key. |
+
+The ledger has 6 calls: 7 credits, ₹7.79, 47.6 s. Web search times across the two runs were
+6.4 s, 12.0 s, over 20 s and 6.8 s, so the 20 s limit is tight for search (A6).
 
 ## Known limits (what does not work yet)
 
