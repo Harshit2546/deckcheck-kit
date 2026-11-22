@@ -10,6 +10,8 @@ Times are IST and come from the HANDOFF/DECISIONS headers, log lines (UTC + 5:30
 
 ## Pitch highlights (the six worth telling)
 
+Where it ended up: the last live Deck A run scores **6 of 6 against the answer key** (one claim has no expected answer), for ₹11.96 and 11 credits.
+
 1. **A bad API key did not lose the run.** The first live Deck A run died at extraction
    (Gemini key rejected). The failed call stayed in the ledger, and `cli.py resume`
    finished the same run from its checkpoint with the other LLM key. Total cost: ₹2.79. (#A1)
@@ -44,6 +46,7 @@ Times are IST and come from the HANDOFF/DECISIONS headers, log lines (UTC + 5:30
 | A4 | 15:30 | Crustdata web search results carry **no publish date**. | Reading the API docs before building | A web fact would have had no record date (breaks D3) | Code reads the date from the fetched page's HTML (JSON-LD, meta tags, `<time>`); pages without one are skipped | docs/WEB_SOURCE.md, D16 |
 | A5 | 15:58 | First live run with web search: the customer page fetch (`POST /web/enrich/live`) took longer than `limits.per_call_timeout_s` (20 s); the other fetch took 13 s. | Live run `run-20261122-102749-b58f62` | Slide 6 HELD (timeout), no verdict; the timed-out call is in the ledger with no credits | Correct handling. Open: a separate, longer timeout for web fetch (config key, web-client lane) | README "Live run with web search" |
 | A6 | 16:08 | Second live web run: the customer **search** call took longer than `limits.per_call_timeout_s` (20 s). Search times so far: 6.4 s, 12.0 s, over 20 s, 6.8 s. | Live run `run-20261122-103822-1686da` | Slide 6 HELD (timeout) again; no credits charged for the timed-out call | Open: raise `limits.per_call_timeout_s` or add a search timeout key (config edit, no code) | README "Live run with web search" |
+| A6b | 16:12 | `limits.per_call_timeout_s` raised from 20 to 30 (config only, d4b1da6). Third live run: search 7.0 s and 5.9 s, fetch 28.3 s and 17.0 s, all within limits. | Live run `run-20261122-104047-1b295e` | Slide 6 now CANNOT_VERIFY `no_evidence`; the run scores 6 PASS, 0 FAIL, 1 SKIP against the answer key | Fixed | README "Latest live run" |
 
 ## B. Data, dates and verdict correctness
 
@@ -93,7 +96,6 @@ Times are IST and come from the HANDOFF/DECISIONS headers, log lines (UTC + 5:30
 
 ## Still open
 
-- The web search timeout is tight (A6): slide 6 stays HELD until `limits.per_call_timeout_s` is raised or search gets its own key.
 
 - `GEMINI_API_KEY` in `.env` is invalid (A1). Fix or remove it before the next live run.
 - No live web call has run yet, so the Crustdata web response shapes are unverified (A4).

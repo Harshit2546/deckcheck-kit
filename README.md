@@ -160,6 +160,26 @@ is a failed first LLM attempt.
 
 The founder email is waiting for approval (`pending`).
 
+### Latest live run: 6 of 6 against the answer key
+
+Run `run-20261122-104047-1b295e` on 2026-11-22 used live Crustdata (company and web), live
+gpt-4o-mini, and the fixes below (market-size relevance, longer timeouts).
+
+| Slide | Claim | Verdict | Answer key |
+|---|---|---|---|
+| 2 | 350 people | SUPPORTED / within_tolerance (349 on 2026-11-02) | PASS |
+| 3 | $50M Series C, June 2021 | SUPPORTED / within_tolerance | PASS |
+| 4 | $78.75M total | SUPPORTED / within_tolerance_undated_rounds | PASS |
+| 5 | over 700 employees | CONTRADICTED / outside_tolerance | PASS |
+| 6 | Acme Freight Corp is a customer | CANNOT_VERIFY / no_evidence (3 pages, none dated) | PASS |
+| 7 | $9B logistics software market | CANNOT_VERIFY / no_evidence (no dated page names that market) | PASS |
+| 8 | hiring 40 engineers | CANNOT_VERIFY / missing_record_date | not set in the key (SKIP) |
+
+6 PASS, 0 FAIL, 1 SKIP. There are no wrong Supported or Contradicted verdicts.
+
+The ledger has 8 calls: 11 Crustdata credits (2 company, 3 web search, 6 web fetch), ₹11.96, and
+74.8 s in calls. The earlier runs below show how we got here.
+
 ### Live run with web search, Deck A
 
 Run `run-20261122-102749-b58f62` on 2026-11-22 had the web source (DECISIONS D16) switched
