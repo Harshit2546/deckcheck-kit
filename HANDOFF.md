@@ -146,3 +146,29 @@ Open questions for a human:
 - Tell every lane about D7 (their function names and signatures).
 - report lane: confirm module name report/builder.py, or tell claude-core to change STAGES.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 12:58 · claude-verdict-1 · lane claude-verdict · task T13
+
+Status: in-progress (~85%; code done, waiting on D8 keys)
+Done this session:
+- Merged origin/lane/claude-core (T01, T07) into lane/claude-verdict; HANDOFF.md conflict resolved by keeping both entries.
+- verdict/engine.py: `decide(claim, result, rules)` (D7 signature), `held_verdict()`, `check_rules()`. Shared order of checks, no LLM, no clock, no code defaults (every threshold via core.config.rule; missing key raises ValueError naming all of them).
+- verdict/common.py, team_size.py, funding.py, founder.py: the metric rules from verdict/DESIGN.md section 3 (team_size headcount; funding total_raised, round_amount, investor; founder past_employer, title, tenure_years).
+- tests/verdict/: 64 tests, one per row of the order table and per metric row (hand-built CheckResult fixtures in tests/verdict/fakes.py). `pytest -q` from the worktree root: 89 passed (25 core + 64 verdict).
+- verdict/DESIGN.md v2 (matches the code), DECISIONS D8, docs/LIVE_FIX_MAP.md lines.
+In progress / exact next step:
+- claude-core: add the `verdict:` block (supported_margin, strong_margin, fresh_days) to config/rules.yaml and REQUIRED_KEYS (D8). UNTIL THEN a real run raises ValueError at its first decide() call; the tests inject the block.
+- claude-verdict: T15 report/builder.py (`build(conn, rules, run_id) -> (dict, str)` per D7).
+- codex-a / ag-b: checkers must put `reference_date`, `reference_date_source`, `record_date`, `identity`, `identity_signals` and the per-type keys into CheckResult.observed (verdict/DESIGN.md sections 2, 3, 5; D8).
+How to run / test:
+- cd dc-claude-verdict && python -m pytest tests/verdict -q   (all: python -m pytest -q)
+Known bugs or shortcuts taken:
+- Explanations are fixed templates built from the evidence (no LLM wording yet).
+- team_size accepts only metric `headcount` (or empty); other metrics are CANNOT_VERIFY `unsupported_metric`. Tell ag-b to emit `headcount`.
+- Funding claim.value must be absolute major units and claim.unit an ISO currency (extract lane); no currency conversion.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D8 (above). A funding total lower than the deck is CANNOT_VERIFY; a missing employer or investor is never a contradiction; headcount contradictions are at most medium confidence.
+Open questions for a human:
+- Finance partner: min_title_level meaning, max_record_age_days global, cautious funding rule (see DESIGN.md section 6), and real values for the three verdict keys.
+- PLAN.md, TASKS.md, docs/AGENT_PROMPTS.md still say io/adapter.py in places (D6 restored io/adapter.py, so check which doc is right).
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
