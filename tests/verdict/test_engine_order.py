@@ -218,7 +218,7 @@ def test_funding_round_amount_from_2021_is_decided_not_stale(rules):
 
 
 def test_without_a_per_type_key_the_global_limit_applies(rules):
-    assert "max_record_age_days" not in rules["tolerances"]["funding"]
+    rules["tolerances"]["funding"].pop("max_record_age_days", None)   # test the fallback, whatever rules.yaml holds
     c, r = _funding_total_2021()
     assert decide(c, r, rules).reason_code == "stale_record"
 
