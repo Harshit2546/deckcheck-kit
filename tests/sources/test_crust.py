@@ -296,3 +296,119 @@ def test_retry_wait_cannot_exhaust_the_run_time(make_context: MakeContext, serve
     assert caught.value.reason is HeldReason.TIME
     assert len(calls) == 2
     assert [row.error for row in store.list_ledger(ctx.conn, ctx.run.id) if not row.ok] == ["http_429"]
+
+
+# ---- D18 person lookups (get_people, search_people) ----
+
+def _people_serve(monkeypatch: pytest.MonkeyPatch, clock: Clock, *replies: Reply) -> list[tuple[str, dict[str, Any]]]:
+    pending = iter(replies)
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    def send(key: str, path: str, body: dict[str, Any] | None,
+             deadline: float) -> tuple[object, float | None]:
+        assert body is not None and deadline - clock.now == 20
+        calls.append((path, body))
+        reply = next(pending)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    monkeypatch.setattr(crust, "_send", send)
+    monkeypatch.setattr(crust, "_people_cache", {})
+    return calls
+
+
+def _contact_keys(node: Any) -> list[str]:
+    if isinstance(node, dict):
+        bad = [k for k in node if any(m in k.lower() for m in ("email", "phone", "contact"))]
+        return bad + [k for v in node.values() for k in _contact_keys(v)]
+    if isinstance(node, list):
+        return [k for v in node for k in _contact_keys(v)]
+    return []
+
+
+def test_get_people_one_batched_call_drops_contacts_and_caches(
+    make_context: MakeContext, clock: Clock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx = make_context("people")
+    ctx.rules["limits"]["per_call_timeout_s"] = 20
+    urls = ["https://www.linkedin.com/in/test-founder/", "https://www.linkedin.com/in/missing-person/"]
+    calls = _people_serve(monkeypatch, clock, (_recorded("person_enrich_handbuilt.json"), None))
+
+    payload, call_id = crust.get_people(ctx, urls)
+
+    assert calls[0][0] == "/person/enrich"
+    assert calls[0][1]["professional_network_profile_urls"] == urls
+    assert {"basic_profile", "experience", "education"} <= set(calls[0][1]["fields"])
+    assert payload is not None and _contact_keys(payload) == []
+    person = payload["matches"][0]["person_data"]
+    assert person["experience"]["employment_details"]["past"][0]["name"] == "Example Analytics"
+    rows = store.list_ledger(ctx.conn, ctx.run.id)
+    assert len(rows) == 1 and rows[0].id == call_id and rows[0].ok
+    assert rows[0].endpoint_or_model == "POST /person/enrich" and rows[0].credits == 2.0
+
+    again, again_id = crust.get_people(ctx, list(reversed(urls)))
+    assert again_id == call_id and again == payload and len(calls) == 1
+    assert crust.get_people(ctx, []) == (None, None)
+
+
+def test_people_failure_writes_ledger_row_and_429_retries_once(
+    make_context: MakeContext, clock: Clock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx = make_context("people-fail")
+    ctx.rules["limits"]["per_call_timeout_s"] = 20
+    calls = _people_serve(monkeypatch, clock, crust._HttpError(429, "2", None),
+                          crust._HttpError(400, None, None))
+    with pytest.raises(crust._HttpError):
+        crust.get_people(ctx, ["https://www.linkedin.com/in/test-founder/"])
+    assert len(calls) == 2
+    rows = store.list_ledger(ctx.conn, ctx.run.id)
+    assert sorted(r.error for r in rows) == ["http_400", "http_429"] and not any(r.ok for r in rows)
+
+
+def test_people_malformed_response_is_ledgered(
+    make_context: MakeContext, clock: Clock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx = make_context("people-bad")
+    ctx.rules["limits"]["per_call_timeout_s"] = 20
+    _people_serve(monkeypatch, clock, ({"unexpected": True}, None))
+    with pytest.raises(RuntimeError):
+        crust.search_people(ctx, "Test Founder", "1001")
+    row = store.list_ledger(ctx.conn, ctx.run.id)[0]
+    assert not row.ok and row.endpoint_or_model == "POST /person/search"
+
+
+def test_search_people_filters_by_name_and_employer(
+    make_context: MakeContext, clock: Clock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx = make_context("search")
+    ctx.rules["limits"]["per_call_timeout_s"] = 20
+    calls = _people_serve(monkeypatch, clock, (_recorded("person_search_handbuilt.json"), None))
+
+    payload, call_id = crust.search_people(ctx, " Test   Founder ", "1001")
+
+    conditions = calls[0][1]["filters"]["conditions"]
+    assert calls[0][1]["filters"]["op"] == "and"
+    assert {"field": "basic_profile.name", "type": "=", "value": "Test Founder"} in conditions
+    assert {"field": "experience.employment_details.company_id", "type": "in", "value": [1001]} in conditions
+    assert payload is not None and _contact_keys(payload) == []
+    assert payload["profiles"][0]["crustdata_person_id"] == 555001
+    row = store.list_ledger(ctx.conn, ctx.run.id)[0]
+    assert row.id == call_id and row.credits == pytest.approx(0.23)
+    assert crust.search_people(ctx, "Test Founder", "1001")[1] == call_id and len(calls) == 1
+    assert crust.search_people(ctx, "", "1001") == (None, None)
+
+
+def test_person_payload_feeds_resolve_candidates(
+    make_context: MakeContext, clock: Clock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from resolve import payloads
+
+    ctx = make_context("resolve-shape")
+    ctx.rules["limits"]["per_call_timeout_s"] = 20
+    _people_serve(monkeypatch, clock, (_recorded("person_enrich_handbuilt.json"), None))
+    payload, _ = crust.get_people(ctx, ["https://www.linkedin.com/in/test-founder/"])
+    [cand] = payloads.person_candidates(payload)
+    assert cand["id"] == "555001" and cand["name"] == "Test Founder"
+    assert cand["profile_url"] and "test-founder" in cand["profile_url"]
+    assert cand["company_ids"] == {"1001", "2002"}

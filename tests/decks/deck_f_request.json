@@ -1,0 +1,7 @@
+{
+  "request": "Check the founder background claims in this deck.",
+  "deck_path": "tests/decks/deck_f.pdf",
+  "company_domain": "locus.sh",
+  "deck_date": "2026-11-15",
+  "founder_urls": ["https://www.linkedin.com/in/nishithrastogi/"]
+}

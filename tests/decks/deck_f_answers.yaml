@@ -1,0 +1,20 @@
+# synthetic test fixture, tests/ only (T36, D18)
+# Founder background targets for Deck F. Live get_people probe 2026-11-22 (call-457fe7a8507b,
+# fixture tests/fixtures/crustdata/person_enrich_locus.json). Still TBD: the record has no
+# profile date (updated_at / last_updated absent), so today both claims stop at
+# CANNOT_VERIFY missing_record_date; the key waits for a human decision on record_date.
+- slide: 2
+  quote: "Our co-founder and CEO Nishith Rastogi previously worked at Amazon."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >-
+    past_employer. The record lists Amazon, Software Developer, 2012-07-01 to
+    2014-07-01, so the employer is listed; the verdict needs a record_date.
+
+- slide: 3
+  quote: "Nishith Rastogi was a Software Development Engineer at Amazon."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >-
+    title. The recorded Amazon title is "Software Developer"; whether it meets the
+    claimed level depends on title_levels and on a record_date.

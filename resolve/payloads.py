@@ -1,6 +1,6 @@
 """Reads the few identity fields out of Crustdata company and person payloads; everything else is ignored.
 
-Who calls it: resolve/entities.py. What it calls: resolve/names.py.
+Who calls it: resolve/entities.py and checkers/founder_background.py. What it calls: resolve/names.py.
 Shapes follow docs/crustdata_fields.md (matches[].company_data, matches[].person_data, profiles[]) and are
 NOT yet verified against a live response (T02 pending): every lookup is tolerant and returns "nothing" on a miss.
 Only ids, names, domains, profile URLs and employer ids are kept; contact fields are never read.
@@ -61,6 +61,11 @@ def company_candidates(payload: Any) -> list[dict[str, Any]]:
             "founder_names": [n for n in (_text(_get(f, "basic_profile", "name")) for f in founders) if n],
         })
     return result
+
+
+def person_records(payload: Any) -> list[dict[str, Any]]:
+    """Raw person records (matches[].person_data or profiles[]) as sources.crust returns them (D18)."""
+    return _records(payload, "person_data")
 
 
 def person_candidates(payload: Any) -> list[dict[str, Any]]:
