@@ -20,11 +20,19 @@ if str(ROOT) not in sys.path:
 import streamlit as st  # noqa: E402
 
 # Streamlit Cloud keeps keys in st.secrets; the background run (cli.py) reads the environment.
+# Names are matched case-insensitively and nested [sections] are searched, so
+# "openai_api_key" or [api] OPENAI_API_KEY = ... also work.
+def _export_secrets(node: Any) -> None:
+    import os
+    for key, value in node.items():
+        if isinstance(value, str) and value.strip():
+            os.environ.setdefault("_".join(str(key).strip().upper().split()), value.strip())
+        elif hasattr(value, "items"):
+            _export_secrets(value)
+
+
 try:
-    import os as _os
-    for _k, _v in st.secrets.items():
-        if isinstance(_v, str) and _v.strip():
-            _os.environ.setdefault(_k, _v.strip())
+    _export_secrets(st.secrets)
 except Exception:  # no secrets file locally: keys come from .env (core/env.py)
     pass
 
