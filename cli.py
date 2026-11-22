@@ -4,8 +4,8 @@ With --out, the D3 result JSON (io/adapter.py to_kit) and the Markdown report ar
 Called by: humans, tests, the demo script. Calls: core/config.py, core/store.py,
 core/runner.py, core/log.py, core/adapter_loader.py (io/adapter.py).
 Examples:
-  python cli.py run --request tests/requests/example_request.json --out result.json
-  python cli.py resume <run_id> --out result.json
+  python cli.py run --request tests/decks/deck_a_request.json --out out/result.json
+  python cli.py resume <run_id> --out out/result.json
   python cli.py run --deck deck.pdf --domain example.com --deck-date 2026-10-01
 """
 
