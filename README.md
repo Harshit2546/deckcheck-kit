@@ -76,15 +76,12 @@ Requires Python 3.11.
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
-Put the keys in `.env` at the repo root. The file is gitignored. It needs
-`CRUSTDATA_API_KEY` and `OPENAI_API_KEY`. The OpenAI key (`gpt-4o-mini`) is required for
-claim extraction and web quote picking; Gemini support is disabled in code.
-Load it into the shell before a run, because the extraction step reads the keys from
-the environment:
-
-```bash
-set -a; . ./.env; set +a
-```
+Put the keys in `.env` at the repo root (copy `.env.example`). The file is gitignored. It needs
+`CRUSTDATA_API_KEY` and `OPENAI_API_KEY`. The OpenAI key (`gpt-4o-mini`) is used for claim
+extraction and web quote picking; if no OpenAI key is set, `GEMINI_API_KEY` (or
+`GOOGLE_API_KEY`, `gemini-2.5-flash`) is used instead. The code reads `.env` itself
+(`core/env.py`), so nothing has to be sourced first and runs work the same from bash,
+PowerShell and Streamlit. A key already set in the shell environment wins over `.env`.
 
 Run Deck A:
 

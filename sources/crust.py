@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 from copy import deepcopy
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -23,6 +22,7 @@ from urllib.parse import quote
 
 from core import ledger, limits, store
 from core.config import rule
+from core.env import get_key
 from core.log import log_step
 from core.models import HeldReason, Provider, RunContext, now_iso
 
@@ -59,17 +59,7 @@ class _HttpError(RuntimeError):
 
 
 def _api_key() -> str:
-    key = os.environ.get("CRUSTDATA_API_KEY", "").strip()
-    if not key and _ENV_FILE.is_file():
-        try:
-            lines = _ENV_FILE.read_text(encoding="utf-8-sig").splitlines()
-        except (OSError, UnicodeError):
-            raise RuntimeError("Unable to read the ignored Crustdata .env") from None
-        for line in lines:
-            name, _, value = line.strip().removeprefix("export ").partition("=")
-            if "_".join(name.strip().upper().split()) == "CRUSTDATA_API_KEY":
-                key = value.strip().strip("\"'")
-                break
+    key = get_key("CRUSTDATA_API_KEY", path=_ENV_FILE)
     if not key or any(char.isspace() for char in key):
         raise RuntimeError("Set CRUSTDATA_API_KEY in the ignored .env")
     return key
