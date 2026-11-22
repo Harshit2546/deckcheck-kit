@@ -87,7 +87,7 @@ def test_mentions_evidence_independence_and_skips(monkeypatch: pytest.MonkeyPatc
     assert [(m["domain"], m["independent"]) for m in obs["mentions"]] == [
         ("locus.sh", False), ("blog.locus.sh", False), ("news.notlocus.sh", True)]
     assert set(obs) == {"identity", "identity_signals", "record_date", "reference_date",
-                        "reference_date_source", "customer_name", "mentions"}
+                        "reference_date_source", "customer_name", "mentions", "undated_items_used"}
     m0 = obs["mentions"][0]
     assert set(m0) == {"url", "domain", "quote", "published_date", "independent", "evidence_id"}
     ev = res.evidence[0]
@@ -100,14 +100,36 @@ def test_mentions_evidence_independence_and_skips(monkeypatch: pytest.MonkeyPatc
     assert ev.call_id == "call-fetch"
 
 
-def test_undated_and_late_pages_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_late_page_skipped_undated_used_when_nothing_dated(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D17: with no accepted dated page, an undated page is used and marked record_date None."""
     _install(monkeypatch, {
         "https://press.example.com/a": {"date": None, "quote": QUOTE},
         "https://press.example.com/b": {"date": "2024-06-02", "quote": QUOTE},
     })
     res = customer.check(_claim(), _ctx())
-    assert res.evidence == [] and res.observed["mentions"] == []
+    assert [e.locator for e in res.evidence] == ["https://press.example.com/a"]
+    assert res.evidence[0].record_date is None
+    assert res.observed["mentions"][0]["published_date"] is None
+    assert res.observed["mentions"][0]["independent"] is True
     assert res.observed["record_date"] is None
+    assert res.observed["undated_items_used"] == 1
+
+
+def test_dated_mention_wins_over_undated(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install(monkeypatch, {
+        "https://press.example.com/a": {"date": None, "quote": QUOTE},
+        "https://press.example.com/b": {"date": "2024-05-01", "quote": QUOTE},
+    })
+    res = customer.check(_claim(), _ctx())
+    assert [e.locator for e in res.evidence] == ["https://press.example.com/b"]
+    assert res.observed["undated_items_used"] == 0
+    assert res.observed["record_date"] == "2024-05-01"
+
+
+def test_undated_page_without_quote_gives_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install(monkeypatch, {"https://press.example.com/a": {"date": None, "quote": None}})
+    res = customer.check(_claim(), _ctx())
+    assert res.evidence == [] and res.observed["undated_items_used"] == 0
 
 
 def test_unverified_quote_gives_no_evidence(monkeypatch: pytest.MonkeyPatch) -> None:

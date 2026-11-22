@@ -38,6 +38,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
         "reference_date_source": ref_source,
         "customer_name": customer_name or None,
         "mentions": [],
+        "undated_items_used": 0,
     }
     skipped = {"pages_without_date": 0, "pages_after_reference": 0}   # logged only (section 3)
     if not customer_name or not company_name:
@@ -49,21 +50,13 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     urls = _top_urls(results, int(ctx.rules["web"]["results_to_fetch"]))
     fetched, fetch_call = web.fetch(ctx, urls) if urls else ([], None)
 
-    evidence: list[Evidence] = []
-    for page in fetched:
-        html = page.get("html") or ""
-        published, _where = pages.published_date(html)
-        if published is None:
-            skipped["pages_without_date"] += 1
-            continue
-        if ref_date is not None and published > ref_date:
-            skipped["pages_after_reference"] += 1
-            continue
+    def accept(page: dict[str, Any], published: str | None) -> bool:
+        """Quote check for one page; adds the mention if a verified quote names both parties."""
         quote, _llm_call = quotes.pick_quote(
-            ctx, pages.page_text(html), f"Is {customer_name} a customer of {company_name}?",
+            ctx, pages.page_text(page.get("html") or ""), f"Is {customer_name} a customer of {company_name}?",
             [customer_name, company_name])
         if not quote:
-            continue
+            return False
         ev = Evidence(
             id=uuid.uuid4().hex,
             claim_id=claim.id,
@@ -81,9 +74,26 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
             "url": page["url"], "domain": page_domain, "quote": quote, "published_date": published,
             "independent": _is_independent(page_domain, company_domain), "evidence_id": ev.id,
         })
+        return True
 
-    if observed["mentions"]:
-        observed["record_date"] = max(m["published_date"] for m in observed["mentions"])
+    evidence: list[Evidence] = []
+    undated: list[dict[str, Any]] = []
+    for page in fetched:
+        published, _where = pages.published_date(page.get("html") or "")
+        if published is None:
+            skipped["pages_without_date"] += 1
+            undated.append(page)
+            continue
+        if ref_date is not None and published > ref_date:
+            skipped["pages_after_reference"] += 1
+            continue
+        accept(page, published)
+    # D17: undated pages only when no dated page gave a mention; never mixed with dated ones.
+    if not observed["mentions"]:
+        observed["undated_items_used"] = sum(accept(page, None) for page in undated)
+
+    dates = [m["published_date"] for m in observed["mentions"] if m["published_date"]]
+    observed["record_date"] = max(dates) if dates else None
     log_step(ctx.run.id, claim.id, "check.customer", "ok", urls=len(urls), pages=len(fetched),
-             evidence_count=len(evidence), **skipped)
+             evidence_count=len(evidence), undated_items_used=observed["undated_items_used"], **skipped)
     return CheckResult(evidence=evidence, observed=observed, comparable=True, held_reason=None)

@@ -129,3 +129,54 @@ def test_team_size_check_missing_data() -> None:
     assert result.held_reason is None
     assert result.observed["identity"] == "not_found"
     assert len(result.evidence) == 0
+
+
+def _team_claim() -> Claim:
+    return Claim(id="claim_team_snap", run_id="run_1", slide=5, quote="Team of 349 people",
+                 type=ClaimType.TEAM_SIZE, subject="SwiftRoute Logistics", metric="headcount", value=349)
+
+
+def _payload(timeseries: list[dict], total: object = 349) -> dict:
+    return {"matches": [{"company_data": {"headcount": {"total": total, "timeseries": timeseries}}}]}
+
+
+def test_snapshot_total_used_when_no_dated_point() -> None:
+    """D17: no timeseries point on or before the reference date -> undated headcount.total."""
+    ctx = make_ctx(run_id="run_snap", company_domain="swiftroute.in",
+                   company=_payload([{"date": "2024-11-01", "employee_count": 55}]), deck_date="2024-06-01")
+    result = check(_team_claim(), ctx)
+    assert result.observed["headcount"] == 349.0
+    assert result.observed["record_date"] is None
+    assert result.observed["undated_items_used"] == 1
+    assert len(result.evidence) == 1
+    ev = result.evidence[0]
+    assert ev.field_or_quote == "headcount.total"
+    assert ev.record_date is None
+    assert ev.value == 349.0
+    assert ev.source_type == SourceType.CRUSTDATA_COMPANY
+    assert ev.call_id == "call-test"
+
+
+def test_snapshot_total_used_when_no_timeseries() -> None:
+    ctx = make_ctx(run_id="run_snap2", company_domain="swiftroute.in", company=_payload([]),
+                   deck_date="2024-06-01")
+    result = check(_team_claim(), ctx)
+    assert result.observed["headcount"] == 349.0 and result.evidence[0].record_date is None
+
+
+def test_dated_point_wins_over_snapshot_total() -> None:
+    ctx = make_ctx(run_id="run_snap3", company_domain="swiftroute.in",
+                   company=_payload([{"date": "2024-05-15", "employee_count": 45}]), deck_date="2024-06-01")
+    result = check(_team_claim(), ctx)
+    assert result.observed["headcount"] == 45.0
+    assert result.observed["record_date"] == "2024-05-15"
+    assert result.observed["undated_items_used"] == 0
+    assert [e.field_or_quote for e in result.evidence] == ["headcount.timeseries[2024-05-15].employee_count"]
+
+
+@pytest.mark.parametrize("total", [None, "n/a", True])
+def test_missing_or_bad_snapshot_total_gives_no_evidence(total: object) -> None:
+    ctx = make_ctx(run_id="run_snap4", company_domain="swiftroute.in", company=_payload([], total=total),
+                   deck_date="2024-06-01")
+    result = check(_team_claim(), ctx)
+    assert result.evidence == [] and "headcount" not in result.observed
