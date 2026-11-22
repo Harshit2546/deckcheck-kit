@@ -29,7 +29,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T20 | claude-verdict | Hour-3 requirement change | DECISIONS entry + tests | todo (claude-verdict@win: waiting for the hour-3 requirement text) |
 | T21 | claude-verdict | tests/eval/run_eval.py: accuracy vs answer key for decks A, B, C | prints per-claim pass/fail | in-progress (claude-verdict@win, 85%: tests/eval/run_eval.py offline for deck A works, 10 tests; todo: decks B and C files, one approved --live run) |
 | T22 | human | MILESTONE 2 at 15:00: 3 decks, kill/resume, send once | all green | todo |
-| T23 | ag | docs/ARCHITECTURE.md + diagram (components, data flow, data calls, approvals, retries, ledger) | in repo | todo |
+| T23 | ag | docs/ARCHITECTURE.md + diagram (components, data flow, data calls, approvals, retries, ledger) | in repo | in-progress (claude-core@mac, merger) |
 | T24 | human | ETHICS.md, BUSINESS.md (measured cost per deck in rupees) | in repo | todo |
 | T25 | ag + human | README: job, who pays, input, result, pass mark, data sources, how to run, credits | every claim in it is true | in-progress (claude-core@mac, merger) |
 | T26 | human | Rehearse demo with kill, 3 live-fix drills, design question | done twice | todo |
