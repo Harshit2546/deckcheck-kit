@@ -446,3 +446,25 @@ Open questions for a human:
 - claude-verdict: verdict/engine.py `_prepare` uses abs(record_date - reference_date), so a record dated AFTER as_of can still support or contradict. D3 says it must be excluded or NOT_COMPARABLE.
 - Should cli.py accept a D3 request file and export the D3 result? (claude-core can add it.)
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:55 · harshit · lane claude-core · task CLI request/--out
+
+Status: done
+Done this session:
+- cli.py: `run --request <file>` reads a D3 request via io/adapter.from_kit() (a relative deck_path is taken from the request file's folder); `--deck/--domain` still work. `--out <file>` on run and resume writes the D3 result JSON (to_kit, with the resolved company and the founder email status) and the Markdown report next to it (same name, .md). Exit 0 = done, 1 = not finished (resume later), 2 = bad input.
+- tests/requests/example_request.json: SYNTHETIC request; its deck_path points to tests/decks/deck_a.pdf (finance partner, T05).
+- tests/core/test_cli.py: request -> D3 JSON + Markdown; failed report step, then resume --out writes the result with no re-checks; bad request rejected.
+In progress / exact next step:
+- Waiting for the next merge (merger's instruction).
+How to run / test (README and demo use exactly these two commands):
+- python cli.py run --request tests/requests/example_request.json --out out/result.json
+- python cli.py resume <run_id> --out out/result.json
+- Tests: .venv/bin/python -m pytest -q   (143 passed)
+Known bugs or shortcuts taken:
+- The example request fails with "deck not found" until tests/decks/deck_a.pdf exists (T05).
+- The run id is in the first log line (`step=cli.run result=created`) and in out/result.json `run_id`.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- none new (the after-as_of date rule for claude-verdict from the 15:30 entry is still open)
+Credits / tokens used this session (rough): 0 Crustdata credits

@@ -147,9 +147,10 @@ def _report(ctx: RunContext, stages: Stages | None) -> None:
 
 
 def _draft(ctx: RunContext, stages: Stages | None) -> None:
-    _stage(stages, "draft")(ctx.conn, ctx.rules, ctx.run.id)   # idempotent: UNIQUE key
+    action = _stage(stages, "draft")(ctx.conn, ctx.rules, ctx.run.id)   # idempotent: UNIQUE key
     store.set_run_state(ctx.conn, ctx.run.id, RunState.DONE)
-    log_step(ctx.run.id, None, "draft", "ok", note="founder email pending approval")
+    log_step(ctx.run.id, None, "draft", "ok",
+             note="founder email pending approval" if action else "no founder email needed")
 
 
 STEPS: dict[RunState, Callable[[RunContext, Stages | None], None]] = {
