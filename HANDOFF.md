@@ -844,3 +844,11 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - ui/ is lane ag's folder; this was done on lane/ag-b because the user asked.
 Credits / tokens used this session (rough): 0 Crustdata credits
+- Follow-up (same session): one theme mixed from the two design specs (netflix.com-design.md +
+  apple.com-design.md): dark canvas, Apple ink #1D1D1F panels and #F5F5F7 text, Apple blue #0071E3 for
+  actions and motion, red #E50914 only for the wordmark and Contradicted, Apple pill buttons (44px), 12px
+  cards, Apple type scale, centred report hero. SF Pro via system names, Inter as stand-in, Bebas Neue for
+  the wordmark/hero (SF Pro and Netflix Sans are proprietary, not shipped). Checked with the webapp-testing
+  skill (Playwright, headless): no console errors, no sideways scroll at 390px, components honour
+  prefers-reduced-motion. kill-ai-slop scan: 1 finding open (springy stamp easing in sent.js), 2 kept on purpose.
+

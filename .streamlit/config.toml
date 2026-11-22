@@ -1,12 +1,12 @@
-# DeckCheck UI theme (ui/app.py): dark, high contrast, one red accent for primary actions and
-# brand moments (design spec: netflix.com-design.md tokens, applied to DeckCheck's own brand).
-# Page details (type scale, radii, buttons, cards) are CSS in ui/theme.py.
+# DeckCheck UI theme (ui/app.py). One theme mixed from the team's two design specs: dark canvas, Apple
+# ink #1D1D1F as panels, Apple blue for actions; details (pills, type scale, red for Contradicted and the
+# wordmark only) are CSS in ui/theme.py and tokens in ui/components/frontend/style.css.
 [theme]
 base = "dark"
-primaryColor = "#E50914"
+primaryColor = "#0071E3"
 backgroundColor = "#000000"
-secondaryBackgroundColor = "#111111"
-textColor = "#FFFFFF"
+secondaryBackgroundColor = "#1D1D1F"
+textColor = "#F5F5F7"
 font = "sans serif"
 
 [server]

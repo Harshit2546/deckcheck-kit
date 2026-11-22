@@ -290,17 +290,16 @@ def page_report() -> None:
     claims = data.claim_rows(conn, rid, rules)
     by_id = {c["claim_id"]: c for c in claims}
 
-    head, dl = st.columns([5, 2])
-    with head:
-        html(f'<p class="dc-company">{esc(run["domain"])}</p>'
-             f'<p class="dc-meta">Deck dated {esc(run["deck_date"] or "unknown")} '
-             f'(from {esc(run["deck_date_source"])}). {summary["claims"]} claims checked, '
-             f'{led["calls"]} live calls, ₹{led["cost_inr"]:.2f}. Run {esc(run["id"])}.</p>')
-    with dl:
-        st.download_button("Download report.json", json.dumps(report, indent=2, ensure_ascii=False),
-                           file_name=f"{rid}-report.json", mime="application/json", use_container_width=True)
-        st.download_button("Download report.md", markdown, file_name=f"{rid}-report.md", mime="text/markdown",
-                           use_container_width=True)
+    html(f'<div class="dc-hero"><p class="dc-company">{esc(run["domain"])}</p>'
+         f'<p class="dc-meta">Deck dated {esc(run["deck_date"] or "unknown")} '
+         f'(from {esc(run["deck_date_source"])}). {summary["claims"]} claims checked with '
+         f'{led["calls"]} live calls for ₹{led["cost_inr"]:.2f}.</p></div>')
+    _, dl1, dl2, _ = st.columns([2, 2, 2, 2])
+    dl1.download_button("Download report.json", json.dumps(report, indent=2, ensure_ascii=False),
+                        file_name=f"{rid}-report.json", mime="application/json", use_container_width=True)
+    dl2.download_button("Download report.md", markdown, file_name=f"{rid}-report.md", mime="text/markdown",
+                        use_container_width=True)
+    st.caption(f"Run {rid}")
 
     strip_view(claims, rid, "report", summary["by_label"], animate=True)
     for flag in summary["flags"]:
