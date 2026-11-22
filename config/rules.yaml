@@ -37,6 +37,7 @@ tolerances:                  # one entry per claim type: how close observed must
     max_record_age_days: 3650      # PLACEHOLDER (D14). A funding round up to 10 years before the deck date still counts
   company_fact:
     tolerance_pct: 0               # PLACEHOLDER. Founded year, HQ etc. must match exactly
+    year_gap_cannot_verify: 1      # PLACEHOLDER (T29). Founded-year gap up to this many years is CANNOT_VERIFY, above it CONTRADICTED
   customer:
     require_exact_quote: true      # PLACEHOLDER. Customer named on a fetched page, verbatim
   hiring:

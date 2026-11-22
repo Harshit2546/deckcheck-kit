@@ -74,3 +74,36 @@ def test_traction_never_high_confidence(rules):
 def test_traction_cautious_paths_never_contradicted(rules, metric, unit):
     label = verdict(rules, TR, metric, 1_000_000, unit, {"revenue": 1, "arr": 1, "growth_rate": 99})[0]
     assert label is not L.CONTRADICTED
+
+
+# ----------------------------------------------------------------- company_fact (year gap 1 -> CANNOT_VERIFY)
+
+CF = ClaimType.COMPANY_FACT
+
+
+@pytest.mark.parametrize("metric,value,observed,expected", [
+    ("year_founded", 2015, {"year_founded": 2015}, (L.SUPPORTED, "within_tolerance", C.HIGH)),
+    ("founded", "2015", {"year_founded": 2016}, (L.CANNOT_VERIFY, "founding_year_close", C.LOW)),
+    ("year_founded", 2015, {"year_founded": 2019}, (L.CONTRADICTED, "outside_tolerance", C.MEDIUM)),
+    ("year_founded", 2015, {"year_founded": None}, (L.CANNOT_VERIFY, "no_evidence", C.LOW)),
+    ("year_founded", 2099, {"year_founded": 2015}, (L.CANNOT_VERIFY, "claim_value_unusable", C.LOW)),
+    ("headquarters", "Bengaluru", {"headquarters": "Bangalore, Karnataka, India"},
+     (L.SUPPORTED, "within_tolerance", C.MEDIUM)),
+    ("hq", "Gurgaon", {"headquarters": {"city": "Gurugram", "country": "India"}},
+     (L.SUPPORTED, "within_tolerance", C.MEDIUM)),
+    ("headquarters", "Bengaluru", {"headquarters": "Singapore"}, (L.CANNOT_VERIFY, "location_unclear", C.LOW)),
+    ("headquarters", "Bengaluru", {"headquarters": None}, (L.CANNOT_VERIFY, "no_evidence", C.LOW)),
+    ("status", "private", {"status": "private"}, (L.CANNOT_VERIFY, "unsupported_metric", C.LOW)),
+])
+def test_company_fact(rules, metric, value, observed, expected):
+    assert verdict(rules, CF, metric, value, None, observed) == expected
+
+
+def test_company_fact_year_gap_comes_from_rules(rules):
+    rules["tolerances"]["company_fact"]["year_gap_cannot_verify"] = 3
+    assert verdict(rules, CF, "year_founded", 2015, None, {"year_founded": 2018})[1] == "founding_year_close"
+
+
+@pytest.mark.parametrize("hq", ["Mumbai", "Delhi", "London, UK", "", 42])
+def test_company_fact_hq_never_contradicted(rules, hq):
+    assert verdict(rules, CF, "headquarters", "Bengaluru", None, {"headquarters": hq})[0] is not L.CONTRADICTED

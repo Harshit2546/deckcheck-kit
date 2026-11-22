@@ -39,6 +39,8 @@ MISSING_TEXT: dict[str, str] = {
     "observed_more_than_claimed": "The company's own count and date for this figure.",
     "growth_scale_unclear": "Audited or management accounts for both periods of the growth figure.",
     "estimate_gap_unclear": "Audited or management accounts for the period the deck refers to.",
+    "founding_year_close": "The certificate of incorporation or the company registry entry.",
+    "location_unclear": "The registered and operating addresses from the company registry or website.",
 }
 
 
