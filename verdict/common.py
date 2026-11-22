@@ -34,6 +34,9 @@ MISSING_TEXT: dict[str, str] = {
     "record_after_as_of": "A record dated on or before the date the claim refers to.",
     "currency_mismatch": "The figure in the same currency as the deck states it.",
     "informal_title": "A formal title from a profile or article.",
+    # T29
+    "metric_mismatch": "A figure for exactly the metric the deck states (same scope, same unit).",
+    "observed_more_than_claimed": "The company's own count and date for this figure.",
 }
 
 
