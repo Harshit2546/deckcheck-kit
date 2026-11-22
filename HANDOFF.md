@@ -441,3 +441,21 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - One hiring probe would need credit approval to resolve slide 8. Founders remain paused.
 Credits / tokens used this session (rough): 0 Crustdata credits.
+
+### 14:12 · yash · lane codex-a · task T08 (Deck A verification)
+
+Status: done
+Done this session:
+- Replayed tests/fixtures/crustdata/deck_a_locus_company.json through get_company with the HTTP boundary mocked. The response passed all 288 dated headcount points through unchanged. The latest eligible D13 point is 349 on 2026-11-02.
+- In the same offline replay, the current team_size and funding checkers returned CANNOT_VERIFY/missing_record_date on slides 2 to 5 with identity supplied. Their output diverges from the fixture targets.
+In progress / exact next step:
+- AG-B: implement D13 point selection in checkers/team_size.py and use the dated last-round summary for matching a specific round when the breakdown is absent. The undated aggregate for slide 4 still needs admissible dated evidence for strict D3.
+How to run / test:
+- uv run --no-project --python 3.11 --with-requirements requirements.txt python -m pytest tests/sources/test_crust.py -q (12 passed).
+Known bugs or shortcuts taken:
+- Offline checker replay seeded identity and claim values. Full Deck A end-to-end execution remains unverified.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- No source or contract changes.
+Open questions for a human:
+- Hiring evidence remains pending credit approval.
+Credits / tokens used this session (rough): 0 Crustdata credits.
