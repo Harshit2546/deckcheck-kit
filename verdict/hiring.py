@@ -13,6 +13,8 @@ from typing import Any
 from core.models import CheckResult, Claim, Confidence, Verdict, VerdictLabel
 from verdict.common import make, num, rel_diff, source_text
 
+MISSING_HIRING = "A dated count of open roles from the company's careers page or job boards."
+
 # Units that mean "all openings". Anything else ("engineers", "sales") names a subset.
 GENERIC_UNITS = {"", "people", "roles", "role", "openings", "opening", "jobs", "job", "positions",
                  "position", "open_roles", "hires"}
@@ -52,6 +54,7 @@ def _compare(claim: Claim, result: CheckResult, st: dict[str, Any], claimed: flo
         return make(claim, result, st, VerdictLabel.SUPPORTED, "within_tolerance", conf, facts)
     if observed < claimed:
         return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "source_may_be_incomplete", Confidence.LOW,
-                    facts + " Job indexes miss many openings, so a lower count does not contradict the deck.")
+                    facts + " Job indexes miss many openings, so a lower count does not contradict the deck.",
+                    missing=MISSING_HIRING)
     return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "observed_more_than_claimed", Confidence.LOW,
                 facts + " The source shows more than the deck claims; the deck is not overstating, but the numbers differ.")

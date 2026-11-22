@@ -195,3 +195,14 @@ def test_every_new_reason_has_missing_text():
                  "founding_year_close", "location_unclear", "prior_company_not_checked", "acquirer_differs",
                  "period_mismatch", "competition_not_judged"):
         assert MISSING_TEXT.get(code), code
+
+
+def test_reused_reason_codes_ask_for_the_right_document(rules):
+    v = decide(make_claim(HI, "open_roles", 40, "roles"), make_result({"openings_count": 5}), rules)
+    assert v.reason_code == "source_may_be_incomplete" and "investor" not in v.missing.lower()
+    assert "open roles" in v.missing
+    v = decide(make_claim(PE, "acquired_by", "Flipkart"), make_result({**CHECKED, "acquired_by": None, "x": 1}), rules)
+    assert "deal announcement" in v.missing.lower()
+    v = decide(make_claim(TG, "headcount_growth_yoy", 50, "%"),
+               make_result({"growth_percent": 10, "baseline_date": "2025-01-10"}), rules)
+    assert v.reason_code == "estimate_gap_unclear" and "accounts" not in v.missing.lower()

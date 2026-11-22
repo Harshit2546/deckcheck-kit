@@ -15,6 +15,8 @@ from core.models import CheckResult, Claim, Confidence, Verdict, VerdictLabel
 from resolve.names import company_names_match
 from verdict.common import make, num, rel_diff, source_text
 
+MISSING_DEAL = "The deal announcement naming the acquirer and the amount for the founder's earlier company."
+
 
 def guard(claim: Claim, result: CheckResult) -> Verdict | None:
     """Stop unless the checker says it fetched the founder's prior company (an explicit True, nothing else)."""
@@ -42,7 +44,7 @@ def _acquirer(claim: Claim, result: CheckResult, st: dict[str, Any]) -> Verdict:
                     f"The deck's acquirer {claim.value!r} is not a usable name.")
     if not observed:
         return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "source_may_be_incomplete", Confidence.LOW,
-                    "The source lists no acquirer for the earlier company.")
+                    "The source lists no acquirer for the earlier company.", missing=MISSING_DEAL)
     facts = f"Deck says acquired by {claim.value!r}; {source_text(result)} says {observed!r}."
     if company_names_match(claim.value, observed):
         return make(claim, result, st, VerdictLabel.SUPPORTED, "acquirer_matches", Confidence.MEDIUM, facts)
@@ -60,10 +62,11 @@ def _amount(claim: Claim, result: CheckResult, st: dict[str, Any]) -> Verdict:
                     f"The deck's exit amount {claim.value!r} is not a usable number.")
     if observed is None:
         return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "source_may_be_incomplete", Confidence.LOW,
-                    "The source gives no amount for this exit; most deal prices are not disclosed.")
+                    "The source gives no amount for this exit; most deal prices are not disclosed.", missing=MISSING_DEAL)
     diff, tol = rel_diff(observed, claimed), st["tol"]
     facts = (f"Deck says exit USD {claimed:,.0f}; {source_text(result)} says USD {observed:,.0f} "
              f"(difference {diff:.0%}, allowed {tol:.0%}).")
     if diff <= tol:
         return make(claim, result, st, VerdictLabel.SUPPORTED, "within_tolerance", Confidence.MEDIUM, facts)
-    return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "estimate_gap_unclear", Confidence.LOW, facts)
+    return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "estimate_gap_unclear", Confidence.LOW, facts,
+                missing=MISSING_DEAL)

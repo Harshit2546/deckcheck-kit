@@ -13,7 +13,7 @@ from typing import Any
 
 from core.config import rule
 from core.models import CheckResult, Claim, Confidence, Verdict, VerdictLabel
-from verdict.common import make, num, parse_date, rel_diff, source_text
+from verdict.common import MISSING_TEXT, make, num, parse_date, rel_diff, source_text
 
 _YEARLY = ("yoy", "year", "annual", "12m", "12_month", "12 month")
 
@@ -42,7 +42,8 @@ def judge(claim: Claim, result: CheckResult, rules: dict[str, Any], st: dict[str
              f"to {st['rec']} (difference {diff:.0%}, allowed {tol:.0%}).")
     if diff <= tol:
         return make(claim, result, st, VerdictLabel.SUPPORTED, "within_tolerance", Confidence.MEDIUM, facts)
-    return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "estimate_gap_unclear", Confidence.LOW, facts)
+    return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "estimate_gap_unclear", Confidence.LOW, facts,
+                missing=MISSING_TEXT["period_mismatch"])
 
 
 def _period(claim: Claim, result: CheckResult, st: dict[str, Any], why: str) -> Verdict:
