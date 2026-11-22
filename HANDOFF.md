@@ -1387,3 +1387,21 @@ Open questions for a human:
 - Approve the draft yourself (the rule is a human approves; I did not).
 Credits / tokens used this session (rough): 13 Crustdata credits
 
+
+### 17:38 · final (Windows coordinator) · lane final · tasks T-A to T-H of the final stretch
+
+Status: done (merged to main c075bb1)
+Done this session:
+- UI icons: checked all 7 pages with Playwright; no raw icon words (the fix in ui/theme.py was already on main). No change needed.
+- Repo: deckcheck.db-shm and deckcheck.db-wal were tracked; now untracked and ignored (.gitignore also ignores .claude/). .env was never committed. First commit 11:08 IST.
+- Docs (lane/final-docs 65de37c): ARCHITECTURE data calls and flowchart now include web search/fetch (D16) and person lookups (D18); README known limits (B4, B12, competition, decks B/C TBD, 43 PLACEHOLDER lines), OpenAI gpt-4o-mini only (Gemini disabled in code), synthetic decks; ETHICS placeholder sentence.
+- New: docs/BUSINESS_ARCHITECTURE.md; pitch/SUBMISSION.md (form answers); pitch/site.html (project site, also hosted at https://claude.ai/artifact/XGqkLqzG4FgmnLVPAHrtFu, private until shared); pitch/PROJECT_EXPLAINED.md; pitch/LAUNCH_VIDEO.md; pitch/launch_film.html and pitch/DeckCheck_launch_film.mp4 (silent 1:40 film, re-rendered after fixes).
+- Tests: 477 passed (tests/ui skipped here: local Anaconda pyarrow issue). Offline eval: 4 PASS, 2 HELD (web blocked offline), 1 SKIP, same as README.
+Not done:
+- Live Deck A run: this laptop's .env has no OPENAI_API_KEY.
+- Hour-3 requirement change (T20): no text recorded anywhere; ask the WhatsApp group.
+Human-only, before 18:00:
+- Make the repo public (owner: Settings > General > Danger Zone > Change visibility). It is PRIVATE at 17:38.
+- Upload the video (pitch/DeckCheck_launch_film.mp4 or a live recording), set "anyone with the link", test in a private window.
+- Share the site and deck artifacts (Share > anyone with the link) if you submit those links.
+- Fill team name and every member's details in the form; confirm rules.yaml values.
