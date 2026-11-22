@@ -1119,4 +1119,36 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 - none new; implements D17. `no_evidence` is never suffixed.
 Open questions for a human:
 - Finance partner: undated_fallback true / 90 days are PLACEHOLDER values.
+
+### 16:45 · web-checkers · task T35 (D17: checkers keep undated items)
+
+Status: done
+Done this session:
+- checkers/market_size.py and checkers/customer.py: dated pages are processed first, as before. Pages with no published_date are still counted (`pages_without_date`; customer logs it only), and kept aside. If NO dated page gave an accepted estimate or mention, the undated pages go through the same checks: pick_quote with the same must_contain terms, the B10 relevance check and forecast skip (market_size), and parse_amount (market_size). The forecast year for an undated page is the reference year, else the fetch year. Undated items are marked `published_date: None` and Evidence `record_date=None`; observed.record_date stays None. They are never mixed with dated ones. New observed key in both: `undated_items_used` (count).
+- checkers/team_size.py: with no headcount.timeseries point on or before the reference date, it falls back to the snapshot `headcount.total`: observed.headcount = total, observed.record_date None, Evidence field_or_quote "headcount.total", record_date None. A dated point always wins. New observed key `undated_items_used` (0 or 1). A missing or non-numeric total gives no evidence, as before.
+- Tests: market_size +3, customer +3 (one old "undated is skipped" test is now the D17 case), team_size +6.
+In progress / exact next step:
+- none. T34 (engine) decides whether undated items may be used. Until it merges, the current engine stops at CANNOT_VERIFY missing_record_date for these (verdict/engine.py:120), so no wrong label in the meantime.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (452 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged; web claims are HELD offline)
+Known bugs or shortcuts taken:
+- An undated web page costs one LLM call (pick_quote) only when no dated page was accepted, so the worst case is still one call per fetched page.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (follows D17)
+Open questions for a human:
+- T34: read `observed.undated_items_used` > 0 (or Evidence.record_date None) to tell an undated result from "no evidence". For team_size, `observed.headcount` is set from headcount.total with record_date None.
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:55 · web-checkers · T35 addition (merger's request): checkers/hiring.py
+
+Status: done
+Done this session:
+- checkers/hiring.py used the payload's `updated_at` (the provider's refresh date) as record_date, which D13 forbids. `hiring.openings_count` and `hiring.openings_growth_percent` are now snapshot values: Evidence record_date=None and observed.record_date=None. New observed key `undated_items_used` = number of snapshot Evidence rows. D17 (T34, engine) decides whether they may be used. `updated_at` is no longer read anywhere in the checker.
+- tests/checkers/test_remaining_checkers.py: test_hiring_check now asserts record_date None on observed and on both Evidence rows. New test: a top-level `updated_at` payload still gives record_date None.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (453 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged; slide 8 hiring stays CANNOT_VERIFY no_evidence offline)
+Open questions for a human:
+- none
 Credits / tokens used this session (rough): 0 Crustdata credits

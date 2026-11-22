@@ -232,3 +232,45 @@ def test_empty_subject_has_no_required_terms(monkeypatch: pytest.MonkeyPatch) ->
 def test_stop_words_only_subject_has_no_terms() -> None:
     assert market_size._required_terms("Global market size of the industry") == []
     assert market_size._required_terms("India Logistics software market") == ["logistics", "software"]
+
+
+GOOD = "India's logistics software market is valued at $9 billion."
+
+
+def test_undated_page_used_only_when_no_dated_estimate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D17: an undated estimate is kept, marked record_date None, when nothing dated was accepted."""
+    _install(monkeypatch, {
+        "https://a.example.com/undated": {"date": None, "quote": GOOD, "amount": (9e9, "USD")},
+        "https://b.example.com/late": {"date": "2025-01-01", "quote": GOOD, "amount": (9e9, "USD")},
+    })
+    res = market_size.check(_claim(), _ctx())
+    assert [e.locator for e in res.evidence] == ["https://a.example.com/undated"]
+    assert res.evidence[0].record_date is None
+    est = res.observed["estimates"][0]
+    assert est["published_date"] is None and est["evidence_id"] == res.evidence[0].id
+    assert res.observed["record_date"] is None
+    assert res.observed["undated_items_used"] == 1
+    assert res.observed["pages_without_date"] == 1 and res.observed["pages_after_reference"] == 1
+
+
+def test_dated_estimate_wins_over_undated(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install(monkeypatch, {
+        "https://a.example.com/undated": {"date": None, "quote": GOOD, "amount": (9e9, "USD")},
+        "https://b.example.com/dated": {"date": "2024-02-01", "quote": "Logistics software: $8 billion.",
+                                        "amount": (8e9, "USD")},
+    })
+    res = market_size.check(_claim(), _ctx())
+    assert [e.locator for e in res.evidence] == ["https://b.example.com/dated"]
+    assert res.observed["undated_items_used"] == 0
+    assert res.observed["record_date"] == "2024-02-01"
+
+
+def test_undated_page_gets_relevance_and_forecast_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install(monkeypatch, {
+        "https://a.example.com/u1": {"date": None, "quote": HOUSEHOLD, "amount": (237e9, "USD")},
+        "https://a.example.com/u2": {"date": None, "amount": (20e9, "USD"),
+                                     "quote": "India's logistics software market will be $20 billion by 2030."},
+    })
+    res = market_size.check(_claim(), _ctx())
+    assert res.evidence == [] and res.observed["undated_items_used"] == 0
+    assert res.observed["forecast_quotes_skipped"] == 1

@@ -113,6 +113,23 @@ def test_hiring_check() -> None:
     assert len(res.evidence) == 2
     assert res.evidence[0].call_id == "call-test"
     assert res.evidence[0].retrieved_at is not None
+    # updated_at (2024-04-15) is the provider's refresh date, never the record date (D13, D17).
+    assert res.observed["record_date"] is None
+    assert [e.record_date for e in res.evidence] == [None, None]
+    assert [e.field_or_quote for e in res.evidence] == ["hiring.openings_count",
+                                                        "hiring.openings_growth_percent"]
+    assert res.observed["undated_items_used"] == 2
+
+
+def test_hiring_top_level_updated_at_is_not_a_record_date() -> None:
+    payload = {"updated_at": "2024-04-15T10:00:00Z", "hiring": {"openings_count": 40}}
+    claim = Claim(id="c_hiring_2", run_id="run_1", slide=8, quote="We are hiring 40 engineers",
+                  type=ClaimType.HIRING, subject="Locus", value=40, unit="engineers")
+    ctx = make_ctx(run_id="run_hire2", company_domain="locus.sh", company=payload, deck_date="2024-04-15")
+    res = check_hiring(claim, ctx)
+    assert res.observed["openings_count"] == 40
+    assert res.observed["record_date"] is None
+    assert res.evidence[0].record_date is None
 
 
 def test_traction_check() -> None:

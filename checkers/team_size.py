@@ -3,7 +3,8 @@
 Who calls it: core/runner.py (STAGES["check"]).
 What it calls: checkers._common (get_company, company_identity), core/models.py, core/log.py.
 Extracts headcount from the latest timeseries point on or before reference date (DECISIONS D13).
-Never uses snapshot headcount.total or updated_at.
+With no such point, falls back to the undated snapshot headcount.total, marked record_date None
+(D17; the verdict engine decides whether it may be used). Never reads updated_at.
 """
 
 from __future__ import annotations
@@ -86,16 +87,29 @@ def _get_timeseries_points(data: dict[str, Any], ref_date: str | None) -> list[t
     return valid_points
 
 
+def _snapshot_total(data: dict[str, Any]) -> float | None:
+    """The undated snapshot headcount.total, or None when absent or not a number."""
+    headcount_obj = data.get("headcount")
+    raw = headcount_obj.get("total") if isinstance(headcount_obj, dict) else None
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        return float(raw)
+    except (ValueError, TypeError):
+        return None
+
+
 def check(claim: Claim, ctx: RunContext) -> CheckResult:
     """Check a team_size claim against Crustdata company timeseries data.
 
     Per DECISIONS D13:
-    - Never uses snapshot headcount.total or updated_at.
+    - Never reads updated_at.
     - Picks the latest headcount.timeseries[] point on or before reference date.
     - Observed headcount = that point's employee_count.
     - Record_date = that point's date.
     - Evidence field_or_quote = 'headcount.timeseries[<date>].employee_count'.
-    - If no such point exists, adds no headcount evidence.
+    - If no such point exists, uses the snapshot headcount.total as undated evidence (D17):
+      record_date None, field_or_quote 'headcount.total'. A dated point always wins.
     """
     domain = ctx.run.input.domain
     payload, call_id = _common.get_company(ctx, domain)
@@ -128,6 +142,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
         "record_date": None,
         "reference_date": ref_date,
         "reference_date_source": ref_source,
+        "undated_items_used": 0,
     }
 
     if valid_points:
@@ -147,6 +162,24 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
                 call_id=call_id,
             )
         )
+    else:
+        total = _snapshot_total(data)
+        if total is not None:
+            observed["headcount"] = total
+            observed["undated_items_used"] = 1
+            evidence.append(
+                Evidence(
+                    id=uuid.uuid4().hex,
+                    claim_id=claim.id,
+                    source_type=SourceType.CRUSTDATA_COMPANY,
+                    locator=CRUSTDATA_ENDPOINT,
+                    field_or_quote="headcount.total",
+                    value=total,
+                    record_date=None,   # the snapshot has no date (docs/crustdata_fields.md)
+                    retrieved_at=now_iso(),
+                    call_id=call_id,
+                )
+            )
 
     basic_info = data.get("basic_info") or {}
     raw_range = basic_info.get("employee_count_range") or data.get("employee_count_range")

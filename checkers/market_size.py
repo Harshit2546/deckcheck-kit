@@ -89,6 +89,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
         "pages_without_date": 0,
         "pages_after_reference": 0,
         "forecast_quotes_skipped": 0,
+        "undated_items_used": 0,
     }
     subject = (claim.subject or claim.quote).strip()
     terms = _required_terms(claim.subject or "")
@@ -96,27 +97,19 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     urls = _top_urls(results, int(ctx.rules["web"]["results_to_fetch"]))
     fetched, fetch_call = web.fetch(ctx, urls) if urls else ([], None)
 
-    evidence: list[Evidence] = []
-    for page in fetched:
-        html = page.get("html") or ""
-        published, _where = pages.published_date(html)
-        if published is None:
-            observed["pages_without_date"] += 1
-            continue
-        if ref_date is not None and published > ref_date:
-            observed["pages_after_reference"] += 1
-            continue
-        text = pages.page_text(html)
+    def accept(page: dict[str, Any], published: str | None) -> bool:
+        """Quote, relevance, forecast and amount checks for one page; adds the estimate if it passes."""
+        text = pages.page_text(page.get("html") or "")
         quote, _llm_call = quotes.pick_quote(
             ctx, text, f"What is the size of the {subject} market?", terms)
         if not quote or any(t not in quote.casefold() for t in terms):
-            continue   # no quote, or a quote about another market (B10)
-        if _is_forecast(quote, int((ref_date or published)[:4])):
+            return False   # no quote, or a quote about another market (B10)
+        if _is_forecast(quote, int((ref_date or published or page["fetched_at"])[:4])):
             observed["forecast_quotes_skipped"] += 1
-            continue
+            return False
         value, currency = quotes.parse_amount(quote)
         if value is None:
-            continue
+            return False
         ev = Evidence(
             id=uuid.uuid4().hex,
             claim_id=claim.id,
@@ -133,11 +126,29 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
             "value": value, "currency": currency, "url": page["url"], "domain": _domain(page["url"]),
             "quote": quote, "published_date": published, "evidence_id": ev.id,
         })
+        return True
 
-    if observed["estimates"]:
-        observed["record_date"] = max(e["published_date"] for e in observed["estimates"])
+    evidence: list[Evidence] = []
+    undated: list[dict[str, Any]] = []
+    for page in fetched:
+        published, _where = pages.published_date(page.get("html") or "")
+        if published is None:
+            observed["pages_without_date"] += 1
+            undated.append(page)
+            continue
+        if ref_date is not None and published > ref_date:
+            observed["pages_after_reference"] += 1
+            continue
+        accept(page, published)
+    # D17: undated pages only when no dated page gave an estimate; never mixed with dated ones.
+    if not observed["estimates"]:
+        observed["undated_items_used"] = sum(accept(page, None) for page in undated)
+
+    dates = [e["published_date"] for e in observed["estimates"] if e["published_date"]]
+    observed["record_date"] = max(dates) if dates else None
     log_step(ctx.run.id, claim.id, "check.market_size", "ok", urls=len(urls), pages=len(fetched),
              evidence_count=len(evidence), pages_without_date=observed["pages_without_date"],
              pages_after_reference=observed["pages_after_reference"],
-             forecast_quotes_skipped=observed["forecast_quotes_skipped"])
+             forecast_quotes_skipped=observed["forecast_quotes_skipped"],
+             undated_items_used=observed["undated_items_used"])
     return CheckResult(evidence=evidence, observed=observed, comparable=True, held_reason=None)

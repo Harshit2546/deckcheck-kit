@@ -3,6 +3,8 @@
 Who calls it: core/runner.py (STAGES["check"]).
 What it calls: sources.crust (get_company), core/models.py, core/log.py.
 Extracts active openings_count, openings_growth_percent, and open roles and returns CheckResult.
+These are snapshot values with no record date: `updated_at` is the provider's refresh date, not
+the record's own date (D13), so Evidence and observed record_date are None (D17 decides use).
 """
 
 from __future__ import annotations
@@ -26,19 +28,14 @@ from checkers import _common
 CRUSTDATA_ENDPOINT = "https://api.crustdata.com/company/enrich"
 
 
-def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | None, str | None, str]:
-    rec_date = None
-    if updated_at:
-        rec_date = str(updated_at).split("T")[0]
-
+def _reference_date(claim: Claim, ctx: RunContext) -> tuple[str | None, str]:
+    """(reference_date, reference_date_source): claim.as_of if ISO, else the deck date."""
     ref_date = None
     if claim.as_of and re.match(r"^\d{4}-\d{2}-\d{2}$", claim.as_of.strip()):
         ref_date = claim.as_of.strip()
     elif ctx.run.input.deck_date:
         ref_date = ctx.run.input.deck_date.strip()[:10]
-
-    ref_source = ctx.run.input.deck_date_source or "input"
-    return rec_date, ref_date, ref_source
+    return ref_date, ctx.run.input.deck_date_source or "input"
 
 
 def check(claim: Claim, ctx: RunContext) -> CheckResult:
@@ -46,7 +43,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     domain = ctx.run.input.domain
     payload, call_id = _common.get_company(ctx, domain)
 
-    rec_date, ref_date, ref_source = _get_dates(claim, ctx, payload.get("updated_at") if payload else None)
+    ref_date, ref_source = _reference_date(claim, ctx)
 
     if not payload:
         log_step(ctx.run.id, claim.id, "check.hiring", "cannot_verify", reason="no_payload")
@@ -65,9 +62,6 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     data = payload
     if "matches" in data and isinstance(data["matches"], list) and data["matches"]:
         data = data["matches"][0].get("company_data", data["matches"][0])
-
-    if not rec_date and data.get("updated_at"):
-        rec_date = str(data["updated_at"]).split("T")[0]
 
     hiring_obj = data.get("hiring") or {}
 
@@ -101,9 +95,10 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     evidence: list[Evidence] = []
     observed: dict[str, Any] = {
         **_common.company_identity(ctx),
-        "record_date": rec_date,
+        "record_date": None,   # snapshot values; updated_at is never a record date (D13)
         "reference_date": ref_date,
         "reference_date_source": ref_source,
+        "undated_items_used": 0,
     }
 
     if openings_count is not None:
@@ -115,7 +110,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
                 locator=CRUSTDATA_ENDPOINT,
                 field_or_quote="hiring.openings_count",
                 value=openings_count,
-                record_date=rec_date,
+                record_date=None,
                 retrieved_at=now_iso(),
                 call_id=call_id,
             )
@@ -131,7 +126,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
                 locator=CRUSTDATA_ENDPOINT,
                 field_or_quote="hiring.openings_growth_percent",
                 value=growth_percent,
-                record_date=rec_date,
+                record_date=None,
                 retrieved_at=now_iso(),
                 call_id=call_id,
             )
@@ -140,6 +135,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
 
     if openings:
         observed["openings"] = openings
+    observed["undated_items_used"] = len(evidence)
 
     log_step(
         ctx.run.id,
