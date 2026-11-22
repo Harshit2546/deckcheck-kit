@@ -470,3 +470,26 @@ Open questions for a human:
 - claude-verdict: verdict/engine.py `_prepare` uses abs(record_date - reference_date), so a record dated AFTER as_of can still support or contradict. D3 says it must be excluded or NOT_COMPARABLE.
 - Should cli.py accept a D3 request file and export the D3 result? (claude-core can add it.)
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:15 · yash · lane ag-b · task D13 (team_size & team_growth timeseries points)
+
+Status: done
+Done this session:
+- Merged origin/main into lane/ag-b (commit ba9f10b) resolving merge conflict in HANDOFF.md.
+- checkers/team_size.py: updated per DECISIONS.md D13. Removed snapshot `headcount.total` and `updated_at`. Checker now parses `headcount.timeseries[]`, selects the latest point dated on or before reference date (`claim.as_of` if ISO, else `deck_date`), sets observed `headcount` from its `employee_count`, `record_date` from its `date`, and attaches Evidence with `field_or_quote = f"headcount.timeseries[{latest_date}].employee_count"`. If no point on or before reference date exists, adds no headcount evidence.
+- checkers/team_growth.py: updated per DECISIONS.md D13. Removed snapshot `growth_percent`, `growth_absolute`, and `updated_at`. Computes growth in code from two `timeseries[]` points on or before reference date. If fewer than two points on or before reference date, adds no evidence.
+- tests/checkers/test_team_size.py: updated Crustdata company fixture with `timeseries[]` points; verified `field_or_quote` format; added `test_team_size_check_no_point_before_deck_date` verifying no evidence is attached when all points are after deck date.
+- tests/checkers/test_remaining_checkers.py: updated `test_team_growth_check` with `timeseries[]` points; added `test_team_growth_no_point_before_deck_date` verifying no evidence is attached when fewer than two points exist before deck date.
+- Full test suite: 150 passed in 9.02s (`python -m pytest -q`).
+In progress / exact next step:
+- Ready for human merge to main.
+How to run / test:
+- python -m pytest tests/checkers/test_team_size.py tests/checkers/test_remaining_checkers.py -v
+- python -m pytest -q
+Known bugs or shortcuts taken:
+- None. Strict D3 adherence: no facts from after reference date, no fake sources or mock data at runtime.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- Implemented D13: checkers never use snapshot values (`headcount.total`, snapshot growth) or `updated_at`; they derive facts strictly from dated `timeseries[]` points on or before reference date.
+Open questions for a human:
+- None. Ready for merge to main.
+Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.

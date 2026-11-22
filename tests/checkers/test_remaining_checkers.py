@@ -17,10 +17,12 @@ def test_team_growth_check() -> None:
             {
                 "company_data": {
                     "headcount": {
-                        "growth_percent": 25.0,
-                        "growth_absolute": 10,
+                        "timeseries": [
+                            {"date": "2023-03-01", "employee_count": 40},
+                            {"date": "2024-03-01", "employee_count": 50},
+                            {"date": "2024-09-01", "employee_count": 65},
+                        ],
                     },
-                    "updated_at": "2024-03-01T00:00:00Z",
                 }
             }
         ]
@@ -46,6 +48,35 @@ def test_team_growth_check() -> None:
     assert len(res.evidence) == 2
     assert res.evidence[0].call_id == "call-test"
     assert res.evidence[0].retrieved_at is not None
+    assert "headcount.timeseries" in res.evidence[0].field_or_quote
+
+
+def test_team_growth_no_point_before_deck_date() -> None:
+    """When fewer than two timeseries points are on or before deck date, add no evidence (D13)."""
+    company_data = {
+        "headcount": {
+            "timeseries": [
+                {"date": "2024-03-01", "employee_count": 50},
+            ]
+        }
+    }
+    claim = Claim(
+        id="c_growth_old",
+        run_id="run_1",
+        slide=2,
+        quote="Team grew 25%",
+        type=ClaimType.TEAM_GROWTH,
+        subject="LogiFast",
+        value=25,
+        unit="%",
+    )
+    ctx = make_ctx(run_id="run_1", company_domain="logifast.in", company=company_data, deck_date="2022-01-01")
+
+    res = check_team_growth(claim, ctx)
+    assert res.comparable is True
+    assert len(res.evidence) == 0
+    assert "growth_percent" not in res.observed
+    assert res.observed["record_date"] is None
 
 
 def test_hiring_check() -> None:
