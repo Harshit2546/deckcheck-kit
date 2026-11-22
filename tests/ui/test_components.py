@@ -99,3 +99,10 @@ def test_motion_rejects_reserved_payload_names(monkeypatch):
         pytest.skip("streamlit components not available")
     with pytest.raises(ValueError, match="reserved"):
         components.motion("gauge", {"key": "c1"}, key="g")
+
+
+def test_theme_keeps_streamlit_icon_font():
+    """The global font rule must not replace the Material Symbols font, or icons show as raw words."""
+    from ui import theme
+    css = theme.CSS if hasattr(theme, "CSS") else ""
+    assert 'data-testid="stIconMaterial"' in css and "Material Symbols Rounded" in css
