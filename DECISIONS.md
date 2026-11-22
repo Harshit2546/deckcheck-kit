@@ -79,3 +79,32 @@ Change: D9 said both laptops use the same Claude account. That is wrong: there a
 Why: the user clarified after D9 was pushed. DECISIONS is append-only, so this is a new entry instead of an edit.
 Files affected: none in code.
 Who must know (lanes): all lanes, both humans
+
+### 15:20 · human (written by harshit on the merger's word) · D3: request and result format (Investing track, 2.2 The Diligence Desk)
+Change: the problem statement and builder handbook give no fixed Investing I/O format, so this is our own; `io/adapter.py` `from_kit()` / `to_kit()` are the only places to change if the organizers publish one.
+Input (one request, JSON):
+```json
+{ "request": "<customer's words>", "deck_path": "deck.pdf",
+  "company_domain": "example.in", "deck_date": "YYYY-MM-DD or null",
+  "founder_urls": ["https://..."] }
+```
+`deck_date` is the "as of" date. When null, extract uses PDF metadata and sets `deck_date_source = "pdf_metadata"` (confidence capped at medium).
+Output (one report, JSON + Markdown):
+```
+{ "run_id", "company": {name, domain, identity, source}, "as_of": deck_date,
+  "claims": [ { "slide", "quote", "type", "claimed_value",
+                "verdict": SUPPORTED|CONTRADICTED|NOT_COMPARABLE|CANNOT_VERIFY|HELD,
+                "reason_code", "explanation", "confidence",
+                "missing": "what would settle it" | null,
+                "sources": [ { "url_or_endpoint", "field_or_quote", "value",
+                               "record_date", "retrieved_at" } ] } ],
+  "red_flags", "founder_questions", "evidence_requests",
+  "ledger": { "calls", "credits", "cost_inr", "seconds" },
+  "founder_email": { "status": pending|approved|sent, "recipient": test inbox } }
+```
+Claim field list and order come from rules.yaml `output.fields` (hour-3 changes land there).
+Rule from the handbook ("calls replayed from a past date, no fact from after that date"): evidence whose record_date is after as_of must not support or contradict a claim. It is excluded or NOT_COMPARABLE.
+Implementation notes (claude-core): `output.fields` keeps report/builder.py names and gains `value`; `to_kit()` renames label -> verdict, value -> claimed_value, source locator -> url_or_endpoint, and leaves any other field name as is. `ledger.seconds` = total duration of external calls. `company` and `founder_email` are passed to `to_kit()` by the caller (resolution entities, the run's Action), since the report does not hold them. The customer's `request` text is read and checked but not stored (storing it is a schema change).
+Why: no published format; one adapter keeps a later format change to two functions.
+Files affected: io/adapter.py, config/rules.yaml (output.fields), verdict/ (date rule), report/, ui/, checkers/
+Who must know (lanes): claude-verdict (report/ builds this; verdict must apply the after-as_of rule), ag (UI shows it), all checkers

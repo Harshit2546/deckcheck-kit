@@ -79,7 +79,8 @@ output:
     - slide
     - quote
     - type
-    - label
+    - value                  # D3: shown as claimed_value
+    - label                  # D3: shown as verdict
     - reason_code
     - explanation
     - confidence
