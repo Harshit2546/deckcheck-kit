@@ -1,0 +1,10 @@
+{
+  "profiles": [
+    {"crustdata_person_id": 555001, "basic_profile": {"name": "Test Founder"},
+     "social_handles": {"professional_network_identifier": {"profile_url": "https://www.linkedin.com/in/test-founder/"}},
+     "experience": {"employment_details": {"current": [{"name": "Locus", "title": "Co-founder & CEO", "crustdata_company_id": 1001}], "past": []}},
+     "contact": {"emails": ["x@example.com"]}}
+  ],
+  "next_cursor": null,
+  "total_count": 1
+}

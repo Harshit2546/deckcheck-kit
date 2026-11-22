@@ -1,0 +1,26 @@
+[
+  {
+    "matched_on": "https://www.linkedin.com/in/test-founder/",
+    "match_type": "professional_network_profile_url",
+    "match_status": "matched",
+    "matches": [
+      {
+        "confidence_score": 1.0,
+        "person_data": {
+          "crustdata_person_id": 555001,
+          "updated_at": "2026-10-01T00:00:00Z",
+          "basic_profile": {"name": "Test Founder", "headline": "Co-founder", "last_updated": "2026-09-30"},
+          "social_handles": {"professional_network_identifier": {"profile_url": "https://www.linkedin.com/in/test-founder/"}},
+          "contact": {"business_emails": ["x@example.com"], "phone_numbers": ["+0000000000"]},
+          "experience": {"employment_details": {
+            "current": [{"name": "Locus", "title": "Co-founder & CEO", "crustdata_company_id": 1001, "start_date": "2015-12-01", "company_status": "active"}],
+            "past": [{"name": "Example Analytics", "title": "Senior Manager", "crustdata_company_id": 2002, "start_date": "2010-06-01", "end_date": "2015-11-01", "work_email": "y@example.com"}]
+          }},
+          "education": {"schools": [{"school": "Example Institute", "degree": "B.Tech"}]},
+          "personal_emails": ["z@example.com"]
+        }
+      }
+    ]
+  },
+  {"matched_on": "https://www.linkedin.com/in/missing-person/", "match_type": "professional_network_profile_url", "match_status": "not_found", "matches": []}
+]
