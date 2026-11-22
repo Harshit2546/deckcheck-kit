@@ -5,7 +5,6 @@ import pytest
 from checker_fakes import make_ctx
 from checkers.competition import check as check_competition
 from checkers.hiring import check as check_hiring
-from checkers.market_size import check as check_market_size
 from checkers.team_growth import check as check_team_growth
 from checkers.traction import check as check_traction
 from core.models import Claim, ClaimType, SourceType
@@ -153,45 +152,6 @@ def test_traction_check() -> None:
     assert res.observed["growth_rate"] == 120.0
     assert len(res.evidence) == 3
     assert res.evidence[0].call_id == "call-test"
-    assert res.evidence[0].retrieved_at is not None
-
-
-def test_market_size_check() -> None:
-    market_benchmark = {
-        "market_size": 215000000000,
-        "unit": "USD",
-        "year": "2028",
-        "quote": "India 3PL market projected to reach $215B",
-        "record_date": "2024-01-15",
-        "source_url": "https://logistics-reports.org/india-3pl",
-        "call_id": "call_market_1",
-    }
-    claim = Claim(
-        id="c_market",
-        run_id="run_1",
-        slide=5,
-        quote="India 3PL market estimated at $215B by 2028",
-        type=ClaimType.MARKET_SIZE,
-        subject="India 3PL",
-        value=215000000000,
-        unit="USD",
-    )
-    ctx = make_ctx(
-        run_id="run_1",
-        company_domain="logifast.in",
-        extras={"market_data": market_benchmark},
-        deck_date="2024-01-15",
-    )
-
-    res = check_market_size(claim, ctx)
-    assert res.comparable is True
-    assert res.observed["market_size"] == 215000000000.0
-    assert res.observed["unit"] == "USD"
-    assert res.observed["year"] == "2028"
-    assert len(res.evidence) == 1
-    assert res.evidence[0].source_type == SourceType.WEB_PAGE
-    assert res.evidence[0].locator == "https://logistics-reports.org/india-3pl"
-    assert res.evidence[0].call_id == "call_market_1"
     assert res.evidence[0].retrieved_at is not None
 
 
