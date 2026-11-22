@@ -36,7 +36,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T27 | claude-verdict | Merge reviews before each human merge to main (12:15, 12:45, then every merge) | review notes in HANDOFF | in-progress (claude-verdict@win: reviews of ag-b and codex-a in docs/reviews/; repeat before each merge to main) |
 | T28 | ag | UI polish: ui/app.py looks bad. Clear layout and theme, verdict colour badges, run summary metrics, readable claim cards, auto-refresh while a run is running | looks good in the demo, tests/ui pass | todo |
 | T29 | claude-verdict | verdict rules for hiring, team_growth, company_fact, prior_exit, traction, competition (engine had rules only for team_size, funding, founder) | tests/verdict pass, cautious labels | done (claude-verdict@mac, harshit) |
-| T30 | web-client | sources/web.py: Crustdata web search + fetch client (docs/WEB_SOURCE.md, D16) | tests pass with recorded fixtures | todo |
+| T30 | web-client | sources/web.py: Crustdata web search + fetch client (docs/WEB_SOURCE.md, D16) | tests pass with recorded fixtures | done |
 | T31 | web-pages | sources/pages.py (page text, publish date) + extract/quotes.py (pick_quote, parse_amount) | tests pass | todo |
 | T32 | web-checkers | checkers/market_size.py rewrite + checkers/customer.py (observed keys per WEB_SOURCE.md section 3) | tests pass with fakes | todo |
 | T33 | claude-verdict | verdict rules market_size + customer; engine skips identity for market_size | tests/verdict pass, cautious labels | done |

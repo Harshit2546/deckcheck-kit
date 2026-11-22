@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "query": "India HR tech market size",
+  "timestamp": 1763792400000,
+  "results": [
+    {"source": "news", "title": "India's HR tech market to touch $9 billion", "url": "https://example-news.in/hr-tech-market", "snippet": "The Indian HR technology market is expected to reach $9 billion...", "position": 1},
+    {"source": "web", "title": "HR Tech Market Report", "url": "https://example-research.com/reports/hr-tech", "snippet": "Market size estimates for HR technology in India.", "position": 2},
+    {"source": "web", "title": "Result without a url", "url": null, "snippet": "dropped by the client", "position": 3}
+  ],
+  "metadata": {"page": 1}
+}
