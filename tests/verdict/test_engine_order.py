@@ -38,6 +38,13 @@ def test_row2_no_evidence(rules):
     assert v2.reason_code == "no_evidence"
 
 
+def test_row2_not_comparable_without_evidence_or_reason_is_no_evidence(rules):
+    res = CheckResult(observed={}, comparable=False)            # what a checker returns when the source had nothing
+    assert decide(claim(), res, rules).reason_code == "no_evidence"
+    res = CheckResult(observed={"not_comparable_reason": "metric_mismatch"}, comparable=False)   # explicit reason, no rows
+    assert decide(claim(), res, rules).label is L.NOT_COMPARABLE
+
+
 def test_row3_identity_unclear_flag(rules):
     v = decide(claim(), make_result({"headcount": 40, "identity": "unclear"}), rules)
     assert (v.label, v.reason_code) == (L.CANNOT_VERIFY, "identity_unclear")

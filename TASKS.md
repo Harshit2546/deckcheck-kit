@@ -33,4 +33,4 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T24 | human | ETHICS.md, BUSINESS.md (measured cost per deck in rupees) | in repo | todo |
 | T25 | ag + human | README: job, who pays, input, result, pass mark, data sources, how to run, credits | every claim in it is true | todo |
 | T26 | human | Rehearse demo with kill, 3 live-fix drills, design question | done twice | todo |
-| T27 | claude-verdict | Merge reviews before each human merge to main (12:15, 12:45, then every merge) | review notes in HANDOFF | todo |
+| T27 | claude-verdict | Merge reviews before each human merge to main (12:15, 12:45, then every merge) | review notes in HANDOFF | in-progress (claude-verdict-1: first reviews of ag-b and codex-a written, see docs/reviews/; repeat before each merge) |
