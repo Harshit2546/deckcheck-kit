@@ -53,3 +53,23 @@ def test_launch_runs_cli_resume_in_background(db_path):
     proc = data.launch(db_path, "run-does-not-exist")
     assert proc.wait(timeout=60) == 2                # cli.py resume: unknown run id
     assert isinstance(proc, subprocess.Popen)
+
+
+def test_pdf_mode_is_the_default_and_shows_the_check_button_before_anything_is_filled(db_path):
+    """Regression: the button used to appear only after both a PDF and a domain were given."""
+    at = open_app(db_path, "Run")
+    assert [b.proto.label for b in at.button if b.proto.label == "Check this deck"]
+    assert at.main.radio[0].value == "Upload a deck PDF"
+
+
+def test_pressing_check_without_a_pdf_says_what_is_missing(db_path):
+    at = open_app(db_path, "Run")
+    next(b for b in at.button if b.proto.label == "Check this deck").click().run()
+    assert any("Add the deck PDF" in e.value for e in at.error)
+
+
+def test_stored_values_are_shown_as_plain_text_not_json():
+    from ui.app import plain
+    value = [{"employer": "Amazon", "title": "Software Developer", "end_date": None}]
+    assert plain(value) == "employer: Amazon; title: Software Developer"
+    assert "{" not in plain({"a": {"b": 1}})
