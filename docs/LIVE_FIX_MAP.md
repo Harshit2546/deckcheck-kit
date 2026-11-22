@@ -31,3 +31,4 @@ One line per thing a judge might ask to change. Format: To change X -> edit Y in
 - To change how long a web page fetch may take before the claim is HELD, edit `web.fetch_timeout_s` in config/rules.yaml.
 - To change how many agreeing web estimates a market-size CONTRADICTED needs, edit `tolerances.market_size.min_agreeing_sources` (D16).
 - To change how old a web page may be and still count, edit `tolerances.market_size.max_record_age_days` / `tolerances.customer.max_record_age_days` (D16).
+- To turn off using undated records (D17), or change how recent a deck must be for it, edit `verdict.undated_fallback` / `verdict.undated_max_deck_age_days` in config/rules.yaml.
