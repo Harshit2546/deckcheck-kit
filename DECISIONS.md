@@ -79,3 +79,14 @@ Change: D9 said both laptops use the same Claude account. That is wrong: there a
 Why: the user clarified after D9 was pushed. DECISIONS is append-only, so this is a new entry instead of an edit.
 Files affected: none in code.
 Who must know (lanes): all lanes, both humans
+
+### 15:05 · claude-verdict@win · D12: entities shape from resolve (T10) and the three sources.crust functions it calls
+Change: `resolve/entities.py: run(ctx, claims)` returns `{"company": E, "founders": [E, ...]}` where E has `id`, `identity` (confirmed | unclear | not_found), `identity_signals` (int), `confidence` (high: signals > identity.min_signals, medium: equal, low: fewer), `signals` (codes), `reason` (code or null), `call_id` (ledger id of the source call). Founder entries also have `name` (as written in the deck, or null) and `profile_url`. No raw payloads and no contact fields. Company signals: `domain` (exact match on primary or alias domain), `name` (deck company name equals provider name after legal suffixes are dropped), `founder` (a deck founder is in the company's founder list). Person signals: `profile_url` (requested URL returned), `name` (deck name equals provider name, token set, no fuzzy score), `employer` (a role at the confirmed company id), `company_founder_list`. A person or company is `confirmed` only with at least `identity.min_signals` signals; a namesake without the company link never qualifies; two qualifying candidates are `unclear`. A founder is searched only when the company is confirmed. Source errors (limit, timeout, failure) are not caught; the runner stops the run in state `extracted` and a resume repeats the stage.
+codex-a (T08) must provide in `sources/crust.py`, each returning `(payload | None, ledger call_id | None)` and doing `limits.ensure_within(ctx)` plus a ledger row per call:
+  `get_company(ctx, domain)` (exact domain match), `get_people(ctx, profile_urls: list[str])` (ONE batched call), `search_people(ctx, name: str, company_id: str)` (name plus employer id).
+Payload shapes read: `matches[].company_data` / `matches[].person_data` / `profiles[]` as in docs/crustdata_fields.md; ids `crustdata_company_id`, `crustdata_person_id`; they are not verified against a live response yet.
+Checkers find a founder with `resolve.names.find_founder(ctx.entities, claim.subject)`.
+Note: checkers/_common.py cites "D11" for the get_company signature, but no D11 exists in the repo yet; this entry is the written source for all three signatures.
+Why: checkers and the verdict engine need one shape, and the namesake case must end in `unclear`, never a guess.
+Files affected: resolve/, sources/crust.py (codex-a), checkers/ (read `ctx.entities`), verdict (identity keys unchanged).
+Who must know (lanes): codex-a, ag-b, claude-core

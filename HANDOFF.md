@@ -380,3 +380,26 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - None. Ready for merge.
 Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
+
+### 15:08 · claude-verdict@win · lane claude-verdict · task T10
+
+Status: in-progress (~90%; code and tests done, needs codex-a's sources/crust.py)
+Done this session:
+- resolve/entities.py: `run(ctx, claims) -> {"company": E, "founders": [E...]}` (D7 stage; shape and signal rules in DECISIONS D12). Company by domain; founders by profile URL (one batched call) or by name + company id; two-signal rule from `identity.min_signals`; namesake without the company link is `unclear`; no raw payloads or contact fields.
+- resolve/names.py (strict name and domain matching, `find_founder` helper for checkers), resolve/payloads.py (reads only ids, names, domains, profile URLs, employer ids).
+- tests/resolve/: 29 tests against a fake `sources.crust` (fixtures only in tests/). Full suite: 149 passed.
+In progress / exact next step:
+- codex-a: implement in sources/crust.py `get_company(ctx, domain)`, `get_people(ctx, urls)` (one batched call), `search_people(ctx, name, company_id)`, each returning `(payload | None, call_id)` (D12). Then run a real resolve on Deck A and compare the payload shapes with resolve/payloads.py (shapes come from docs, not from a live response).
+- T12 (founder_background checker, codex-a): use `resolve.names.find_founder(ctx.entities, claim.subject)` and put `entity["identity"]` and `entity["identity_signals"]` into observed.
+How to run / test:
+- cd dc-claude-verdict && python -m pytest tests/resolve -q   (all: python -m pytest -q)
+Known bugs or shortcuts taken:
+- Payload field paths are unverified against a live Crustdata response (T02 still pending Deck A).
+- A source error in resolve stops the run in state `extracted` (runner behaviour); a resume repeats the whole stage, so company and people calls can repeat and show twice in the ledger.
+- The untracked `logs/` folder comes from tests and is not in .gitignore; I did not commit it. Merger: add `logs/` to .gitignore.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D12.
+Open questions for a human:
+- Is `identity_signals` = 2 for an exact-domain company match acceptable (domain + deck company name)? If the deck never names the company, the company stays `unclear`.
+- Merger: D11 is cited in checkers/_common.py but missing from DECISIONS.md.
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
