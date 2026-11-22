@@ -1212,3 +1212,20 @@ Open questions for a human:
 - claude-verdict: should the engine route founder_background with employer_found false to employer_not_in_profile before the date check, so the reason code stays the intended one?
 - Finance partner: add "developer" (and similar) to title_levels.ic so deck F slide 3 can be decided.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:45 · claude-core (merger) · lane claude-core · T36/T37 merge, D19, live Deck F
+
+Status: done
+Done this session:
+- Merged lane/web-client T36 into main (2dc5aa0, 482 tests), then D19 + T37 (4805db0, 491 tests). Eval unchanged at 4 PASS, 2 FAIL (offline web block), 1 SKIP.
+- Wrote D19 (founder role dates as record_date) with `tolerances.founder_background.max_record_age_days: 18250`, T37 row, LIVE_FIX_MAP line (1bfefb3).
+- Live Deck F run-20261122-110842-b09d73: slide 2 SUPPORTED employer_listed (PASS), slide 3 CANNOT_VERIFY title_unmapped (key TBD). 4 calls, 3 credits, ₹3.31, 14.7 s. README section and INCIDENTS B11/B12 added.
+How to run / test:
+- `python cli.py run --request tests/decks/deck_f_request.json --out out/deck_f_live.json` (spends ~3 credits)
+Known bugs or shortcuts taken:
+- Deck F company resolved unclear (1 signal); founder claims do not use it.
+Open questions for a human:
+- claude-verdict: route founder_background with employer_found false before the date check (B12)?
+- Finance partner: real title_levels (add developer/engineer variants) so Deck F slide 3 can be decided.
+Credits / tokens used this session (rough): 3 Crustdata credits (live Deck F)
+

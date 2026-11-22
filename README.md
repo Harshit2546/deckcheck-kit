@@ -180,6 +180,22 @@ gpt-4o-mini, and the fixes below (market-size relevance, longer timeouts).
 The ledger has 8 calls: 11 Crustdata credits (2 company, 3 web search, 6 web fetch), ₹11.96, and
 74.8 s in calls. The earlier runs below show how we got here.
 
+### Live run, Deck F: founder background
+
+Run `run-20261122-110842-b09d73` on 2026-11-22 checked the founder claims on Deck F (Locus,
+founder Nishith Rastogi, deck date 2026-11-15). It used live Crustdata person enrich and live
+gpt-4o-mini. The founder was confirmed on 3 signals (two-signal rule, D12).
+
+| Slide | Claim | Verdict | Answer key |
+|---|---|---|---|
+| 2 | "previously worked at Amazon" | SUPPORTED / employer_listed (medium): Amazon, Software Developer, 2012-07-01 to 2014-07-01; record date 2014-07-01 | PASS |
+| 3 | "Software Development Engineer at Amazon" | CANNOT_VERIFY / title_unmapped: "Software Developer" has no level in the PLACEHOLDER `title_levels` | not set in the key (SKIP) |
+
+1 PASS, 0 FAIL, 1 SKIP. The person record has no profile date, so the record date is the job's
+own date (DECISIONS D19). The ledger has 4 calls: 3 Crustdata credits, ₹3.31, 14.7 s.
+In this short deck the company itself resolved as `unclear` (1 signal); founder claims do not
+depend on it.
+
 ### Live run with web search, Deck A
 
 Run `run-20261122-102749-b58f62` on 2026-11-22 had the web source (DECISIONS D16) switched
@@ -209,14 +225,12 @@ The ledger has 6 calls: 7 credits, ₹7.79, 47.6 s. Web search times across the 
 
 ## Known limits (what does not work yet)
 
-- **Slides 6 and 7 come out Held.**
-  - The customer claim type has no checker (no `checkers/customer.py`).
-  - `checkers/market_size.py` needs `sources/web.py`, which does not exist yet.
-  - Held is the honest result under our rules: a missing source is not evidence of
-    absence. The answer key expects Cannot verify.
-- **No founder checks yet.** Founder lookups need `get_people` and `search_people` in
-  `sources/crust.py` (DECISIONS D12), and they do not exist yet. Deck A has no founder
-  slide.
+- **Web claims depend on page dates.** Search results carry no date, so a page counts only
+  when code reads a publish date from its HTML. Many pages have none, so slides 6 and 7 of
+  Deck A end CANNOT_VERIFY unless the guarded undated fallback (D17) applies.
+- **Founder titles need real title levels.** Founder employers are checked (D18, D19), but a
+  title such as "Software Developer" has no level in the PLACEHOLDER `title_levels`, so title
+  claims end `title_unmapped`.
 - **The eval claims are hand-written.** `tests/eval/deck_a_claims.json` is our version
   of what extraction should produce; it is not LLM output. The eval has only one deck
   (Deck A).

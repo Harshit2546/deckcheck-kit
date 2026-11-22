@@ -63,6 +63,8 @@ Where it ended up: the last live Deck A run scores **6 of 6 against the answer k
 | B9 | 14:35 | A real run raised ValueError at its first verdict: the engine needs a `verdict:` block in rules.yaml that didn't exist yet. | claude-verdict | No run could finish | D8: `verdict:` block added to rules.yaml | DECISIONS D8 |
 | B10 | 15:58 | Live web run: the market-size checker accepted the quote "India's home and household market is projected to reach USD 237 billion by 2030" as evidence for "India's logistics software market is worth $9B". The checker passed no `must_contain` terms, so only the LLM judged relevance, and it also took a 2030 forecast for today's size. | Reading the live result's sources | Verdict stayed safe (CANNOT_VERIFY), only because CONTRADICTED needs 2 agreeing sources (D16). Two such pages would have produced a wrong CONTRADICTED. | Open: code must require the claim's market terms in the quote and skip forecasts dated after the reference year (checkers/market_size.py) | README "Live run with web search" |
 | B10b | 16:08 | Fix for B10 merged (98ce097): the market-size checker now requires the claim's market terms in the quote and skips forecasts for a later year. | Second live run | Slide 7 is now CANNOT_VERIFY `no_evidence` (no dated page), which matches the answer key | Fixed | commits 6175715, 204cf59 |
+| B11 | 16:30 | Founder lookups (T36) worked live, but Crustdata's person record has no `updated_at`, so every founder claim stopped at CANNOT_VERIFY `missing_record_date`. With a dated job the global 365-day age limit would also have made a 2014 job `stale_record`. | T36 live probe | No founder claim could be decided | D19: the record date is the matched job's own date (latest start/end on or before the deck date); founder_background gets `max_record_age_days` 18250. Live Deck F: slide 2 SUPPORTED employer_listed | Fixed (4805db0) | README "Live run, Deck F" |
+| B12 | 16:40 | A job missing from a founder's profile has no date, so the engine's date check runs before the founder rule and gives `missing_record_date` (or `_undated`) instead of `employer_not_in_profile`. | T37 review (web-client) | Label stays CANNOT_VERIFY, never CONTRADICTED; only the reason code differs | Open: route employer_found false before the date check (claude-verdict) | HANDOFF T37 |
 
 ## C. Hard-rule violations caught in review (before main)
 
@@ -98,6 +100,7 @@ Where it ended up: the last live Deck A run scores **6 of 6 against the answer k
 
 
 - `GEMINI_API_KEY` in `.env` is invalid (A1). Fix or remove it before the next live run.
-- No live web call has run yet, so the Crustdata web response shapes are unverified (A4).
 - The hiring checker has no dated field (B4); the prior_exit and team_growth checkers need the fixes in B6 and B7.
-- Founder lookups (`get_people`, `search_people`, D12) are not built.
+- Founder title claims end `title_unmapped` until the finance partner sets real `title_levels` (Deck F slide 3).
+- B12: founder claims for a job missing from the profile carry a date reason code instead of `employer_not_in_profile`.
+- Deck F's company resolved `unclear` (1 signal) in the live run; founder claims are unaffected.
