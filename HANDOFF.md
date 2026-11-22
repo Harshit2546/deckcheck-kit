@@ -1360,3 +1360,16 @@ Open questions for a human:
 - Harshit: please review and merge lane/teammate into main.
 Credits / tokens used this session (rough): 0 Crustdata credits, 0 live LLM tokens.
 
+### 17:05 · claude-core (merger) · lane claude-core · merge of ag-b (UI) and teammate (docs, decks)
+
+Status: done
+Done this session:
+- Merged lane/ag-b (UI redesign, T28, T38) and lane/teammate (ETHICS, BUSINESS, DEMO, decks B and C, question templates) into main. 517 tests pass, Deck A eval unchanged. Kept main's config/rules.yaml (teammate's copy was old-main plus comments). UI motion task renumbered T29 -> T38.
+- Fixed documents: BUSINESS.md (measured ₹11.96 full run, placeholder-rate warning, margins recomputed, no invented rate limits), ETHICS.md (undated fallback D17, job dates D19, new fairness section), DEMO.md (₹12 closing line, no `export` command).
+- Decks B and C answer keys: every row TBD (no recorded evidence; team_growth never CONTRADICTED; forecasts skipped). `run_eval.py --deck b|c` still stops with "no recorded company response" until a live run is recorded.
+Known bugs or shortcuts taken:
+- UI: sidebar and expander icons show as raw text (keyboard_double_..., arrow_right) because ui/theme.py overrides Streamlit's icon font. Needs the UI owner (lane ag) before the demo.
+Open questions for a human:
+- Spend about 11 credits per deck to run decks B and C live and fill their keys?
+Credits / tokens used this session (rough): 0
+

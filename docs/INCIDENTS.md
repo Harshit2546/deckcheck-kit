@@ -95,6 +95,8 @@ Where it ended up: the last live Deck A run scores **6 of 6 against the answer k
 | E2 | 16:05 | A lane folder was found checked out on `main` twice; `../dc-ag` is still on `main` instead of `lane/ag`. | claude-core, merger | Rule: never switch branches in a lane folder; merges only in a throwaway worktree | HANDOFF 16:05, docs/MERGER_HANDOFF.md |
 | E3 | 14:10 | D9 said one laptop owned claude-verdict; the two laptops actually use two different Claude accounts. | claude-verdict@win | D10 corrected D9 | DECISIONS D9, D10 |
 | E4 | all day | Every merge conflict was in HANDOFF.md / TASKS.md (never in code), because lanes own separate folders. | merger | Keep both HANDOFF entries; keep the more advanced TASKS status | docs/MERGER_HANDOFF.md |
+| E5 | 17:00 | Two lanes picked the same task number (T29: verdict rules and UI motion), and the teammate's `config/rules.yaml` was written on an old `main`, so merging it would have undone the 30 s timeout, the undated fallback keys and the founder age limit. | Merge review | Would have broken live runs silently | UI task renumbered T38; rules.yaml kept `main`'s values (their change was comments only) | merger | merge 56b17cd |
+| C-doc | 17:00 | Deck B and C answer keys were written without recorded data (and two expected verdicts the rules cannot give). BUSINESS.md used the cheaper no-web run as its baseline and unsourced rate limits. | Merge review | A key not backed by evidence would score a correct system as failing | All rows set to TBD with the reasons; BUSINESS.md now uses the measured full run (₹11.96) and says rates are placeholders | merger | merge 56b17cd |
 
 ## Still open
 
