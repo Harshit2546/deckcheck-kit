@@ -9,7 +9,7 @@ from core.models import Claim, ClaimType, SourceType
 
 @pytest.fixture
 def crustdata_company_fixture() -> dict:
-    """Recorded Crustdata company enrichment fixture for team size testing."""
+    """Recorded Crustdata company enrichment fixture with headcount timeseries."""
     return {
         "matches": [
             {
@@ -22,11 +22,12 @@ def crustdata_company_fixture() -> dict:
                         "employee_count_range": "11-50",
                     },
                     "headcount": {
-                        "total": 45,
-                        "growth_percent": 18.5,
-                        "growth_absolute": 7,
+                        "timeseries": [
+                            {"date": "2023-05-15", "employee_count": 35},
+                            {"date": "2024-05-15", "employee_count": 45},
+                            {"date": "2024-11-01", "employee_count": 55},
+                        ],
                     },
-                    "updated_at": "2024-05-15T12:00:00Z",
                 },
             }
         ]
@@ -69,14 +70,42 @@ def test_team_size_check_success(crustdata_company_fixture: dict) -> None:
     assert "range" not in result.observed
     assert "as_of" not in result.observed
 
-    assert len(result.evidence) == 2
-    ev_headcount = next(e for e in result.evidence if e.field_or_quote == "headcount.total")
+    assert len(result.evidence) == 1
+    ev_headcount = result.evidence[0]
+    assert ev_headcount.field_or_quote == "headcount.timeseries[2024-05-15].employee_count"
     assert ev_headcount.value == 45.0
     assert ev_headcount.source_type == SourceType.CRUSTDATA_COMPANY
     assert ev_headcount.record_date == "2024-05-15"
     assert ev_headcount.call_id == "call-test"
     assert ev_headcount.retrieved_at is not None
     assert "https://api.crustdata.com" in ev_headcount.locator
+
+
+def test_team_size_check_no_point_before_deck_date(crustdata_company_fixture: dict) -> None:
+    """When all timeseries points are after deck date, add no headcount evidence (D13)."""
+    claim = Claim(
+        id="claim_team_old",
+        run_id="run_1",
+        slide=1,
+        quote="20 employees",
+        type=ClaimType.TEAM_SIZE,
+        subject="SwiftRoute Logistics",
+        metric="headcount",
+        value=20,
+    )
+    ctx = make_ctx(
+        run_id="run_1",
+        company_domain="swiftroute.in",
+        company=crustdata_company_fixture,
+        deck_date="2022-01-01",  # Before any timeseries point (earliest is 2023-05-15)
+    )
+
+    result = check(claim, ctx)
+    assert result.comparable is True
+    assert result.held_reason is None
+    assert len(result.evidence) == 0
+    assert "headcount" not in result.observed
+    assert result.observed["record_date"] is None
 
 
 def test_team_size_check_missing_data() -> None:

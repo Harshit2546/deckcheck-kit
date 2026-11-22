@@ -404,6 +404,30 @@ Open questions for a human:
 - Merger: D11 is cited in checkers/_common.py but missing from DECISIONS.md.
 Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
 
+### 13:30 · yash · lane ag-b · task T12, T16 (founder_background, prior_exit, company_fact)
+
+Status: done
+Done this session:
+- checkers/founder_background.py: implemented check(claim, ctx) -> CheckResult for past_employer, title, and tenure_years per verdict/DESIGN.md section 3.3. Uses checkers._common (get_company, company_identity). Only stores professional employment details (employer, title, start_date, end_date); never stores emails or phone numbers. Attaches dated CRUSTDATA_PERSON Evidence.
+- checkers/prior_exit.py: implemented check(claim, ctx) -> CheckResult for acquisition facts, acquirer, amount, and exit date using checkers._common and CRUSTDATA_COMPANY Evidence.
+- checkers/company_fact.py: implemented check(claim, ctx) -> CheckResult for year_founded, headquarters, company_type, and legal status using checkers._common and CRUSTDATA_COMPANY Evidence.
+- tests/checkers/test_founder_background.py: 6 unit tests covering past_employer, title, title contradiction, tenure_years, employer not in profile, and missing payload, integrated with verdict.engine.decide.
+- tests/checkers/test_prior_exit_and_company_fact.py: 4 unit tests covering prior exit success/missing and company fact success/missing.
+- TASKS.md: updated T12 to done and noted T16 checkers built.
+- Full test suite: all 130 tests pass cleanly (`python -m pytest -q`).
+In progress / exact next step:
+- Ready for human merge to main.
+How to run / test:
+- python -m pytest tests/checkers/test_founder_background.py tests/checkers/test_prior_exit_and_company_fact.py -v
+- python -m pytest -q
+Known bugs or shortcuts taken:
+- None. Runtime path contains zero fake sources or hardcoded data; tests use tests/checkers/checker_fakes.py.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- When founder profile is fetched but employer is not found in it, an Evidence record for the inspected profile is attached so the engine correctly identifies profile presence and reports CANNOT_VERIFY employer_not_in_profile (rather than row 2 no_evidence).
+Open questions for a human:
+- None. Ready for merge.
+Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
+
 ### 14:40 · harshit · lane claude-core · task D8
 
 Status: done
@@ -592,3 +616,26 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - Founder enrichment awaits authorization.
 Credits / tokens used this session (rough): 2.0 Crustdata credits estimated (call-c1500cda7977).
+
+### 16:15 · yash · lane ag-b · task D13 (team_size & team_growth timeseries points)
+
+Status: done
+Done this session:
+- Merged origin/main into lane/ag-b (commit ba9f10b) resolving merge conflict in HANDOFF.md.
+- checkers/team_size.py: updated per DECISIONS.md D13. Removed snapshot `headcount.total` and `updated_at`. Checker now parses `headcount.timeseries[]`, selects the latest point dated on or before reference date (`claim.as_of` if ISO, else `deck_date`), sets observed `headcount` from its `employee_count`, `record_date` from its `date`, and attaches Evidence with `field_or_quote = f"headcount.timeseries[{latest_date}].employee_count"`. If no point on or before reference date exists, adds no headcount evidence.
+- checkers/team_growth.py: updated per DECISIONS.md D13. Removed snapshot `growth_percent`, `growth_absolute`, and `updated_at`. Computes growth in code from two `timeseries[]` points on or before reference date. If fewer than two points on or before reference date, adds no evidence.
+- tests/checkers/test_team_size.py: updated Crustdata company fixture with `timeseries[]` points; verified `field_or_quote` format; added `test_team_size_check_no_point_before_deck_date` verifying no evidence is attached when all points are after deck date.
+- tests/checkers/test_remaining_checkers.py: updated `test_team_growth_check` with `timeseries[]` points; added `test_team_growth_no_point_before_deck_date` verifying no evidence is attached when fewer than two points exist before deck date.
+- Full test suite: 150 passed in 9.02s (`python -m pytest -q`).
+In progress / exact next step:
+- Ready for human merge to main.
+How to run / test:
+- python -m pytest tests/checkers/test_team_size.py tests/checkers/test_remaining_checkers.py -v
+- python -m pytest -q
+Known bugs or shortcuts taken:
+- None. Strict D3 adherence: no facts from after reference date, no fake sources or mock data at runtime.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- Implemented D13: checkers never use snapshot values (`headcount.total`, snapshot growth) or `updated_at`; they derive facts strictly from dated `timeseries[]` points on or before reference date.
+Open questions for a human:
+- None. Ready for merge to main.
+Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.

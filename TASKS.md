@@ -18,11 +18,11 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T09 | ag-b | extract/claims.py: LLM structured claims + quote-on-slide check | invented quote is rejected in test | done |
 | T10 | claude-verdict | resolve/entities.py: company by domain, founders, two-signal rule, confidence | namesake fixture returns identity_unclear | in-progress (claude-verdict@win, 90%: resolve/entities.py + 29 tests pass against a fake sources.crust; waits for codex-a get_company/get_people/search_people, D12) |
 | T11 | ag-b | checkers: team_size, funding | tests pass | done |
-| T12 | codex-a | checkers: founder_background | tests pass | todo |
+| T12 | ag-b | checkers: founder_background | tests pass | done (yash) |
 | T13 | claude-verdict | verdict/engine.py for founder, team_size, funding | Deck A matches answer key for those claims | in-progress (claude-verdict@win, 85%: engine + 101 tests pass; waiting for claude-core to add the verdict: keys to rules.yaml (D8), without them a real run raises ValueError) |
 | T14 | human | MILESTONE 1 at 12:45: Deck A end to end | report generated | todo |
 | T15 | claude-verdict | report/: red flags by materiality, table, questions, evidence requests, kit-format JSON | output validates against kit format | in-progress (claude-verdict@win, 80%: report/builder.py + render + tests done; kit-format JSON waits for D3 and io/adapter to_kit) |
-| T16 | codex-a | checkers: prior_exit, company_fact, customer (web quote verify) | tests pass | todo |
+| T16 | codex-a / ag-b | checkers: prior_exit, company_fact (done by ag-b), customer (web quote verify) | tests pass | in-progress |
 | T17 | ag-b | checkers: team_growth, hiring, traction, market_size, competition | tests pass | done |
 | T18 | ag | UI: verdict detail with source link and date; approvals page; inbox; ledger view | click-through works | todo |
 | T19 | claude-core | actions/: draft, approve, exactly-once send | kill between approve and send, restart, one inbox row | done (harshit) |
