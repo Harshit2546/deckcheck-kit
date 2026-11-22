@@ -1,0 +1,7 @@
+{
+  "request": "SYNTHETIC EXAMPLE. Our corporate-venture desk is meeting this logistics-tech startup again next week. Check every factual claim in their deck and tell us what to ask the founders.",
+  "deck_path": "../decks/deck_a.pdf",
+  "company_domain": "example.in",
+  "deck_date": "2026-10-01",
+  "founder_urls": ["https://example.in/team/founder-1", "https://example.in/team/founder-2"]
+}
