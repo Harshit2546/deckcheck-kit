@@ -28,7 +28,7 @@ st.set_page_config(page_title="DeckCheck", layout="wide")
 db_path = st.sidebar.text_input("Database file", str(ROOT / store.DEFAULT_DB))
 conn = store.connect(db_path)
 rules = load_rules()
-PAGES = ["Run", "Claims", "Approvals"]
+PAGES = ["Run", "Claims", "Approvals", "Inbox", "Ledger"]
 page = st.sidebar.radio("Page", PAGES)
 
 
@@ -194,5 +194,39 @@ def page_approvals() -> None:
                      hide_index=True)
 
 
-PAGE_FUNCS = {"Run": page_run, "Claims": page_claims, "Approvals": page_approvals}
+def page_inbox() -> None:
+    st.header("Inbox")
+    st.warning("Local test inbox, no real email. Approved founder emails land here and nowhere else.")
+    rows = data.inbox_rows(conn)
+    if not rows:
+        st.info("The test inbox is empty.")
+        return
+    st.dataframe([{k: r[k] for k in ("received_at", "to", "subject", "action_id")} for r in rows],
+                 use_container_width=True, hide_index=True)
+    for r in rows:
+        with st.expander(f"{r['received_at']} · {r['subject']}"):
+            st.text(r["body"])
+
+
+def page_ledger() -> None:
+    st.header("Ledger")
+    st.caption("Every external call of a run, including failed ones: Crustdata, LLM and web.")
+    rid = pick_run()
+    if rid is None:
+        return
+    summary = data.ledger_summary(conn, rid)
+    cols = st.columns(5)
+    cols[0].metric("Calls", summary["calls"])
+    cols[1].metric("Failed", summary["failed"])
+    cols[2].metric("Credits", f"{summary['credits']:g}")
+    cols[3].metric("Cost (INR)", f"₹{summary['cost_inr']:.2f}")
+    cols[4].metric("Seconds in calls", summary["seconds"])
+    if summary["rows"]:
+        st.dataframe(summary["rows"], use_container_width=True, hide_index=True)
+    else:
+        st.info("No external calls recorded for this run yet.")
+
+
+PAGE_FUNCS = {"Run": page_run, "Claims": page_claims, "Approvals": page_approvals,
+              "Inbox": page_inbox, "Ledger": page_ledger}
 PAGE_FUNCS[page]()
