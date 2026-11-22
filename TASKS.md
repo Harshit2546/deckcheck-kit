@@ -10,7 +10,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T01 | claude-core | Skeleton: core/models.py, core/store.py (all tables incl. inbox with UNIQUE key), core/log.py, config/rules.yaml schema, cli.py (run, resume), io/adapter.py stub | `python cli.py run --help` works; tables created | done (harshit) |
 | T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | blocked (yash, account rates verified. Need Deck A company domain and founder identifiers for enrichment.) |
 | T03 | ag-b | extract/pdf.py: text per slide | test on Deck A passes | done |
-| T04 | ag | ui/app.py shell: upload form, run list from DB | shows a run row | in-progress (harshit, 0%, run page) |
+| T04 | ag | ui/app.py shell: upload form, run list from DB | shows a run row | done (harshit) |
 | T05 | human | Partner: Deck A (8 claims) + answer key; rules.yaml values | files in tests/decks/ | todo |
 | T06 | human | Read kickoff kit; record Investing request input/output format in DECISIONS.md | D3 written | todo |
 | T07 | claude-core | core/runner.py: state machine, per-claim checkpoints, resume, cost and time limits | kill mid-run then resume finishes with no duplicate calls | done (harshit) |
@@ -24,7 +24,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T15 | claude-verdict | report/: red flags by materiality, table, questions, evidence requests, kit-format JSON | output validates against kit format | in-progress (claude-verdict@win, 80%: report/builder.py + render + tests done; kit-format JSON waits for D3 and io/adapter to_kit) |
 | T16 | codex-a | checkers: prior_exit, company_fact, customer (web quote verify) | tests pass | todo |
 | T17 | ag-b | checkers: team_growth, hiring, traction, market_size, competition | tests pass | done |
-| T18 | ag | UI: verdict detail with source link and date; approvals page; inbox; ledger view | click-through works | in-progress (harshit, 0%, after T04) |
+| T18 | ag | UI: verdict detail with source link and date; approvals page; inbox; ledger view | click-through works | done (harshit) |
 | T19 | claude-core | actions/: draft, approve, exactly-once send | kill between approve and send, restart, one inbox row | done (harshit) |
 | T20 | claude-verdict | Hour-3 requirement change | DECISIONS entry + tests | todo (claude-verdict@win: waiting for the hour-3 requirement text) |
 | T21 | ag | tests/eval/run_eval.py: accuracy vs answer key for decks A, B, C | prints per-claim pass/fail | todo |
