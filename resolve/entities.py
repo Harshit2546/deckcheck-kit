@@ -15,8 +15,8 @@ from core.config import rule
 from core.log import log_step
 from core.models import Claim, ClaimType, RunContext
 from resolve import payloads
-from resolve.names import (company_names_match, normalize_domain, normalize_url, person_key,
-                           person_names_match)
+from resolve.names import (company_names_match, is_profile_url, normalize_domain, normalize_url,
+                           person_key, person_names_match)
 
 FOUNDER_TYPES = {ClaimType.FOUNDER_BACKGROUND, ClaimType.PRIOR_EXIT}
 
@@ -153,7 +153,7 @@ def run(ctx: RunContext, claims: list[Claim]) -> dict[str, Any]:
     log_step(ctx.run.id, None, "resolve.company", company["identity"], signals=company["identity_signals"],
              reason=company["reason"])
 
-    urls = list(dict.fromkeys(u for u in ctx.run.input.founder_urls if normalize_url(u)))
+    urls = list(dict.fromkeys(u for u in ctx.run.input.founder_urls if is_profile_url(u)))
     founders: list[dict[str, Any]] = []
     matched: set[frozenset[str]] = set()
     if urls:

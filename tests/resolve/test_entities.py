@@ -258,3 +258,12 @@ def test_find_founder_helper(rules, crust):
     out = run(make_ctx(rules), DECK)
     assert find_founder(out, "Sharma, Priya")["id"] == "p-1"
     assert find_founder(out, "Nobody Here") is None and find_founder({}, "Priya Sharma") is None
+
+
+def test_placeholder_founder_urls_are_never_sent(rules, crust):
+    """'NA', '-' or 'none' typed into the founder URL box are not URLs: the person lookup is
+    not called (Crustdata answered HTTP 400 and the run stopped at extracted)."""
+    crust.company_result = company_payload(company())
+    out = run(make_ctx(rules, founder_urls=["NA", "-", "none", ""]), [claim(CT.TEAM_SIZE, "Acme Technologies")])
+    assert "get_people" not in crust.names()
+    assert out["founders"] == []

@@ -60,6 +60,14 @@ def normalize_url(value: Any) -> str:
     return text[4:] if text.startswith("www.") else text
 
 
+def is_profile_url(value: Any) -> bool:
+    """True only for something that looks like a profile URL: a domain with a dot and a path,
+    e.g. linkedin.com/in/jane-doe. Placeholders typed into the form ('NA', '-', 'none') are not
+    URLs and must never be sent to the person lookup (Crustdata answers HTTP 400)."""
+    key = normalize_url(value)
+    return bool(re.fullmatch(r"(?:[a-z0-9-]+\.)+[a-z]{2,}/\S+", key))
+
+
 def find_founder(entities: dict[str, Any], subject: str) -> dict[str, Any] | None:
     """The founder entity whose deck name equals `subject` (for checkers); None if there is none."""
     for founder in (entities or {}).get("founders", []):
