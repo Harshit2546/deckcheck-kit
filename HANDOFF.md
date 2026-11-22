@@ -891,3 +891,27 @@ Open questions for a human:
 - Finance partner: values for the two new keys; is a 1-year founded-year gap the right "unclear" band?
 - codex-a / ag-b: the checker asks in DESIGN.md section 5.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:35 · web-pages (Claude Code session started by the merger session) · lane web-pages · task T31
+
+Status: done
+Done this session:
+- sources/pages.py (stdlib only): `page_text(html)` drops script/style/noscript/template/title, unescapes entities, puts a space at block tags, collapses whitespace. `published_date(html)` collects every candidate, then takes the first READABLE one by priority: JSON-LD `datePublished` (also in `@graph` and lists), `meta[property=article:published_time]`, `meta[name=...]` in the D16 order (case-insensitive names), the first `<time datetime>`. An unreadable value falls through to the next candidate. Accepts `YYYY-MM-DD[T...]`, `YYYY/M/D` and "March 5, 2024"; the date is taken as written (no UTC shift). `dateModified`, fetch time and today are never used. where_found values: `json-ld[datePublished]`, `meta[property=article:published_time]`, `meta[name=<name>]`, `time[datetime]`.
+- extract/quotes.py: `pick_quote(ctx, page_text, question, must_contain)` calls `extract.claims._default_llm_call` through a module-level name (tests monkeypatch `extract.quotes._default_llm_call`), with `ensure_within` first and one ledger row (Provider.LLM) in a `finally`, failed calls included. The returned call_id is that row's id. The prompt asks for JSON `{"quote": ...}` (OpenAI json_object mode needs the word "json") and fences the page as untrusted data. The page is cut to `web.max_page_chars`. Code accepts the quote only if it is verbatim (whitespace-normalised, case-sensitive) on the full page text and contains every must_contain (case-insensitive); the returned quote is whitespace-normalised. Empty page text makes no call and returns (None, None).
+- `parse_amount(quote)`: only numbers with a currency marker count (`$`, `US$`, `USD`, `₹`, `Rs`/`Rs.`, `INR` before; `USD`, `INR`, `dollars`, `rupees` after). Scales: million/mn/M, billion/bn/B, trillion/tn, thousand/K, lakh 1e5, crore/cr 1e7, "lakh crore" 1e12; Indian digit grouping (1,00,000) works; Decimal arithmetic. Returns (None, None) for no amount, several different amounts (the same amount twice is fine), or a range like `$5-7 billion` / `Rs 500 to 700 crore`. `A$`, `S$` etc. are not USD.
+- Tests: tests/sources/test_pages.py (6 fixtures in tests/fixtures/pages/), tests/extract/test_quotes.py (hallucinated quote, case, must_contain, ledger row id, failed-call row + re-raise, truncation, every parse_amount case).
+In progress / exact next step:
+- Merge lane/web-pages to main (merger). T32 can call these functions unchanged.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (366 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- pick_quote does NOT wrap errors the way extract/claims.py does: it re-raises the original exception (TimeoutError stays TimeoutError, LimitExceeded from ensure_within propagates with no ledger row because no call was made), so the runner can tell HELD timeout from HELD error. T32 checkers should let these propagate.
+- A bad LLM answer (not JSON, no "quote", null) is not an error: the row is ok=1 and the quote is None.
+- Only the first `<time datetime>` is looked at; if it is unreadable the page has no date.
+- A lone lowercase `b`/`m`/`k` after a number is not read as a scale (only uppercase B/M/K or words), to avoid false matches.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (contracts as in D16).
+Open questions for a human:
+- `_default_llm_call` reads keys only from the environment (as noted in the T25 handoff); pick_quote inherits that, so a live run must load .env first.
+Credits / tokens used this session (rough): 0 Crustdata credits, 0 LLM tokens (no live calls)
