@@ -13,7 +13,7 @@ from typing import Any
 from core.config import rule
 from core.models import (CheckResult, Claim, ClaimType, Confidence, Verdict, VerdictLabel)
 from verdict import founder, funding, team_size
-from verdict.common import MISSING_TEXT, make, num, parse_date
+from verdict.common import MISSING_TEXT, headcount_missing, make, num, parse_date
 
 REQUIRED_KEYS = [
     "identity.min_signals", "tolerances.max_record_age_days", "title_levels",
@@ -64,7 +64,7 @@ def decide(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> Verdict:
     # NOT_COMPARABLE needs an explicit reason from the checker; without evidence and reason it is just "no evidence".
     if (not result.evidence or not obs) and (result.comparable or not obs.get("not_comparable_reason")):
         return make(claim, result, None, VerdictLabel.CANNOT_VERIFY, "no_evidence", Confidence.LOW,
-                    "The checker returned no dated evidence for this claim.")
+                    "The checker returned no dated evidence for this claim.", missing=headcount_missing(claim, result))
     early = _identity_and_comparable(claim, result, rules)
     if early is not None:
         return early

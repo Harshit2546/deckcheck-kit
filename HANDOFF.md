@@ -489,3 +489,24 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - For headcount and other snapshot fields, Crustdata gives no measurement date, only a record refresh date. Under D3 these will be NOT_COMPARABLE for any deck dated before the refresh. Does the handbook allow treating the refresh date as the as-of date when the deck date is today?
 Credits / tokens used this session (rough): none
+
+### 16:00 · claude-verdict@win · lane claude-verdict · task T13 (D13 wording)
+
+Status: done; T10 still waits for codex-a's sources/crust.py
+Done this session:
+- Merged origin/main (6556474, D13: D3 stays strict, headcount comes from the latest dated `headcount.timeseries[]` point on or before the reference date). The engine's date logic needed no change.
+- verdict/DESIGN.md section 3.1 rewritten: `headcount` and `record_date` come from one dated timeseries point; the undated snapshot (`headcount.total`, `employee_count_range`, `updated_at`) is never used; no such point means no evidence.
+- verdict/common.py `headcount_missing()`; engine and team_size use it so the no-evidence case says "A headcount record dated on or before <reference date>." (D13 wording). 2 tests added. 176 tests pass.
+In progress / exact next step:
+- ag-b (via the user): change checkers/team_size.py and team_growth.py as in D13 and DESIGN.md 3.1; keep `reference_date` in `observed` even when no point is found. codex-a: `get_company` must request the headcount section with the timeseries.
+- T10: waits for get_company / get_people / search_people in sources/crust.py (D12).
+- Test decks: choose the deck date so that a timeseries point exists on or before it.
+How to run / test:
+- cd dc-claude-verdict && python -m pytest -q
+Known bugs or shortcuts taken:
+- The timeseries field names (`employee_count`, point date key) come from docs/crustdata_fields.md on lane/codex-a, not from a live response.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- None new (D13 is the merger's).
+Open questions for a human:
+- none new
+Credits / tokens used this session (rough): none

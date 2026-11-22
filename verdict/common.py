@@ -11,7 +11,7 @@ import math
 from datetime import date
 from typing import Any
 
-from core.models import CheckResult, Claim, Confidence, Verdict, VerdictLabel
+from core.models import CheckResult, Claim, ClaimType, Confidence, Verdict, VerdictLabel
 
 _CONF_RANK = {Confidence.LOW: 0, Confidence.MEDIUM: 1, Confidence.HIGH: 2}
 
@@ -76,6 +76,14 @@ def cap(conf: Confidence, ceiling: Confidence) -> Confidence:
 def pick(high: bool, ok_conf: Confidence = Confidence.MEDIUM) -> Confidence:
     """HIGH when the condition holds, otherwise ok_conf."""
     return Confidence.HIGH if high else ok_conf
+
+
+def headcount_missing(claim: Claim, result: CheckResult) -> str | None:
+    """D13: for headcount claims with no dated history point, say which record would settle it; else None."""
+    if claim.type not in (ClaimType.TEAM_SIZE, ClaimType.TEAM_GROWTH):
+        return None
+    ref = parse_date(result.observed.get("reference_date")) or parse_date(claim.as_of)
+    return f"A headcount record dated on or before {ref}." if ref else "A dated headcount record."
 
 
 def source_text(result: CheckResult) -> str:

@@ -66,10 +66,19 @@ Notation: `tol` = `tolerances.<type>.tolerance_pct / 100`; `diff = abs(observed 
 
 ### 3.1 team_size (claim.type `team_size`, metric `headcount`)
 
+Where the number comes from (D13, on top of D3): the checker must NOT use the undated snapshot (`headcount.total`, `employee_count_range`,
+`updated_at`: Crustdata gives only a refresh date for them). It reads the dated history `headcount.timeseries[]` and takes the latest point
+dated on or before the reference date. Evidence `field_or_quote` is `headcount.timeseries[<date>].employee_count`.
+
 Checker fills (`observed`):
-- `headcount`: int, total company headcount at `record_date` (from `crustdata_company`).
-- `headcount_range`: `[low, high]` optional, when the source gives a band instead of a number (then `headcount` may be absent).
-- plus the common keys above.
+- `headcount`: int, `employee_count` of that dated point.
+- `record_date`: the date of that point (never the refresh date, never the fetch time).
+- `headcount_range`: `[low, high]`, only if the band itself comes from a dated point; Crustdata's `employee_count_range` is a snapshot band, so do not use it.
+- `reference_date`, `reference_date_source` and the identity keys, as in section 2.
+- No point dated on or before the reference date: return no evidence (keep `reference_date` in `observed`). The engine answers CANNOT_VERIFY
+  `no_evidence` with `missing` = "A headcount record dated on or before <reference date>." A point dated after the reference date is
+  `record_after_as_of` (NOT_COMPARABLE) if it is passed on, but D13 says checkers drop such points instead.
+- team_growth is not decided by this engine yet; D13 says it uses two dated points on or before the reference date, growth computed by code.
 
 Claim: `value` = number of people (absolute, int-like), `unit` = `people`.
 
