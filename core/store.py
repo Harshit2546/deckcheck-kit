@@ -420,6 +420,31 @@ def list_actions(conn: sqlite3.Connection, run_id: str | None = None,
     return [_action(r) for r in conn.execute(sql + " ORDER BY id", args).fetchall()]
 
 
+def set_action_status(conn: sqlite3.Connection, action_id: str, expected: ActionStatus,
+                      new: ActionStatus, **fields: str | None) -> bool:
+    """Compare-and-set: move an action from `expected` to `new` (plus decided_by, decided_at,
+    sent_at). Returns False if the action was not in `expected` (someone else moved it)."""
+    allowed = {"decided_by", "decided_at", "sent_at"}
+    if set(fields) - allowed:
+        raise ValueError(f"unknown action fields: {set(fields) - allowed}")
+    sets = ", ".join(["status = ?"] + [f"{k} = ?" for k in fields])
+    cur = conn.execute(f"UPDATE actions SET {sets} WHERE id = ? AND status = ?",
+                       [new.value, *fields.values(), action_id, expected.value])
+    return cur.rowcount == 1
+
+
+def insert_inbox(conn: sqlite3.Connection, m: InboxMessage) -> bool:
+    """Deliver into the test inbox. Returns False if this idempotency key is already there."""
+    cur = conn.execute("INSERT OR IGNORE INTO inbox VALUES (?,?,?,?,?,?)",
+                       (m.idempotency_key, m.action_id, m.recipient, m.subject, m.body,
+                        m.received_at))
+    return cur.rowcount == 1
+
+
+def inbox_has_key(conn: sqlite3.Connection, key: str) -> bool:
+    return conn.execute("SELECT 1 FROM inbox WHERE idempotency_key = ?", (key,)).fetchone() is not None
+
+
 def list_inbox(conn: sqlite3.Connection) -> list[InboxMessage]:
     rows = conn.execute("SELECT * FROM inbox ORDER BY received_at").fetchall()
     return [InboxMessage(r["idempotency_key"], r["action_id"], r["recipient"], r["subject"],
