@@ -1,0 +1,62 @@
+# synthetic test fixture, tests/ only
+# Expected fixture targets for the end-to-end evaluation.
+# Company evidence: docs/crustdata_fields.md, "Live Deck A company probe".
+- slide: 2
+  quote: "Locus has a team of 350 people."
+  expected_verdict: SUPPORTED
+  expected_reason_code: within_tolerance
+  basis: >-
+    The latest dated headcount point on or before the deck date shows
+    349 on 2026-11-02. That is within the team_size tolerance for 350.
+
+- slide: 3
+  quote: "We raised a $50M Series C in June 2021."
+  expected_verdict: SUPPORTED
+  expected_reason_code: within_tolerance
+  basis: >-
+    The last-round summary lists series_c, USD 50,000,000, and
+    2021-06-02. Those fields match the stage, amount, and month in the claim.
+
+- slide: 4
+  quote: "Total funding to date: $78.75M."
+  expected_verdict: SUPPORTED
+  expected_reason_code: within_tolerance_undated_rounds
+  basis: >-
+    Low-confidence target. The reported aggregate is USD 78,750,000 and has
+    no as-of date. Of the seven rounds reported, only the last-round summary
+    exposes a date. The six other round dates were unavailable because the
+    funding_rounds array was absent. The aggregate cannot be reconstructed
+    as of the deck date from this response alone.
+
+- slide: 5
+  quote: "Over 700 employees across India."
+  expected_verdict: CONTRADICTED
+  expected_reason_code: outside_tolerance
+  basis: >-
+    The dated company-wide headcount was 349 on 2026-11-02. Under the same
+    headcount definition, India's employee count cannot exceed the global
+    total. Even the lower bound of 700 is outside the team_size tolerance.
+
+- slide: 6
+  quote: "Trusted by Acme Freight Corp for all deliveries."
+  expected_verdict: CANNOT_VERIFY
+  expected_reason_code: no_evidence
+  basis: >-
+    The recorded company probe supplied no dated source naming Acme Freight
+    Corp as a Locus customer or documenting the scope of the relationship.
+
+- slide: 7
+  quote: "India's logistics software market is worth $9B."
+  expected_verdict: CANNOT_VERIFY
+  expected_reason_code: no_evidence
+  basis: >-
+    The recorded company probe supplied no dated market estimate for India's
+    logistics software market.
+
+- slide: 8
+  quote: "We are hiring 40 engineers this quarter."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >-
+    The company probe did not request hiring fields. One hiring probe is
+    pending human approval of the credits.

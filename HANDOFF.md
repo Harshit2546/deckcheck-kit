@@ -639,3 +639,42 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - None. Ready for merge to main.
 Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
+
+### 14:11 · yash · lane codex-a · task T05 (delegated deck fixture)
+
+Status: done (delegated deck fixture)
+Done this session:
+- 9058e65: tests/decks/make_deck_a.py and deck_a.pdf generate an eight-slide, text-based synthetic Locus deck with the disclosure footer on every page. Metadata and request date are 2026-11-15.
+- tests/decks/deck_a_request.json follows D3. deck_a_answers.yaml contains the seven target verdicts for slides 2 through 8 and evidence bases from the saved T02 company probe. Slide 8 is TBD.
+- Visually reviewed all eight PDF pages. Verified exact text and footer extraction, all seven answer-key quotes, current D3 adapter compatibility, and byte-identical regeneration.
+In progress / exact next step:
+- Verify T08 can pass the recorded Locus headcount series through unchanged for the D13 checker change. The ag-b lane owns selecting the latest eligible point and the appropriate dated funding evidence. T02 founder enrichment remains paused.
+How to run / test:
+- uv run --offline --no-project --python 3.11 --with reportlab python tests/decks/make_deck_a.py
+- uv run --no-project --python 3.11 --with-requirements requirements.txt python -m pytest tests/sources/test_crust.py -q
+Known bugs or shortcuts taken:
+- Answer labels are fixture targets. The reported USD 78.75M aggregate has no as-of date. The saved response dates the last-round summary and omits the other six round dates. The strict date check still needs dated evidence to produce the slide 4 target.
+- The current ag-b headcount checker needs the D13 historical-point logic. The current funding checker reads funding_rounds for a match. The probe returned a dated last-round summary. End-to-end verdict validation is pending.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- No contract or rules changes. Slide 1 is the cover. The answer key covers slides 2 through 8.
+Open questions for a human:
+- One hiring probe would need credit approval to resolve slide 8. Founders remain paused.
+Credits / tokens used this session (rough): 0 Crustdata credits.
+
+### 14:12 · yash · lane codex-a · task T08 (Deck A verification)
+
+Status: done
+Done this session:
+- Replayed tests/fixtures/crustdata/deck_a_locus_company.json through get_company with the HTTP boundary mocked. The response passed all 288 dated headcount points through unchanged. The latest eligible D13 point is 349 on 2026-11-02.
+- In the same offline replay, the current team_size and funding checkers returned CANNOT_VERIFY/missing_record_date on slides 2 to 5 with identity supplied. Their output diverges from the fixture targets.
+In progress / exact next step:
+- AG-B: implement D13 point selection in checkers/team_size.py and use the dated last-round summary for matching a specific round when the breakdown is absent. The undated aggregate for slide 4 still needs admissible dated evidence for strict D3.
+How to run / test:
+- uv run --no-project --python 3.11 --with-requirements requirements.txt python -m pytest tests/sources/test_crust.py -q (12 passed).
+Known bugs or shortcuts taken:
+- Offline checker replay seeded identity and claim values. Full Deck A end-to-end execution remains unverified.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- No source or contract changes.
+Open questions for a human:
+- Hiring evidence remains pending credit approval.
+Credits / tokens used this session (rough): 0 Crustdata credits.
