@@ -1,0 +1,182 @@
+"""Tests for checkers/funding.py using recorded Crustdata fixtures."""
+
+import pytest
+
+from checker_fakes import make_ctx
+from checkers.funding import check
+from core.models import Claim, ClaimType, SourceType
+
+
+@pytest.fixture
+def crustdata_funding_fixture() -> dict:
+    """Recorded Crustdata company enrichment fixture for funding testing."""
+    return {
+        "matches": [
+            {
+                "confidence_score": 0.99,
+                "company_data": {
+                    "crustdata_company_id": "comp_456",
+                    "basic_info": {
+                        "name": "CargoPulse India",
+                        "primary_domain": "cargopulse.com",
+                    },
+                    "funding": {
+                        "currency": "USD",
+                        "total_investment_usd": 7000000,
+                        "last_round_amount_usd": 5000000,
+                        "last_round_type": "Series A",
+                        "last_fundraise_date": "2023-11-20T00:00:00Z",
+                        "funding_rounds": [
+                            {
+                                "round_type": "Seed",
+                                "amount_usd": 2000000,
+                                "date": "2022-04-10",
+                                "investors": ["Venture Partners"],
+                            },
+                            {
+                                "round_type": "Series A",
+                                "amount_usd": 5000000,
+                                "date": "2023-11-20",
+                                "investors": ["Accel"],
+                            },
+                        ],
+                    },
+                    "updated_at": "2024-01-10T00:00:00Z",
+                },
+            }
+        ]
+    }
+
+
+def test_funding_check_specific_seed_round(crustdata_funding_fixture: dict) -> None:
+    claim = Claim(
+        id="claim_fund_1",
+        run_id="run_1",
+        slide=3,
+        quote="Raised $2M in Seed round in 2022",
+        type=ClaimType.FUNDING,
+        subject="CargoPulse India",
+        metric="round_amount",
+        value=2000000,
+        unit="USD",
+        as_of="2022-04-10",
+    )
+
+    ctx = make_ctx(
+        run_id="run_1",
+        company_domain="cargopulse.com",
+        company=crustdata_funding_fixture,
+        deck_date="2024-01-10",
+    )
+
+    result = check(claim, ctx)
+
+    assert result.comparable is True
+    assert result.held_reason is None
+    assert result.observed["identity"] == "confirmed"
+    assert result.observed["identity_signals"] == 2
+    assert result.observed["currency"] == "USD"
+    assert result.observed["total_raised"] == 2000000.0
+    assert result.observed["matched_round"] is not None
+    assert result.observed["matched_round"]["amount"] == 2000000.0
+    assert result.observed["matched_round"]["stage"] == "Seed"
+    assert result.observed["excluded_later_rounds"] == 1
+    assert result.observed["undated_rounds"] == 0
+    assert "Venture Partners" in result.observed["investors_found"]
+
+    # Strict contract: no obsolete keys
+    assert "amount" not in result.observed
+    assert "round_type" not in result.observed
+    assert "date" not in result.observed
+    assert "as_of" not in result.observed
+
+    assert len(result.evidence) >= 1
+    ev = result.evidence[0]
+    assert ev.source_type == SourceType.CRUSTDATA_COMPANY
+    assert ev.value == 2000000.0
+    assert ev.call_id == "call-test"
+    assert ev.retrieved_at is not None
+
+
+def test_funding_check_last_round(crustdata_funding_fixture: dict) -> None:
+    claim = Claim(
+        id="claim_fund_2",
+        run_id="run_1",
+        slide=4,
+        quote="Closed $5M Series A round",
+        type=ClaimType.FUNDING,
+        subject="CargoPulse India",
+        metric="round_amount",
+        value=5000000,
+        unit="USD",
+    )
+
+    ctx = make_ctx(
+        run_id="run_1",
+        company_domain="cargopulse.com",
+        company=crustdata_funding_fixture,
+        deck_date="2024-01-10",
+    )
+
+    result = check(claim, ctx)
+
+    assert result.comparable is True
+    assert result.observed["matched_round"] is not None
+    assert result.observed["matched_round"]["amount"] == 5000000.0
+    assert result.observed["matched_round"]["stage"] == "Series A"
+    assert "amount" not in result.observed
+    assert "round_type" not in result.observed
+    assert "date" not in result.observed
+
+
+def test_funding_check_total_funding(crustdata_funding_fixture: dict) -> None:
+    claim = Claim(
+        id="claim_fund_3",
+        run_id="run_1",
+        slide=4,
+        quote="Total raised: $7M to date",
+        type=ClaimType.FUNDING,
+        subject="CargoPulse India",
+        metric="total_raised",
+        value=7000000,
+        unit="USD",
+    )
+
+    ctx = make_ctx(
+        run_id="run_1",
+        company_domain="cargopulse.com",
+        company=crustdata_funding_fixture,
+        deck_date="2024-01-10",
+    )
+
+    result = check(claim, ctx)
+
+    assert result.comparable is True
+    assert result.observed["total_raised"] == 7000000.0
+    assert "amount" not in result.observed
+
+
+def test_funding_check_missing_company() -> None:
+    claim = Claim(
+        id="claim_fund_4",
+        run_id="run_1",
+        slide=2,
+        quote="Raised $1M",
+        type=ClaimType.FUNDING,
+        subject="NoFundingCo",
+        metric="total_raised",
+        value=1000000,
+        unit="USD",
+    )
+
+    ctx = make_ctx(
+        run_id="run_1",
+        company_domain="nofunding.com",
+        company={},
+    )
+
+    result = check(claim, ctx)
+    assert result.comparable is True
+    assert result.held_reason is None
+    assert result.observed["identity"] == "not_found"
+    assert len(result.evidence) == 0
