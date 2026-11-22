@@ -47,7 +47,7 @@ In emerging startup ecosystems, namesake confusion is common (different founders
 - **The LLM Never Decides:**
   The LLM is constrained strictly to mechanical tasks: parsing unstructured PDF text into candidate claims and extracting verbatim quotes from fetched web pages.
 - **Deterministic Rules Engine:**
-  All verdict transitions (*Supported*, *Contradicted*, *Not comparable*, *Cannot verify*, *Held*) are computed by deterministic Python code in `verdict/engine.py` using explicit numerical tolerances from `config/rules.yaml`. No probabilistic model ever renders a diligence verdict.
+  All verdict transitions (*Supported*, *Contradicted*, *Not comparable*, *Cannot verify*, *Held*) are computed by deterministic Python code in `verdict/engine.py` using explicit numerical tolerances from `config/rules.yaml`. No probabilistic model ever renders a diligence verdict. These tolerances and the rupee rates are placeholder values until the finance partner confirms them.
 
 ---
 
