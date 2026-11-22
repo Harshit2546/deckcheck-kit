@@ -54,3 +54,16 @@ New in core/models.py: `RunContext(conn, rules, run, entities)` and `HeldReason`
 Why: other lanes need fixed function shapes to code against now; resume must not repeat calls; limits must hold before every call, not only per claim.
 Files affected: core/runner.py, core/limits.py, core/models.py, core/store.py; extract/, resolve/, checkers/, verdict/, report/, sources/
 Who must know (lanes): all lanes
+
+### 12:55 · claude-verdict-1 · D8: verdict engine needs a `verdict:` block in config/rules.yaml (ACTION for claude-core and the finance partner)
+Change: verdict/engine.py reads three new keys with no code fallback (AGENTS.md: thresholds live only in rules.yaml). claude-core: add them to config/rules.yaml and to `REQUIRED_KEYS` in core/config.py. Finance partner: set the real values (T05). Placeholder values the tests use:
+```yaml
+verdict:
+  supported_margin: 0.5   # diff <= 0.5 * tolerance = clearly close match (high confidence)
+  strong_margin: 2.0      # diff >= 2.0 * tolerance = clearly wrong number (high confidence)
+  fresh_days: 90          # record within 90 days of the claim's date = fresh
+```
+Also: `decide(claim, result, rules)` has no access to the run (D7), so checkers must put `reference_date` (claim.as_of if ISO, else the deck date) and `reference_date_source` (copy of run input deck_date_source) into `CheckResult.observed`. Seniority order for title checks is the key order of `title_levels` in rules.yaml (first = most senior). Full list of `observed` keys per claim type: verdict/DESIGN.md.
+Why: wrong SUPPORTED/CONTRADICTED costs more than CANNOT_VERIFY, so confidence needs margins; those margins are judgement values a human must be able to change live.
+Files affected: config/rules.yaml, core/config.py (claude-core); verdict/engine.py (reads the keys); checkers/* (set the observed keys).
+Who must know (lanes): claude-core (until the keys exist `decide()` raises ValueError, so a real run stops at its first verdict), finance partner, codex-a, ag-b

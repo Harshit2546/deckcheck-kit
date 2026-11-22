@@ -43,6 +43,29 @@ Open questions for a human:
 - Exact input/output format from the kickoff kit for the Investing request. Map it in io/adapter.py.
 Credits / tokens used this session (rough): 0
 
+### 11:58 · claude-verdict-1 · lane claude-verdict · task T13
+
+Status: in-progress (~20%)
+Done this session:
+- verdict/DESIGN.md: engine interface (`decide`, `held_verdict`), the shared order of checks, the `observed` keys checkers must fill for founder_background, team_size and funding, label/reason_code/confidence tables, the rules.yaml keys read, and asks for the other lanes. Written against the real T01 contracts on origin/lane/claude-core (dataclasses, `rules` as a dict).
+- TASKS.md: T13 claimed.
+In progress / exact next step:
+- core/ is not on main yet. When it lands: `git merge origin/main` into lane/claude-verdict, then write verdict/engine.py per DESIGN.md and fixture tests in tests/verdict/ (one test per row of the tables).
+- codex-a and ag-b: read verdict/DESIGN.md sections 2, 3 and 5 before writing checkers.
+How to run / test:
+- n/a yet (design only). Later: pytest tests/verdict -q
+Known bugs or shortcuts taken:
+- DESIGN.md is a draft; the three open questions below may change a rule.
+- The engine will fall back to default margins (supported_margin 0.5, strong_margin 2.0, fresh_days 90) until the `verdict:` block exists in rules.yaml.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- A funding total LOWER than the deck is CANNOT_VERIFY (`source_may_be_incomplete`), never CONTRADICTED. Absence of an employer or investor is never a contradiction. Team-size contradictions are at most medium confidence.
+- The engine never converts currencies; a unit mismatch is NOT_COMPARABLE.
+Open questions for a human:
+- Finance partner: (1) meaning of `tolerances.founder_background.min_title_level` (my reading is in DESIGN.md section 6); (2) is `tolerances.max_record_age_days` global; (3) confirm the cautious funding rule above.
+- claude-core (partner): please add the `verdict:` block to config/rules.yaml and REQUIRED_KEYS (DESIGN.md section 6).
+- Docs to fix (human-owned; the coordinating session will do it): PLAN.md, TASKS.md and docs/AGENT_PROMPTS.md still say io/adapter.py; D4 moved it to kit_io/adapter.py.
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
+
 ### 11:50 · claude-core-1 · lane claude-core · task T01
 
 Status: done
@@ -123,3 +146,53 @@ Open questions for a human:
 - Tell every lane about D7 (their function names and signatures).
 - report lane: confirm module name report/builder.py, or tell claude-core to change STAGES.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 12:58 · claude-verdict-1 · lane claude-verdict · task T13
+
+Status: in-progress (~85%; code done, waiting on D8 keys)
+Done this session:
+- Merged origin/lane/claude-core (T01, T07) into lane/claude-verdict; HANDOFF.md conflict resolved by keeping both entries.
+- verdict/engine.py: `decide(claim, result, rules)` (D7 signature), `held_verdict()`, `check_rules()`. Shared order of checks, no LLM, no clock, no code defaults (every threshold via core.config.rule; missing key raises ValueError naming all of them).
+- verdict/common.py, team_size.py, funding.py, founder.py: the metric rules from verdict/DESIGN.md section 3 (team_size headcount; funding total_raised, round_amount, investor; founder past_employer, title, tenure_years).
+- tests/verdict/: 64 tests, one per row of the order table and per metric row (hand-built CheckResult fixtures in tests/verdict/fakes.py). `pytest -q` from the worktree root: 89 passed (25 core + 64 verdict).
+- verdict/DESIGN.md v2 (matches the code), DECISIONS D8, docs/LIVE_FIX_MAP.md lines.
+In progress / exact next step:
+- claude-core: add the `verdict:` block (supported_margin, strong_margin, fresh_days) to config/rules.yaml and REQUIRED_KEYS (D8). UNTIL THEN a real run raises ValueError at its first decide() call; the tests inject the block.
+- claude-verdict: T15 report/builder.py (`build(conn, rules, run_id) -> (dict, str)` per D7).
+- codex-a / ag-b: checkers must put `reference_date`, `reference_date_source`, `record_date`, `identity`, `identity_signals` and the per-type keys into CheckResult.observed (verdict/DESIGN.md sections 2, 3, 5; D8).
+How to run / test:
+- cd dc-claude-verdict && python -m pytest tests/verdict -q   (all: python -m pytest -q)
+Known bugs or shortcuts taken:
+- Explanations are fixed templates built from the evidence (no LLM wording yet).
+- team_size accepts only metric `headcount` (or empty); other metrics are CANNOT_VERIFY `unsupported_metric`. Tell ag-b to emit `headcount`.
+- Funding claim.value must be absolute major units and claim.unit an ISO currency (extract lane); no currency conversion.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D8 (above). A funding total lower than the deck is CANNOT_VERIFY; a missing employer or investor is never a contradiction; headcount contradictions are at most medium confidence.
+Open questions for a human:
+- Finance partner: min_title_level meaning, max_record_age_days global, cautious funding rule (see DESIGN.md section 6), and real values for the three verdict keys.
+- PLAN.md, TASKS.md, docs/AGENT_PROMPTS.md still say io/adapter.py in places (D6 restored io/adapter.py, so check which doc is right).
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
+
+### 13:20 · claude-verdict-1 · lane claude-verdict · task T15
+
+Status: in-progress (~80%; code and tests done, kit-format JSON waits for D3)
+Done this session:
+- report/builder.py: `build(conn, rules, run_id) -> (dict, str)` (D7 signature), read-only on the DB. JSON has run, generated_at, summary (counts by label + run-level flags), red_flags (CONTRADICTED only, ordered by rules.yaml materiality, then confidence, then slide), claims (columns = rules.yaml `output.fields`), founder_questions, evidence_requests (CANNOT_VERIFY and NOT_COMPARABLE), held (internal notes), ledger (calls, failed, credits, INR, per provider).
+- report/render.py: Markdown version of the same dict (pipes escaped, sources show locator, field, record date and retrieved_at).
+- report/question_templates.yaml: wording of questions and requests per claim type. PLACEHOLDER wording; the finance partner owns it.
+- tests/report/test_builder.py: 11 tests. Full suite: 100 passed.
+- An unknown name in `output.fields` raises ValueError before any row is built (even for a run with no claims).
+In progress / exact next step:
+- Kit-format JSON: not done. It needs D3 (merger records the kit's output format) and then claude-core's `io/adapter.py to_kit()` maps this report dict; I will not guess the format.
+- T20 (hour-3 change) waits for the organisers' requirement; T27 merge reviews start at the first merge request.
+How to run / test:
+- cd dc-claude-verdict && python -m pytest tests/report -q   (all: python -m pytest -q)
+Known bugs or shortcuts taken:
+- Report rows for claims with no verdict show label PENDING (not a contract label; report only) and the summary flags the report as incomplete.
+- `held` and `founder_questions` use placeholder wording. Questions are only produced for CONTRADICTED claims.
+- Nothing here calls an LLM; explanations are the engine's fixed sentences.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- Question templates live in report/question_templates.yaml (my lane) because rules.yaml has no section for them and the finance partner owns the wording.
+Open questions for a human:
+- Merger: D3 (kit output format) so to_kit() can be written; finance partner: rewrite report/question_templates.yaml.
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
