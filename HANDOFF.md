@@ -217,3 +217,21 @@ Open questions for a human:
 - Correction: an earlier entry of mine says the adapter moved to kit_io/adapter.py (D4). D6 withdrew D4: the adapter is io/adapter.py, loaded with core.adapter_loader. origin/main has io/adapter.py and no kit_io/. The coordinating session asked me to rename mentions to kit_io; I did not, because that would be wrong on main today. Please confirm D6 is current.
 - Still open from before: D8 keys in rules.yaml (claude-core), finance partner's answers to the three DESIGN.md questions, D3 kit output format.
 Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
+
+### 14:12 · claude-verdict@win · lane claude-verdict · task T27
+
+Status: in-progress (waiting for the hour-3 requirement, T20)
+Done this session:
+- DECISIONS D9: the Windows laptop owns lane claude-verdict (user's decision); labels are `<lane>@<laptop>`.
+In progress / exact next step:
+- Mac laptop: do not run claude-verdict. Other lanes: the user still has to say which laptop owns each.
+- Suggested for the merger (human, on main): add a `.gitattributes` with `* text=auto eol=lf`; Windows and Mac currently disagree on line endings (git warns "LF will be replaced by CRLF" here).
+How to run / test:
+- n/a (decision only)
+Known bugs or shortcuts taken:
+- none
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D9.
+Open questions for a human:
+- Which laptop owns claude-core, ag, ag-b and codex-a (add a line under D9).
+Credits / tokens used this session (rough): none

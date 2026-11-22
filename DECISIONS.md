@@ -67,3 +67,9 @@ Also: `decide(claim, result, rules)` has no access to the run (D7), so checkers 
 Why: wrong SUPPORTED/CONTRADICTED costs more than CANNOT_VERIFY, so confidence needs margins; those margins are judgement values a human must be able to change live.
 Files affected: config/rules.yaml, core/config.py (claude-core); verdict/engine.py (reads the keys); checkers/* (set the observed keys).
 Who must know (lanes): claude-core (until the keys exist `decide()` raises ValueError, so a real run stops at its first verdict), finance partner, codex-a, ag-b
+
+### 14:10 · claude-verdict-1 (on the user's word) · D9: the Windows laptop owns lane claude-verdict
+Change: lane claude-verdict (verdict/, report/, docs/reviews/, T13, T15, T20, T27) is worked only from the Windows laptop, in its worktree folder `dc-claude-verdict` on branch `lane/claude-verdict`. The Mac laptop must not start a claude-verdict session; if it needs something from this lane it writes a line in HANDOFF.md or TASKS.md. Both laptops use the same Claude account but different OneDrive accounts, so they share nothing except origin: coordinate through git files only, not through session messages (those stay on one machine). Labels in TASKS.md and HANDOFF.md are `<lane>@<laptop>` (this lane: `claude-verdict@win`). Which laptop owns the other lanes is not decided here; the user decides and adds a line below.
+Why: two sessions on one lane would edit the same files from two clones; the shared account gives no way to tell sessions apart.
+Files affected: none in code. TASKS.md and HANDOFF.md labels from now on.
+Who must know (lanes): all lanes, both humans
