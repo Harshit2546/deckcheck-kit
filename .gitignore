@@ -9,3 +9,6 @@ __pycache__/
 .claude/settings.local.json
 logs/
 out/
+*.db-shm
+*.db-wal
+.claude/
