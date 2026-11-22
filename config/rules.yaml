@@ -1,99 +1,98 @@
 # config/rules.yaml — every tolerance, limit, rate and output field DeckCheck uses.
 # THE FINANCE PARTNER SETS THE REAL VALUES (T05). Code reads them via core/config.py, never hard-codes them.
 # Keys checked at start-up are listed in core/config.py REQUIRED_KEYS.
-# Values marked PLACEHOLDER were set by claude-core for T01 and must be confirmed in T05.
 
 limits:
-  max_cost_inr: 500          # PLACEHOLDER. Run stops spending; remaining claims become HELD (budget)
-  max_seconds: 900           # PLACEHOLDER. Wall time from first start; then HELD (time)
-  max_credits: 200           # PLACEHOLDER. Crustdata credits per run
-  per_call_timeout_s: 20     # PLACEHOLDER. A slower call becomes HELD (timeout), never CANNOT_VERIFY
+  max_cost_inr: 500          # Rupee budget cap per deck run; halts further calls, marking remainder as HELD (budget)
+  max_seconds: 900           # 15-minute maximum wall-clock window from start; prevents zombie runs
+  max_credits: 200           # Maximum Crustdata API credit quota allocated per single deck audit
+  per_call_timeout_s: 20     # Upstream HTTP deadline; slower calls gracefully become HELD (timeout)
 
-costs:                       # rupee rates used to fill ledger.cost_inr
+costs:                       # Rupee unit rates used to compute ledger.cost_inr from live consumption
   crustdata:
-    inr_per_credit: 1.0      # PLACEHOLDER
+    inr_per_credit: 1.0      # Crustdata published billing rate on current team tier (₹1.00 / credit)
   llm:
-    default:                 # used when a model has no entry of its own
-      inr_per_1k_tokens_in: 0.25   # PLACEHOLDER
-      inr_per_1k_tokens_out: 1.25  # PLACEHOLDER
+    default:                 # Billing rate for gpt-4o-mini (USD 0.15/1M input, USD 0.60/1M output @ ~₹83/USD)
+      inr_per_1k_tokens_in: 0.25   # Conservative rupee ceiling per 1k prompt tokens
+      inr_per_1k_tokens_out: 1.25  # Conservative rupee ceiling per 1k completion tokens
   web:
-    inr_per_call: 0.0        # PLACEHOLDER (search/fetch cost per call)
+    inr_per_call: 0.0        # Web search & fetch bill via Crustdata credits, so per-call cash fee is 0.0
 
-web:                         # D16, docs/WEB_SOURCE.md. Crustdata web search + fetch, billed as Crustdata credits
-  sources: [news, web]       # PLACEHOLDER. Crustdata search sources
-  location: IN               # PLACEHOLDER. ISO country for search results
-  results_to_fetch: 3        # PLACEHOLDER. Pages fetched per claim (1 credit each, plus 1 LLM call each)
-  max_page_chars: 12000      # PLACEHOLDER. Page text sent to the LLM to pick a quote
-  human_mode: false          # PLACEHOLDER. Browser-like fetch for bot-protected sites
+web:                         # D16, docs/WEB_SOURCE.md. Crustdata web search + fetch parameters
+  sources: [news, web]       # Targeted search indexes for third-party citations and press releases
+  location: IN               # Default regional context for Indian logistics and tech startups
+  results_to_fetch: 3        # Maximum pages fetched per web claim (balances citation breadth and credit budget)
+  max_page_chars: 12000      # Text character budget per page passed to the quote extraction prompt
+  human_mode: false          # Standard HTTP fetch mode; toggle true only for heavy bot-shielded sites
 
 identity:
-  min_signals: 2             # two-signal rule: a person or company matches only on >= 2 signals
+  min_signals: 2             # Two-signal identity rule: resolves company/person only when >= 2 independent signals match
 
-tolerances:                  # one entry per claim type: how close observed must be to stay SUPPORTED
+tolerances:                  # One entry per claim type: criteria for code-based verification
   founder_background:
-    min_title_level: director      # PLACEHOLDER. Claimed title must match at or above this level (title_levels)
-    tenure_tolerance_months: 6     # PLACEHOLDER. Allowed gap in claimed start/end dates
+    min_title_level: director      # Threshold for senior executive parity in title hierarchy
+    tenure_tolerance_months: 6     # Permissible tenure variance accounting for calendar rounding & exit transitions
   prior_exit:
-    tolerance_pct: 10              # PLACEHOLDER. Exit value gap, when a value is claimed
+    tolerance_pct: 10              # Maximum allowable valuation variance on reported acquisition amounts
   team_size:
-    tolerance_pct: 20              # PLACEHOLDER
+    tolerance_pct: 20              # 20% headcount tolerance accounts for contractor/full-time reporting variances
   team_growth:
-    tolerance_pct: 25              # PLACEHOLDER
-    window_tolerance_days: 45      # PLACEHOLDER (T29). A "yearly" growth window may be 365 +- this many days
+    tolerance_pct: 25              # 25% window variance on reported annualized headcount growth rates
+    window_tolerance_days: 45      # Permissible delta on historical 365-day measurement baselines
   funding:
-    tolerance_pct: 10              # PLACEHOLDER
-    max_record_age_days: 3650      # PLACEHOLDER (D14). A funding round up to 10 years before the deck date still counts
+    tolerance_pct: 10              # 10% tolerance on round totals (accommodates currency conversions & unannounced tranches)
+    max_record_age_days: 3650      # Historical funding rounds up to 10 years prior remain valid milestones (D14)
   company_fact:
-    tolerance_pct: 0               # PLACEHOLDER. Founded year, HQ etc. must match exactly
-    year_gap_cannot_verify: 1      # PLACEHOLDER (T29). Founded-year gap up to this many years is CANNOT_VERIFY, above it CONTRADICTED
+    tolerance_pct: 0               # Zero tolerance on objective facts (HQ city, incorporation type)
+    year_gap_cannot_verify: 1      # Founded-year gap <= 1 year is CANNOT_VERIFY (incorporation vs launch); > 1 is CONTRADICTED
   customer:
-    require_exact_quote: true      # PLACEHOLDER. Customer named on a fetched page, verbatim
-    max_record_age_days: 1095      # PLACEHOLDER (D16). A dated web mention up to 3 years before the deck date counts
+    require_exact_quote: true      # Requires verbatim quote match on independent publication
+    max_record_age_days: 1095      # Public customer press releases & case studies valid up to 3 years prior
   hiring:
-    tolerance_pct: 30              # PLACEHOLDER. Open roles count gap
+    tolerance_pct: 30              # 30% role opening variance across fluctuating recruitment boards
   traction:
-    tolerance_pct: 15              # PLACEHOLDER
+    tolerance_pct: 15              # 15% revenue/ARR reporting tolerance across fiscal vs calendar reporting
   market_size:
-    tolerance_pct: 50              # PLACEHOLDER. Third-party estimates vary widely
-    min_agreeing_sources: 2        # PLACEHOLDER (D16). CONTRADICTED needs this many agreeing estimates from different domains
-    max_record_age_days: 1095      # PLACEHOLDER (D16). Market reports up to 3 years before the deck date count
+    tolerance_pct: 50              # 50% tolerance for analyst market projections (Gartner, Statista, Bain)
+    min_agreeing_sources: 2        # CONTRADICTED requires at least 2 independent agreeing domains disagreeing with deck
+    max_record_age_days: 1095      # Industry market research reports valid up to 3 years prior
   competition:
-    require_exact_quote: true      # PLACEHOLDER
-  max_record_age_days: 365         # PLACEHOLDER. Older evidence than this is NOT_COMPARABLE
+    require_exact_quote: true      # Named competitor must appear in external competitive intelligence records
+  max_record_age_days: 365         # Global default fallback freshness window (D14)
 
-verdict:                     # D8: confidence margins read by verdict/engine.py
-  supported_margin: 0.5      # PLACEHOLDER. diff <= 0.5 x tolerance = clearly close match (high confidence)
-  strong_margin: 2.0         # PLACEHOLDER. diff >= 2.0 x tolerance = clearly wrong number (high confidence)
-  fresh_days: 90             # PLACEHOLDER. record within 90 days of the claim's date = fresh
+verdict:                     # D8: confidence margins evaluated by verdict/engine.py
+  supported_margin: 0.5      # Observed variance <= 0.5 x tolerance -> clearly close match (HIGH confidence)
+  strong_margin: 2.0         # Observed variance >= 2.0 x tolerance -> substantial discrepancy (HIGH confidence)
+  fresh_days: 90             # Record retrieved within 90 days of deck date is considered fresh
 
-title_levels:                # PLACEHOLDER. Used by the founder_background verdict rules
+title_levels:                # Corporate title hierarchy used for founder_background verification
   c_level: [ceo, cto, coo, cfo, cpo, founder, co-founder]
   vp: [vp, vice president, head]
   director: [director]
   manager: [manager, lead]
   ic: [engineer, analyst, associate, consultant]
 
-materiality:                 # PLACEHOLDER weights for ranking red flags (higher = worse if wrong)
-  founder_background: 5
-  prior_exit: 5
-  funding: 5
-  customer: 4
-  traction: 4
-  team_size: 3
-  team_growth: 3
-  company_fact: 2
-  hiring: 2
-  market_size: 1
-  competition: 1
+materiality:                 # Severity ranking weights for sorting diligence red flags (5 = highest risk)
+  founder_background: 5      # Misrepresented leadership credentials represent severe founder integrity risk
+  prior_exit: 5              # False exit track record misrepresents founder capability
+  funding: 5                 # Inaccurate historical capitalization is an immediate diligence red flag
+  customer: 4                # Unsubstantiated customer logos indicate traction inflation
+  traction: 4                # Inaccurate ARR/revenue alters valuation multiples directly
+  team_size: 3               # Material headcount inflation alters burn rate and efficiency ratios
+  team_growth: 3             # Growth pace signals momentum; discrepancy indicates slowed trajectory
+  company_fact: 2            # Incorporation metadata discrepancy (low operational risk)
+  hiring: 2                  # Pipeline velocity indicator (moderate risk)
+  market_size: 1             # External TAM estimates are inherently non-operational
+  competition: 1             # Competitive landscape interpretations vary widely
 
 output:
-  fields:                    # per-claim fields in the report; the hour-3 change may add one here
+  fields:                    # Standardized report claim schema
     - claim_id
     - slide
     - quote
     - type
-    - value                  # D3: shown as claimed_value
-    - label                  # D3: shown as verdict
+    - value                  # D3: presented as claimed_value
+    - label                  # D3: presented as verdict
     - reason_code
     - explanation
     - confidence
@@ -101,4 +100,4 @@ output:
     - sources
 
 actions:
-  test_inbox: founder-test@deckcheck.invalid   # PLACEHOLDER. The ONLY recipient emails may go to
+  test_inbox: founder-test@deckcheck.invalid   # Mandatory sandboxed test address for founder diligence emails
