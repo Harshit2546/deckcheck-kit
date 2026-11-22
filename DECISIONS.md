@@ -162,3 +162,18 @@ Change: add `sources/web.py` with `search(ctx, query, *, sources, site, location
 Why: search results carry no date, so a web fact is only admissible with a date code read from the page (D3). One provider keeps every call in one ledger and one key. Slides 6 and 7 of Deck A are HELD today because neither piece exists.
 Config: new `web:` section and `tolerances.market_size.{min_agreeing_sources, max_record_age_days}`, `tolerances.customer.max_record_age_days` (all PLACEHOLDER).
 Tasks: T30 (web client), T31 (pages + quotes), T32 (checkers), T33 (verdict rules); see docs/WEB_SOURCE.md section 5.
+
+### 16:25 · harshit (merger, on the user's word) · D17: guarded fallback to undated records
+Change: D3 and D13 stay the default: a dated record on or before the reference date is always preferred. When a checker finds **no** dated record but does find an undated one (a snapshot field with no record date, such as `hiring.openings_count`, or a web page with no machine-readable publish date), the engine may decide from the undated record if BOTH of these hold:
+1. `verdict.undated_fallback` is true; and
+2. the reference date (claim.as_of, else the deck date) is no more than `verdict.undated_max_deck_age_days` (default 90) before the evidence's `retrieved_at`, and not after it. The deck is recent, so "the data now" is close to "the data on the deck date".
+Then the verdict's confidence is capped at **low**, its `reason_code` gets the suffix `_undated` (e.g. `within_tolerance_undated`, `outside_tolerance_undated`), and its explanation starts: "No dated record was found; this uses an undated source retrieved on <date>." The report marks the row as an undated source. If either condition fails, the result stays CANNOT_VERIFY `missing_record_date`, and `missing` says why (deck older than the limit).
+Checkers keep undated items and mark them, without dropping them: Evidence `record_date=None`, `observed.record_date=None`, and for web items `published_date: None`. They use them only when no dated item was accepted.
+Why: the user wants every claim the data can speak to answered, and stated plainly when the answer rests on undated data. The age guard keeps the handbook rule ("no fact from after the deck date") for past-dated test decks: undated data is "now" data, so it is only used when the deck is recent.
+Config: `verdict.undated_fallback`, `verdict.undated_max_deck_age_days` (PLACEHOLDER).
+Tasks: T34 (engine + report, claude-verdict), T35 (checkers keep undated items).
+
+### 16:25 · harshit (merger, on the user's word) · D18: build founder lookups now (D12), merger reassigns the sources lane
+Change: build `get_people(ctx, profile_urls)` (one batched `POST /person/enrich`, 1 credit per person) and `search_people(ctx, name, company_id)` (`POST /person/search`, filtered by name plus employer id, about 0.23 credits per result) in `sources/crust.py`, exactly as D12 specifies: each returns `(payload | None, call_id | None)`, with limits, a ledger row, a timeout, the same 429 retry, a per-run cache, and contact fields (emails, phones) dropped recursively at ingest. Then `checkers/founder_background.py` reads the **resolved** founder's own person record (experience: employer, title, start and end dates) instead of the company payload. Identity comes from `ctx.entities` founders (two-signal rule, D12), not from the company identity. codex-a has not touched this since D12, so the merger gives `sources/` person functions, `resolve/payloads.py` (person shapes) and `checkers/founder_background.py` to task T36.
+Why: founder background is the claim type investors care about most (materiality 5), and today every founder claim is CANNOT_VERIFY or HELD.
+Tasks: T36.

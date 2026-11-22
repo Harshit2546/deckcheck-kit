@@ -66,6 +66,8 @@ verdict:                     # D8: confidence margins read by verdict/engine.py
   supported_margin: 0.5      # PLACEHOLDER. diff <= 0.5 x tolerance = clearly close match (high confidence)
   strong_margin: 2.0         # PLACEHOLDER. diff >= 2.0 x tolerance = clearly wrong number (high confidence)
   fresh_days: 90             # PLACEHOLDER. record within 90 days of the claim's date = fresh
+  undated_fallback: true     # PLACEHOLDER (D17). When no dated record exists, may an undated one be used (flagged, low confidence)?
+  undated_max_deck_age_days: 90  # PLACEHOLDER (D17). Only if the deck date is at most this many days before the data was retrieved
 
 title_levels:                # PLACEHOLDER. Used by the founder_background verdict rules
   c_level: [ceo, cto, coo, cfo, cpo, founder, co-founder]
