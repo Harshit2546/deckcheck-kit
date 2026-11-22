@@ -1116,3 +1116,16 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - T34: read `observed.undated_items_used` > 0 (or Evidence.record_date None) to tell an undated result from "no evidence". For team_size, `observed.headcount` is set from headcount.total with record_date None.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:55 · web-checkers · T35 addition (merger's request): checkers/hiring.py
+
+Status: done
+Done this session:
+- checkers/hiring.py used the payload's `updated_at` (the provider's refresh date) as record_date, which D13 forbids. `hiring.openings_count` and `hiring.openings_growth_percent` are now snapshot values: Evidence record_date=None and observed.record_date=None. New observed key `undated_items_used` = number of snapshot Evidence rows. D17 (T34, engine) decides whether they may be used. `updated_at` is no longer read anywhere in the checker.
+- tests/checkers/test_remaining_checkers.py: test_hiring_check now asserts record_date None on observed and on both Evidence rows. New test: a top-level `updated_at` payload still gives record_date None.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (453 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged; slide 8 hiring stays CANNOT_VERIFY no_evidence offline)
+Open questions for a human:
+- none
+Credits / tokens used this session (rough): 0 Crustdata credits
