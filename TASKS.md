@@ -17,7 +17,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T08 | codex-a | sources/crust.py: rate limit, backoff on 429/5xx, per-call timeout to HELD, ledger row per call, TTL cache | unit tests for 429, timeout, ledger | todo |
 | T09 | ag-b | extract/claims.py: LLM structured claims + quote-on-slide check | invented quote is rejected in test | done |
 | T10 | codex-a | resolve/entities.py: company by domain, founders, two-signal rule, confidence | namesake fixture returns identity_unclear | todo |
-| T11 | ag-b | checkers: team_size, funding | tests pass | in-progress (yash, 0%, start checkers/team_size.py and funding.py) |
+| T11 | ag-b | checkers: team_size, funding | tests pass | done |
 | T12 | codex-a | checkers: founder_background | tests pass | todo |
 | T13 | claude-verdict | verdict/engine.py for founder, team_size, funding | Deck A matches answer key for those claims | todo |
 | T14 | human | MILESTONE 1 at 12:45: Deck A end to end | report generated | todo |
