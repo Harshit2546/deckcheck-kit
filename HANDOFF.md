@@ -380,3 +380,27 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - None. Ready for merge.
 Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
+
+### 13:30 · yash · lane ag-b · task T12, T16 (founder_background, prior_exit, company_fact)
+
+Status: done
+Done this session:
+- checkers/founder_background.py: implemented check(claim, ctx) -> CheckResult for past_employer, title, and tenure_years per verdict/DESIGN.md section 3.3. Uses checkers._common (get_company, company_identity). Only stores professional employment details (employer, title, start_date, end_date); never stores emails or phone numbers. Attaches dated CRUSTDATA_PERSON Evidence.
+- checkers/prior_exit.py: implemented check(claim, ctx) -> CheckResult for acquisition facts, acquirer, amount, and exit date using checkers._common and CRUSTDATA_COMPANY Evidence.
+- checkers/company_fact.py: implemented check(claim, ctx) -> CheckResult for year_founded, headquarters, company_type, and legal status using checkers._common and CRUSTDATA_COMPANY Evidence.
+- tests/checkers/test_founder_background.py: 6 unit tests covering past_employer, title, title contradiction, tenure_years, employer not in profile, and missing payload, integrated with verdict.engine.decide.
+- tests/checkers/test_prior_exit_and_company_fact.py: 4 unit tests covering prior exit success/missing and company fact success/missing.
+- TASKS.md: updated T12 to done and noted T16 checkers built.
+- Full test suite: all 130 tests pass cleanly (`python -m pytest -q`).
+In progress / exact next step:
+- Ready for human merge to main.
+How to run / test:
+- python -m pytest tests/checkers/test_founder_background.py tests/checkers/test_prior_exit_and_company_fact.py -v
+- python -m pytest -q
+Known bugs or shortcuts taken:
+- None. Runtime path contains zero fake sources or hardcoded data; tests use tests/checkers/checker_fakes.py.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- When founder profile is fetched but employer is not found in it, an Evidence record for the inspected profile is attached so the engine correctly identifies profile presence and reports CANNOT_VERIFY employer_not_in_profile (rather than row 2 no_evidence).
+Open questions for a human:
+- None. Ready for merge.
+Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
