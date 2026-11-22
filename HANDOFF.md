@@ -841,3 +841,28 @@ Open questions for a human:
 - ../dc-ag is checked out on main, not lane/ag. I did not switch it; switch it in that folder only if lane ag needs to commit again.
 - Finance partner: every rules.yaml value is still PLACEHOLDER.
 Credits / tokens used this session (rough): 0 Crustdata credits so far
+
+### 15:35 · harshit · merger + claude-core · task live Deck A run, T25
+
+Status: done
+Done this session:
+- cli.py: a repo-relative deck_path in a request file (tests/decks/deck_a_request.json has "tests/decks/deck_a.pdf") was joined onto the request's folder, so the demo command failed with "deck not found". It now looks beside the request first, then from the current folder. Test: tests/core/test_cli.py::test_request_deck_path_relative_to_current_folder.
+- Live Deck A run run-20261122-092339-ef3899 (keys loaded from ../deckcheck-kit/.env):
+  - The first attempt failed: the GEMINI_API_KEY in .env is rejected by Google (API_KEY_INVALID). The failed call has its ledger row (ok=0).
+  - Resumed with GEMINI_API_KEY unset, so gpt-4o-mini did the extraction: 7 claims, every quote verified, company confirmed on 2 signals.
+  - Verdicts match the offline replay on every slide: 2 SUPPORTED, 3 SUPPORTED, 4 SUPPORTED (undated rounds), 5 CONTRADICTED, 6 HELD no_checker, 7 HELD error, 8 CANNOT_VERIFY missing_record_date.
+  - Ledger: 4 calls, 2 credits, Rs 2.79, 16.5 s.
+- README "Live run" table filled; T25 done.
+In progress / exact next step:
+- Human: demo video (5:30 PM), make the repo public, submission form (6:00 PM). The demo can approve the pending email in the UI (streamlit run ui/app.py, DB dc-core/deckcheck.db).
+How to run / test:
+- set -a; . ./.env; set +a; unset GEMINI_API_KEY   (until the Gemini key is fixed)
+- python cli.py run --request tests/decks/deck_a_request.json --out out/result.json
+- python -m pytest -q   (239 passed)
+Known bugs or shortcuts taken:
+- When both LLM keys are set, extract/claims.py picks Gemini, so the invalid Gemini key must be fixed or unset.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- Fix or remove GEMINI_API_KEY in .env.
+Credits / tokens used this session (rough): 2 Crustdata credits; 1,068 OpenAI tokens (Rs 2.79 total)
