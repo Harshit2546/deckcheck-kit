@@ -93,3 +93,6 @@ for credits), YC registration email if different, BITS student ID, personal emai
 ## Extra material
 Pitch deck (private Claude artifact; the owner must share it before others can open it):
 https://claude.ai/artifact/NKiaffjQ7rzzEWNmpRybPQ. Project explainer: pitch/PROJECT_EXPLAINED.md.
+
+Project site (private Claude artifact; the owner must share it, Share > anyone with the link): https://claude.ai/artifact/XGqkLqzG4FgmnLVPAHrtFu. The same page is in the repo at pitch/site.html.
+Business architecture: https://github.com/Harshit2546/deckcheck-kit/blob/main/docs/BUSINESS_ARCHITECTURE.md

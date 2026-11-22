@@ -1,0 +1,204 @@
+<title>DeckCheck</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: one reading column, a dark product hero, sections as plain bands; tables scroll on phones. */
+:root{
+  --bg:#F6F7F9; --surface:#FFFFFF; --line:#DCE1E8; --fg:#121722; --mute:#4F5A6B; --accent:#1F6FD1;
+  --ok:#137A52; --bad:#B4282E; --open:#8A5A00; --held:#5B6474;
+  --hero:#0C0F14; --hero-fg:#F1F2F4; --hero-mute:#A4ACBA; --hero-accent:#7DB7FF;
+  --display:'Space Grotesk',Arial,sans-serif; --text:'Inter',Arial,sans-serif; --mono:'JetBrains Mono',Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1218; --surface:#151A23; --line:#2B3342; --fg:#EEF0F3; --mute:#A4ACBA; --accent:#7DB7FF;
+  --ok:#5ED0A2; --bad:#FF8A8A; --open:#F3BE5B; --held:#A4ACBA; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1218; --surface:#151A23; --line:#2B3342; --fg:#EEF0F3; --mute:#A4ACBA; --accent:#7DB7FF;
+  --ok:#5ED0A2; --bad:#FF8A8A; --open:#F3BE5B; --held:#A4ACBA; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--text);font-size:16px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:30px;margin-bottom:14px}
+h3{font-size:19px;margin-bottom:6px}
+p{margin:0 0 12px;max-width:68ch}
+a{color:var(--accent)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hero{background:var(--hero);color:var(--hero-fg);margin-top:calc(-1 * env(safe-area-inset-top,0px));padding-top:calc(env(safe-area-inset-top,0px) + 56px);padding-bottom:56px}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--hero-accent);font-weight:600;margin-bottom:14px}
+.hero h1{font-size:clamp(44px,9vw,88px);letter-spacing:-.03em}
+.hero .lead{font-size:20px;color:var(--hero-fg);margin-top:16px;max-width:40ch}
+.hero .sub{color:var(--hero-mute);margin-top:12px}
+.links{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.links a{color:var(--hero-fg);border:1px solid #3A4458;border-radius:999px;padding:8px 16px;text-decoration:none;font-weight:600;font-size:14px}
+.links a.primary{background:var(--hero-accent);color:#0C0F14;border-color:var(--hero-accent)}
+section{padding-block:44px;border-bottom:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.card p{color:var(--mute);margin:0;font-size:15px}
+.num{font-family:var(--display);font-size:34px;font-weight:700;font-variant-numeric:tabular-nums}
+.tablebox{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:15px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--mute);font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+tr:last-child td{border-bottom:0}
+td.n{font-variant-numeric:tabular-nums}
+.v{font-weight:700;font-size:13px;letter-spacing:.03em;white-space:nowrap}
+.v.ok{color:var(--ok)}.v.bad{color:var(--bad)}.v.open{color:var(--open)}.v.held{color:var(--held)}
+.diagram{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:14px}
+pre.code{font-family:var(--mono);font-size:13.5px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;margin:10px 0 0}
+.note{font-size:14px;color:var(--mute)}
+ul{margin:8px 0 0;padding-left:20px} li{margin-bottom:6px;max-width:68ch}
+footer{padding-block:32px;color:var(--mute);font-size:14px}
+@media (prefers-reduced-motion:no-preference){.hero h1{animation:rise .7s ease-out both}}
+@keyframes rise{from{opacity:.001;transform:translateY(12px)}to{opacity:1;transform:none}}
+</style>
+
+<header class="hero"><div class="wrap">
+  <p class="eyebrow">ContextCon 05 · Investing track · 2.2 The Diligence Desk</p>
+  <h1>DeckCheck</h1>
+  <p class="lead">Every claim in a pitch deck, checked against live data before the second meeting.</p>
+  <p class="sub">Each claim gets a verdict chosen by code, with its source and the record’s own date. The founder email waits for a person to approve it.</p>
+  <div class="links">
+    <a class="primary" href="https://github.com/Harshit2546/deckcheck-kit">GitHub repo</a>
+    <a href="https://github.com/Harshit2546/deckcheck-kit/blob/main/docs/ARCHITECTURE.md">Technical architecture</a>
+    <a href="https://github.com/Harshit2546/deckcheck-kit/blob/main/docs/BUSINESS_ARCHITECTURE.md">Business architecture</a>
+    <a href="https://github.com/Harshit2546/deckcheck-kit/blob/main/README.md">README</a>
+    <a href="https://claude.ai/artifact/NKiaffjQ7rzzEWNmpRybPQ">Pitch deck</a>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+<section>
+  <h2>The job it replaces</h2>
+  <p>Before a fund meets a startup a second time, an analyst checks the deck’s facts: team size, funding rounds, customers, market size, founders’ past jobs. That takes 3 to 8 hours per deck. DeckCheck does that check from the PDF to a drafted founder email, and asks a person only before the email is sent.</p>
+  <div class="grid">
+    <div class="card"><div class="num">3–8 h</div><p>Analyst time per deck today (our estimate)</p></div>
+    <div class="card"><div class="num">₹11.96</div><p>Measured cost of one full check, at placeholder rupee rates</p></div>
+    <div class="card"><div class="num">6 / 6</div><p>Scored claims on Deck A matching our answer key, live</p></div>
+    <div class="card"><div class="num">477</div><p>Automated tests passing</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Technical architecture</h2>
+  <p>Six stages, each saved to SQLite before the next starts, so a killed run resumes where it stopped. Every external call writes a ledger row, failures included.</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart LR
+  REQ[Request JSON<br/>deck, domain, date] --> AD[io/adapter]
+  AD --> EX[extract<br/>PDF text, LLM claims,<br/>code checks each quote]
+  EX --> RS[resolve<br/>company and founders,<br/>two-signal rule]
+  RS --> CK[checkers<br/>one per claim type,<br/>dated evidence]
+  CK --> VE[verdict engine<br/>rules.yaml decides]
+  VE --> RP[report<br/>red flags, questions, ledger]
+  RP --> AC[actions<br/>email draft: pending]
+  AC -->|person approves| IN[(local inbox<br/>sent once)]
+  EX -. tokens .-> LLM[(OpenAI gpt-4o-mini)]
+  RS -. calls .-> CD[(Crustdata company<br/>and person APIs)]
+  CK -. calls .-> CD
+  CK -. search and fetch .-> WEB[(Crustdata web APIs)]
+  LLM -.-> LG[(ledger)]
+  CD -.-> LG
+  WEB -.-> LG
+  </pre></div>
+  <div class="grid">
+    <div class="card"><h3>The AI never decides</h3><p>The LLM lists claims and copies one sentence from a page. Python rules pick every verdict from tolerances in one config file.</p></div>
+    <div class="card"><h3>Every fact is dated</h3><p>Each evidence row keeps the URL or endpoint, exact field or quote, the record’s date and when it was fetched. Nothing dated after the deck counts.</p></div>
+    <div class="card"><h3>Slow means held</h3><p>A timeout, error or spent budget makes a claim Held with a reason, never Cannot verify.</p></div>
+    <div class="card"><h3>Sent exactly once</h3><p>approved, sending, sent in one transaction with a unique key on the inbox row. No mail code exists.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Five verdicts</h2>
+  <div class="tablebox"><table>
+    <tr><th style="width:24%">Verdict</th><th>Meaning</th></tr>
+    <tr><td><span class="v ok">SUPPORTED</span></td><td>A dated record agrees with the claim within the tolerance in rules.yaml.</td></tr>
+    <tr><td><span class="v bad">CONTRADICTED</span></td><td>A dated record disagrees by more than the tolerance.</td></tr>
+    <tr><td><span class="v open">NOT COMPARABLE</span></td><td>The record measures something else, is too old, or is dated after the deck.</td></tr>
+    <tr><td><span class="v open">CANNOT VERIFY</span></td><td>No record settles it. The report names what would.</td></tr>
+    <tr><td><span class="v held">HELD</span></td><td>A timeout, an error or a limit. A slow source is never read as a missing one.</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>Live result: Locus, deck dated 15 November 2026</h2>
+  <p>A synthetic deck we wrote about a real company, checked against live Crustdata and web data. Run <code>run-20261122-104047-1b295e</code>.</p>
+  <div class="tablebox"><table>
+    <tr><th>Slide</th><th>Claim</th><th>Verdict</th><th>Evidence</th></tr>
+    <tr><td class="n">2</td><td>Team of 350 people</td><td><span class="v ok">SUPPORTED</span></td><td>349 on 2026-11-02, headcount history</td></tr>
+    <tr><td class="n">3</td><td>$50M Series C, June 2021</td><td><span class="v ok">SUPPORTED</span></td><td>$50,000,000 on 2021-06-02, funding milestone</td></tr>
+    <tr><td class="n">4</td><td>$78.75M raised in total</td><td><span class="v ok">SUPPORTED, low</span></td><td>Dated rounds summed; 3 rounds lack a date or amount</td></tr>
+    <tr><td class="n">5</td><td>Over 700 employees</td><td><span class="v bad">CONTRADICTED</span></td><td>349 on 2026-11-02</td></tr>
+    <tr><td class="n">6</td><td>Acme Freight Corp is a customer</td><td><span class="v open">CANNOT VERIFY</span></td><td>3 pages found, none dated</td></tr>
+    <tr><td class="n">7</td><td>$9B logistics software market</td><td><span class="v open">CANNOT VERIFY</span></td><td>No dated page names that market</td></tr>
+    <tr><td class="n">8</td><td>Hiring 40 engineers</td><td><span class="v open">CANNOT VERIFY</span></td><td>Open-roles count has no date (not in the answer key)</td></tr>
+  </table></div>
+  <p class="note">8 calls, 11 Crustdata credits, 74.8 s in calls, ₹11.96 at placeholder rates. No wrong Supported or Contradicted verdicts against the answer key.</p>
+</section>
+
+<section>
+  <h2>Business architecture</h2>
+  <div class="diagram"><pre class="mermaid">
+flowchart LR
+  B1[VC funds] --> REQ[Deck check request]
+  B2[Angel networks] --> REQ
+  B3[Corporate venture desks] --> REQ
+  REQ --> SVC[DeckCheck<br/>automated check]
+  SVC --> OUT[Sourced verdicts,<br/>red flags, questions]
+  OUT --> HUM[Analyst approves<br/>founder email]
+  CD[(Crustdata credits)] -. cost .-> SVC
+  LLM[(LLM tokens)] -. cost .-> SVC
+  OUT -->|per deck or monthly tier| REV[Revenue]
+  </pre></div>
+  <div class="tablebox"><table>
+    <tr><th>Tier</th><th>Decks a month</th><th>Monthly fee</th><th>Per deck</th></tr>
+    <tr><td>Pay per deck</td><td class="n">1</td><td class="n">₹799</td><td class="n">₹799</td></tr>
+    <tr><td>Angel network</td><td class="n">20</td><td class="n">₹9,999</td><td class="n">about ₹500</td></tr>
+    <tr><td>Boutique VC</td><td class="n">75</td><td class="n">₹29,999</td><td class="n">about ₹400</td></tr>
+    <tr><td>Growth fund or CVC desk</td><td class="n">250</td><td class="n">₹74,999</td><td class="n">about ₹300</td></tr>
+  </table></div>
+  <p class="note">Cost per deck is measured from the run ledger. Rupee rates in config/rules.yaml are placeholders until confirmed. Analyst cost (₹3,000 to ₹8,000 per deck) is our estimate.</p>
+</section>
+
+<section>
+  <h2>Trust, privacy and approvals</h2>
+  <ul>
+    <li>Only professional fields are kept for founders. Emails and phone numbers are dropped when data arrives.</li>
+    <li>A company or person counts as matched only on two independent signals; a namesake ends “unclear”.</li>
+    <li>Every verdict carries its reason code, confidence and sources, so a person can check it.</li>
+    <li>A missing record is never a contradiction. Thin public data gives “cannot verify”, never a penalty.</li>
+    <li>The founder email is drafted, held, and sent only after a person approves it, into a local test inbox.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Run it</h2>
+  <p>Python 3.11. Put <code>CRUSTDATA_API_KEY</code> and <code>OPENAI_API_KEY</code> in <code>.env</code> (gitignored).</p>
+  <pre class="code">python -m venv .venv && .venv/bin/pip install -r requirements.txt
+set -a; . ./.env; set +a
+python cli.py run --request tests/decks/deck_a_request.json --out out/result.json
+python cli.py resume &lt;run_id&gt; --out out/result.json     # after a kill
+streamlit run ui/app.py                                   # run, claims, approvals, inbox, ledger
+python -m pytest -q                                       # tests
+python tests/eval/run_eval.py                             # offline score against the answer key</pre>
+</section>
+
+<section>
+  <h2>What does not work yet</h2>
+  <ul>
+    <li>Web claims count only when a page shows a publish date, so many customer and market claims end “cannot verify”.</li>
+    <li>Crustdata’s open-roles count has no date, so hiring claims stay open. Competition claims are never judged.</li>
+    <li>Only Deck A has a full answer key; decks B and C have no recorded evidence yet.</li>
+    <li>Rupee rates and most tolerances in config/rules.yaml are placeholder values.</li>
+    <li>Image-only slides are not read.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>How it was built</h2>
+  <p>Two people and several AI coding agents (Claude Code, Codex, Gemini), each owning its own folders, coordinated through one rules file, written decisions and handoff notes. 19 written decisions, 5 hard-rule violations caught in review before they reached main, and every failure logged in docs/INCIDENTS.md. Planning documents were written before 10:15 AM; no code was.</p>
+</section>
+
+</main>
+<footer><div class="wrap">DeckCheck · ContextCon 05, BITS Pilani · Built 22 November 2026. Open-source credits: PyYAML, pytest, pypdf, Requests, ReportLab, Streamlit (see README).</div></footer>
