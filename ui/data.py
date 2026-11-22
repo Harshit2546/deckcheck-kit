@@ -54,7 +54,12 @@ def input_from_request(request: dict[str, Any], base_dir: Path,
     if deck_override is not None:
         run_input.deck_path = str(deck_override)
     elif not Path(run_input.deck_path).is_absolute():
-        run_input.deck_path = str((base_dir / run_input.deck_path).resolve())
+        # Beside the request first, then from the repo root (repo-relative paths such as
+        # tests/decks/deck_a.pdf), the same lookup cli.py uses (INCIDENTS A2).
+        beside = base_dir / run_input.deck_path
+        from_root = ROOT / run_input.deck_path
+        chosen = beside if beside.is_file() or not from_root.is_file() else from_root
+        run_input.deck_path = str(chosen.resolve())
     return run_input
 
 
