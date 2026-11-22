@@ -47,6 +47,8 @@ MISSING_TEXT: dict[str, str] = {
     "competition_not_judged": "An analyst's review of the competitor landscape; this is not checked automatically.",
     # T33
     "self_reported_only": "A page from the customer or a news outlet naming the customer.",
+    # T34 (D17): appended to `missing` of every <reason>_undated verdict
+    "undated": "A record with its own date on or before {ref}, to replace the undated source.",
 }
 
 
@@ -114,5 +116,10 @@ def make(claim: Claim, result: CheckResult, st: dict[str, Any] | None, label: Ve
         conf = cap(conf, st["ceiling"])
     if missing is None and label is not VerdictLabel.SUPPORTED:
         missing = MISSING_TEXT.get(reason, "More dated evidence from a named source.")
+    if st is not None and st.get("undated") and reason != "no_evidence":   # D17: decided from an undated source
+        day = st.get("retrieved")
+        text = f"No dated record was found; this uses an undated source retrieved on {day}. " + text
+        missing = " ".join(m for m in (missing, MISSING_TEXT["undated"].format(ref=st.get("ref"))) if m)
+        reason, conf = reason + "_undated", Confidence.LOW
     return Verdict(claim_id=claim.id, label=label, reason_code=reason, explanation=text,
                    evidence_ids=[e.id for e in result.evidence], confidence=conf, missing=missing)

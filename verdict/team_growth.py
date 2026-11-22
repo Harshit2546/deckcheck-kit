@@ -23,6 +23,8 @@ def judge(claim: Claim, result: CheckResult, rules: dict[str, Any], st: dict[str
     base = parse_date(result.observed.get("baseline_date"))
     if base is None or not any(w in metric for w in _YEARLY):
         return _period(claim, result, st, "the source's growth window is not known to match the deck's period")
+    if st["rec"] is None:   # D17 undated: the window end is unknown, so the period cannot be matched
+        return _period(claim, result, st, "the source gives no date for the newest point of its growth window")
     window = (st["rec"] - base).days
     slack = int(rule(rules, "tolerances.team_growth.window_tolerance_days"))
     if abs(window - 365) > slack:

@@ -161,3 +161,31 @@ def test_report_is_deterministic_apart_from_timestamp(conn, rules):
     r2, m2 = build(conn, rules, "r1")
     r1.pop("generated_at"), r2.pop("generated_at")
     assert r1 == r2
+
+
+def test_undated_source_is_marked_in_markdown_only(conn, rules):
+    """T34 (D17): an evidence row with no record date shows 'source date: undated (retrieved <date>)' in the
+    Markdown; the report JSON keeps its keys (record_date stays None, no new field)."""
+    seed(conn)
+    claim = Claim(id="u", run_id="r1", slide=8, quote="q", type=ClaimType.HIRING, subject="Acme")
+    store.insert_claim(conn, claim)
+    ev = Evidence(id="e-u", claim_id="u", source_type=SourceType.CRUSTDATA_COMPANY, locator="/company",
+                  field_or_quote="hiring.openings_count", value=12, record_date=None,
+                  retrieved_at="2026-01-20T10:00:00+00:00", call_id=None)
+    store.save_check_result(conn, "u", CheckResult(evidence=[ev], observed={"k": 1}))
+    store.save_verdict(conn, Verdict(claim_id="u", label=L.CONTRADICTED, reason_code="outside_tolerance_undated",
+                                     explanation="No dated record was found; this uses an undated source retrieved "
+                                                 "on 2026-01-20. Deck 40, source 12.",
+                                     evidence_ids=["e-u"], confidence=C.LOW))
+    report, md = build(conn, rules, "r1")
+    assert "source date: undated (retrieved 2026-01-20)" in md
+    src = report["red_flags"][0]["sources"][0]
+    assert src["record_date"] is None and set(src) == {"source_type", "locator", "field_or_quote", "value",
+                                                        "record_date", "retrieved_at", "call_id"}
+
+
+def test_dated_source_keeps_record_date_text(conn, rules):
+    seed(conn)
+    add(conn, "a", 5, ClaimType.TEAM_SIZE, L.CONTRADICTED)
+    _, md = build(conn, rules, "r1")
+    assert "record 2026-01-10" in md and "undated" not in md
