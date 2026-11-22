@@ -16,4 +16,9 @@ One line per thing a judge might ask to change. Format: To change X -> edit Y in
 - To add a verdict rule for a new claim type -> new file verdict/<type>.py with `judge(...)`, one branch in `_route` in verdict/engine.py, its keys in rules.yaml
 - To add or remove a column in the report claim table -> `output.fields` in config/rules.yaml (names allowed: `ROW_FIELDS` in report/builder.py; add a new name there and in `_fields`)
 - To reword founder questions, evidence requests or held notes -> report/question_templates.yaml (per claim type, `default` is the fallback)
+- To change how many signals identify a company or person -> `identity.min_signals` in config/rules.yaml
+- To change which words are dropped from company names before matching (Pvt, Ltd, ...) -> `LEGAL_SUFFIXES` in resolve/names.py
+- To add an identity signal -> `_company_signals` or `_person_signals` in resolve/entities.py (and its test in tests/resolve/)
+
 - To change the founder email wording -> `_body()` in actions/email.py (questions come from report/question_templates.yaml)
+- To change how old a record may be for one claim type (for example funding rounds) -> `tolerances.<claim type>.max_record_age_days` in config/rules.yaml; without it `tolerances.max_record_age_days` (global) applies (D14)

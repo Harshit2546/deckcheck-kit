@@ -13,7 +13,7 @@ from typing import Any
 from core.config import rule
 from core.models import (CheckResult, Claim, ClaimType, Confidence, Verdict, VerdictLabel)
 from verdict import founder, funding, team_size
-from verdict.common import MISSING_TEXT, make, num, parse_date
+from verdict.common import MISSING_TEXT, headcount_missing, make, num, parse_date
 
 REQUIRED_KEYS = [
     "identity.min_signals", "tolerances.max_record_age_days", "title_levels",
@@ -64,7 +64,7 @@ def decide(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> Verdict:
     # NOT_COMPARABLE needs an explicit reason from the checker; without evidence and reason it is just "no evidence".
     if (not result.evidence or not obs) and (result.comparable or not obs.get("not_comparable_reason")):
         return make(claim, result, None, VerdictLabel.CANNOT_VERIFY, "no_evidence", Confidence.LOW,
-                    "The checker returned no dated evidence for this claim.")
+                    "The checker returned no dated evidence for this claim.", missing=headcount_missing(claim, result))
     early = _identity_and_comparable(claim, result, rules)
     if early is not None:
         return early
@@ -96,6 +96,14 @@ def _cannot(claim: Claim, result: CheckResult, reason: str, text: str) -> Verdic
     return make(claim, result, None, VerdictLabel.CANNOT_VERIFY, reason, Confidence.LOW, text)
 
 
+def _max_age_days(rules: dict[str, Any], claim: Claim) -> float:
+    """Oldest record that still counts: tolerances.<claim type>.max_record_age_days if set, else the global key."""
+    try:
+        return float(rule(rules, f"tolerances.{claim.type.value}.max_record_age_days"))
+    except KeyError:
+        return float(rule(rules, "tolerances.max_record_age_days"))
+
+
 def _prepare(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> dict[str, Any] | Verdict:
     """Dates, freshness, tolerance and confidence ceiling shared by all rules; or an early Verdict."""
     obs = result.observed
@@ -105,10 +113,14 @@ def _prepare(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> dict[s
     ref = parse_date(obs.get("reference_date")) or parse_date(claim.as_of)
     if ref is None:
         return _cannot(claim, result, "no_reference_date", "Neither the claim nor the deck gives a date to compare the record with.")
-    gap = abs((rec - ref).days)
-    if gap > rule(rules, "tolerances.max_record_age_days"):
+    if rec > ref:   # D3: no fact from after the as-of date may support or contradict a claim
+        return make(claim, result, None, VerdictLabel.NOT_COMPARABLE, "record_after_as_of", Confidence.HIGH,
+                    f"The record is dated {rec}, after the date the claim refers to ({ref}); it cannot support or "
+                    "contradict the claim.", missing=f"A record dated on or before {ref}.")
+    gap = (ref - rec).days
+    if gap > _max_age_days(rules, claim):
         return make(claim, result, None, VerdictLabel.NOT_COMPARABLE, "stale_record", Confidence.MEDIUM,
-                    f"The record is dated {rec}, {gap} days from the claim's date {ref}; too far apart to compare.")
+                    f"The record is dated {rec}, {gap} days before the claim's date {ref}; too far apart to compare.")
     ceiling = Confidence.MEDIUM if obs.get("reference_date_source") in ("pdf_metadata", "missing") else Confidence.HIGH
     tol_key = _TYPES_WITH_RULES.get(claim.type)
     tol = (rule(rules, f"tolerances.{tol_key}.tolerance_pct") / 100) if tol_key and tol_key != "founder_background" else 0.0

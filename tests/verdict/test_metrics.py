@@ -6,7 +6,7 @@ Reference date is 2026-01-15; FRESH record is 5 days older; max_record_age_days 
 
 import pytest
 
-from core.models import ClaimType, Confidence as C, SourceType, VerdictLabel as L
+from core.models import CheckResult, ClaimType, Confidence as C, SourceType, VerdictLabel as L
 from tests.verdict.fakes import make_claim, make_result
 from verdict.engine import decide
 
@@ -54,7 +54,18 @@ def test_team_size_band(rules):
 
 def test_team_size_no_headcount_key(rules):
     c, r = team(40, {"something_else": 1})
-    assert decide(c, r, rules).reason_code == "no_evidence"
+    v = decide(c, r, rules)
+    assert v.reason_code == "no_evidence" and v.missing == "A headcount record dated on or before 2026-01-15."
+
+
+def test_d13_no_history_point_gives_headcount_missing_text(rules):
+    c = make_claim(TS, "headcount", 40, "people", as_of=None)
+    res = CheckResult(evidence=[], observed={"reference_date": "2026-03-01"})       # checker found no dated point
+    v = decide(c, res, rules)
+    assert (v.label, v.reason_code) == (L.CANNOT_VERIFY, "no_evidence")
+    assert v.missing == "A headcount record dated on or before 2026-03-01."
+    other = decide(make_claim(FU, "total_raised", 1, "USD"), CheckResult(), rules)
+    assert other.missing == "Any dated record for this claim from a named source."
 
 
 def test_team_size_zero_claim(rules):

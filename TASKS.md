@@ -16,7 +16,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T07 | claude-core | core/runner.py: state machine, per-claim checkpoints, resume, cost and time limits | kill mid-run then resume finishes with no duplicate calls | done (harshit) |
 | T08 | codex-a | sources/crust.py: rate limit, backoff on 429/5xx, per-call timeout to HELD, ledger row per call, TTL cache | unit tests for 429, timeout, ledger | todo |
 | T09 | ag-b | extract/claims.py: LLM structured claims + quote-on-slide check | invented quote is rejected in test | done |
-| T10 | codex-a | resolve/entities.py: company by domain, founders, two-signal rule, confidence | namesake fixture returns identity_unclear | todo |
+| T10 | claude-verdict | resolve/entities.py: company by domain, founders, two-signal rule, confidence | namesake fixture returns identity_unclear | in-progress (claude-verdict@win, 90%: resolve/entities.py + 29 tests pass against a fake sources.crust; waits for codex-a get_company/get_people/search_people, D12) |
 | T11 | ag-b | checkers: team_size, funding | tests pass | done |
 | T12 | codex-a | checkers: founder_background | tests pass | todo |
 | T13 | claude-verdict | verdict/engine.py for founder, team_size, funding | Deck A matches answer key for those claims | in-progress (claude-verdict@win, 85%: engine + 101 tests pass; waiting for claude-core to add the verdict: keys to rules.yaml (D8), without them a real run raises ValueError) |

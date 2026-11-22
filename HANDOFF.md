@@ -381,6 +381,29 @@ Open questions for a human:
 - None. Ready for merge.
 Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
 
+### 15:08 · claude-verdict@win · lane claude-verdict · task T10
+
+Status: in-progress (~90%; code and tests done, needs codex-a's sources/crust.py)
+Done this session:
+- resolve/entities.py: `run(ctx, claims) -> {"company": E, "founders": [E...]}` (D7 stage; shape and signal rules in DECISIONS D12). Company by domain; founders by profile URL (one batched call) or by name + company id; two-signal rule from `identity.min_signals`; namesake without the company link is `unclear`; no raw payloads or contact fields.
+- resolve/names.py (strict name and domain matching, `find_founder` helper for checkers), resolve/payloads.py (reads only ids, names, domains, profile URLs, employer ids).
+- tests/resolve/: 29 tests against a fake `sources.crust` (fixtures only in tests/). Full suite: 149 passed.
+In progress / exact next step:
+- codex-a: implement in sources/crust.py `get_company(ctx, domain)`, `get_people(ctx, urls)` (one batched call), `search_people(ctx, name, company_id)`, each returning `(payload | None, call_id)` (D12). Then run a real resolve on Deck A and compare the payload shapes with resolve/payloads.py (shapes come from docs, not from a live response).
+- T12 (founder_background checker, codex-a): use `resolve.names.find_founder(ctx.entities, claim.subject)` and put `entity["identity"]` and `entity["identity_signals"]` into observed.
+How to run / test:
+- cd dc-claude-verdict && python -m pytest tests/resolve -q   (all: python -m pytest -q)
+Known bugs or shortcuts taken:
+- Payload field paths are unverified against a live Crustdata response (T02 still pending Deck A).
+- A source error in resolve stops the run in state `extracted` (runner behaviour); a resume repeats the whole stage, so company and people calls can repeat and show twice in the ledger.
+- The untracked `logs/` folder comes from tests and is not in .gitignore; I did not commit it. Merger: add `logs/` to .gitignore.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D12.
+Open questions for a human:
+- Is `identity_signals` = 2 for an exact-domain company match acceptable (domain + deck company name)? If the deck never names the company, the company stays `unclear`.
+- Merger: D11 is cited in checkers/_common.py but missing from DECISIONS.md.
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
+
 ### 14:40 · harshit · lane claude-core · task D8
 
 Status: done
@@ -468,3 +491,64 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - none new (the after-as_of date rule for claude-verdict from the 15:30 entry is still open)
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:40 · claude-verdict@win · lane claude-verdict · task T13 (D3 date rule)
+
+Status: done (the D3 rule); T10 resumes
+Done this session:
+- Merged origin/main (dc0af36: D3, io/adapter.py, D8 keys, T19) into lane/claude-verdict; conflicts in DECISIONS.md, HANDOFF.md, LIVE_FIX_MAP.md resolved by keeping both sides.
+- verdict/engine.py: a record dated AFTER the reference date is NOT_COMPARABLE `record_after_as_of` (confidence high, missing "A record dated on or before <date>."), checked before staleness; staleness now counts only records older than the reference date. 8 tests added or changed in tests/verdict/test_engine_order.py (one day after, far after, same day allowed, wildly wrong number still not decided, claim.as_of earlier than the deck date, all three claim types, old record still stale). verdict/DESIGN.md sections 2, 4, 5 updated. 175 tests pass.
+In progress / exact next step:
+- T10: D12 published; codex-a must build get_company / get_people / search_people.
+- Checkers (ag-b, codex-a): set `observed.record_date` to the data point's own date. A Crustdata snapshot refreshed after the deck date will now come out NOT_COMPARABLE; use only dated events (funding rounds, roles) on or before the reference date.
+- Test decks (T05): the deck date must be on or after the date of the live data it is checked against, or every claim comes out NOT_COMPARABLE.
+How to run / test:
+- cd dc-claude-verdict && python -m pytest -q
+Known bugs or shortcuts taken:
+- Nothing about this rule is configurable (it is the handbook rule), so no LIVE_FIX_MAP line.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- Implements D3; no new decision.
+Open questions for a human:
+- For headcount and other snapshot fields, Crustdata gives no measurement date, only a record refresh date. Under D3 these will be NOT_COMPARABLE for any deck dated before the refresh. Does the handbook allow treating the refresh date as the as-of date when the deck date is today?
+Credits / tokens used this session (rough): none
+
+### 16:00 · claude-verdict@win · lane claude-verdict · task T13 (D13 wording)
+
+Status: done; T10 still waits for codex-a's sources/crust.py
+Done this session:
+- Merged origin/main (6556474, D13: D3 stays strict, headcount comes from the latest dated `headcount.timeseries[]` point on or before the reference date). The engine's date logic needed no change.
+- verdict/DESIGN.md section 3.1 rewritten: `headcount` and `record_date` come from one dated timeseries point; the undated snapshot (`headcount.total`, `employee_count_range`, `updated_at`) is never used; no such point means no evidence.
+- verdict/common.py `headcount_missing()`; engine and team_size use it so the no-evidence case says "A headcount record dated on or before <reference date>." (D13 wording). 2 tests added. 176 tests pass.
+In progress / exact next step:
+- ag-b (via the user): change checkers/team_size.py and team_growth.py as in D13 and DESIGN.md 3.1; keep `reference_date` in `observed` even when no point is found. codex-a: `get_company` must request the headcount section with the timeseries.
+- T10: waits for get_company / get_people / search_people in sources/crust.py (D12).
+- Test decks: choose the deck date so that a timeseries point exists on or before it.
+How to run / test:
+- cd dc-claude-verdict && python -m pytest -q
+Known bugs or shortcuts taken:
+- The timeseries field names (`employee_count`, point date key) come from docs/crustdata_fields.md on lane/codex-a, not from a live response.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- None new (D13 is the merger's).
+Open questions for a human:
+- none new
+Credits / tokens used this session (rough): none
+
+### 16:25 · claude-verdict@win · lane claude-verdict · task T13 (D14 per-type record age)
+
+Status: done; waits for the rules.yaml key
+Done this session:
+- verdict/engine.py `_max_age_days`: staleness limit read from `tolerances.<claim type>.max_record_age_days` if present, else the global key. D3 untouched. 5 new tests (2021 funding total in a 2026 deck: SUPPORTED low `within_tolerance_undated_rounds`; round amount from 2021 decided; no per-type key means `stale_record`; stricter per-type limit; D3 still wins). 181 tests pass.
+- DECISIONS D14 (key to add), DESIGN.md row 8 and section 6, LIVE_FIX_MAP line.
+In progress / exact next step:
+- Merger / claude-core: add `max_record_age_days: 3650` under `tolerances.funding` in config/rules.yaml (placeholder; finance partner confirms). Until then funding records older than 365 days come out `stale_record`.
+- ag-b: funding checker reports `record_date` = newest dated round, `undated_rounds` = count of undated rounds, `matched_round` = the dated round (D14 note).
+- T10 still waits for sources/crust.py; Deck A still waits for the Locus probe result.
+How to run / test:
+- cd dc-claude-verdict && python -m pytest -q
+Known bugs or shortcuts taken:
+- A funding total with undated rounds is SUPPORTED at low confidence only; it does not prove the undated rounds exist.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D14.
+Open questions for a human:
+- Finance partner: is 10 years a sensible funding age limit?
+Credits / tokens used this session (rough): none
