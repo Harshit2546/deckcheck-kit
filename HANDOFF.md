@@ -400,3 +400,23 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - Deck A company domain and founder profile URLs or names are needed for T02.
 Credits / tokens used this session (rough): 0 Crustdata credits (fixture tests only).
+
+### 13:51 · yash · lane codex-a · task T02
+
+Status: blocked (company probe done, founder enrichment paused by the human)
+Done this session:
+- docs/crustdata_fields.md: recorded one exact-domain Locus company lookup, the observed identity and metrics, and the available dates.
+- tests/fixtures/crustdata/deck_a_locus_company.json: sanitized the live company response and scanned for contact information and secrets before staging.
+- The company matched Crustdata ID 7403. Headcount total 349 has no own date. The latest dated point is 349 on 2026-11-02. Funding total is USD 78.75M, with last fundraise date 2021-06-02. The individual funding_rounds key is absent although num_funding_rounds is 7.
+In progress / exact next step:
+- Wait for explicit authorization to probe founders. Then use supplied or verified profile URLs for one batched /person/enrich call and record the results in the T02 field reference and sanitized test fixtures.
+How to run / test:
+- python -m json.tool tests/fixtures/crustdata/deck_a_locus_company.json > $null
+- git diff --check
+Known bugs or shortcuts taken:
+- No per-call receipt. The 2.0-credit ledger amount is an estimate. The aggregate investment amount and undated headcount total carry no as-of timestamp. Individual round dates were unavailable.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- No contract changes. Limited the single request to basic_info, headcount and funding.
+Open questions for a human:
+- Founder enrichment awaits authorization.
+Credits / tokens used this session (rough): 2.0 Crustdata credits estimated (call-c1500cda7977).
