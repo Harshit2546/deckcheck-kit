@@ -41,3 +41,16 @@ Change: D4 is withdrawn. The adapter is `io/adapter.py` (`from_kit()`, `to_kit()
 Why: stick to the lane prompt and PLAN.md file layout; only the import mechanism needed a workaround.
 Files affected: io/adapter.py, core/adapter_loader.py
 Who must know (lanes): all lanes, merger (fills the mapping from D3)
+
+### 12:35 · harshit · D7: how the runner calls every lane (stage signatures), HELD reasons, resolutions table
+Change: core/runner.py imports each stage by name (`STAGES` in core/runner.py). Each lane must expose exactly:
+- `extract/claims.py: run(ctx: RunContext) -> list[Claim]` (runner assigns ids `<run_id>-c001`...; may call store.update_run_input for the PDF-metadata deck date)
+- `resolve/entities.py: run(ctx: RunContext, claims: list[Claim]) -> dict` (JSON-safe: entity ids + confidence only, no raw person payloads; saved in new table `resolutions`, given back as `ctx.entities`)
+- `checkers/<claim_type>.py: check(claim: Claim, ctx: RunContext) -> CheckResult` (PLAN.md; evidence.claim_id must equal claim.id)
+- `verdict/engine.py: decide(claim: Claim, result: CheckResult, rules: dict) -> Verdict` (must return HELD with reason_code = result.held_reason whenever held_reason is set)
+- `report/builder.py: build(conn, rules, run_id) -> tuple[dict, str]` (JSON, Markdown)
+- `actions/email.py: draft(conn, rules, run_id) -> Action | None` (claude-core, T19)
+New in core/models.py: `RunContext(conn, rules, run, entities)` and `HeldReason` (budget, time, timeout, error, no_checker). New core/limits.py: sources and LLM callers call `limits.ensure_within(ctx)` before every external call (raises `LimitExceeded`), and raise `TimeoutError` when a call exceeds `per_call_timeout_s`. The runner turns LimitExceeded / TimeoutError / any checker exception / a missing checker module into a HELD CheckResult; a missing extract/resolve/verdict/report module leaves the run waiting in its state (resume continues once merged).
+Why: other lanes need fixed function shapes to code against now; resume must not repeat calls; limits must hold before every call, not only per claim.
+Files affected: core/runner.py, core/limits.py, core/models.py, core/store.py; extract/, resolve/, checkers/, verdict/, report/, sources/
+Who must know (lanes): all lanes

@@ -98,3 +98,28 @@ Open questions for a human:
 - ag-b and codex-a branches start from the reverted Pydantic T01; after this branch is merged, pull main and use core/models.py (dataclasses).
 - Merger: kit format (D3) for io/adapter.py. Finance partner: rules.yaml values.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 12:40 · harshit · lane claude-core · task T07
+
+Status: done
+Done this session:
+- core/runner.py: start()/resume() walk created -> extracted -> resolved -> checking -> decided -> reported -> done. Each step saves its output and the new state in one transaction; each claim is checkpointed (checked, then decided), so resume skips finished claims. Stages are imported by name from STAGES (signatures in D7); tests inject fakes.
+- core/limits.py: limit_reason() / ensure_within() compare ledger cost, credits and elapsed time since runs.started_at with rules limits; LimitExceeded.
+- core/models.py: RunContext, HeldReason. core/store.py: resolutions table + save/get_resolution.
+- cli.py: exit 0 = done, 1 = not finished (waiting for a stage or failed; see runs.error), 2 = bad input.
+- tests/core/test_runner.py: 9 tests incl. a real `os._exit(137)` kill in a child process, then resume: one ledger call per claim, one action.
+In progress / exact next step:
+- T19: claim it, then actions/email.py draft() (pending founder email to rules actions.test_inbox), approve/reject, and the exactly-once send (approved -> sending -> inbox UNIQUE key -> sent; restart reconciles `sending`).
+How to run / test:
+- .venv/bin/pytest -q   (24 tests)
+- .venv/bin/pytest tests/core/test_runner.py -q -k kill
+Known bugs or shortcuts taken:
+- A claim killed in the middle of its check re-runs on resume, so calls it made before the kill happen again (ledger shows both). Finished claims never repeat.
+- max_seconds counts from the first start, including time the process was dead; a long pause before resume makes remaining claims HELD (time).
+- Until extract/ is merged, `cli.py run` creates the run and stops with exit 1 ("extract.claims is not built yet").
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D7: stage signatures, HeldReason values, ensure_within() before every external call, resolutions table.
+Open questions for a human:
+- Tell every lane about D7 (their function names and signatures).
+- report lane: confirm module name report/builder.py, or tell claude-core to change STAGES.
+Credits / tokens used this session (rough): 0 Crustdata credits
