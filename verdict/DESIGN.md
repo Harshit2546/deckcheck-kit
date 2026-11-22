@@ -31,7 +31,7 @@ Every threshold is read with `core.config.rule()`; there are no code defaults, a
 | 3 | `observed.identity` is `unclear` | CANNOT_VERIFY | `identity_unclear` | low |
 | 4 | `observed.identity` is `not_found` | CANNOT_VERIFY | `entity_not_found` | low |
 | 5 | `result.comparable` is False | NOT_COMPARABLE | `observed.not_comparable_reason` (default `not_comparable`) | medium |
-| 5b | `identity` is not `confirmed`, or `identity_signals` < `identity.min_signals` (a missing key counts as not confirmed) | CANNOT_VERIFY | `identity_unclear` | low |
+| 5b | `identity` is not `confirmed`, or `identity_signals` < `identity.min_signals` (a missing key counts as not confirmed). T33: for claim.type `market_size` only, `identity == "not_applicable"` passes this row (a market is not an entity, D16) | CANNOT_VERIFY | `identity_unclear` | low |
 | 6 | no `observed.record_date` (or not a date) | CANNOT_VERIFY | `missing_record_date` | low |
 | 7 | no reference date | CANNOT_VERIFY | `no_reference_date` | low |
 | 7b | `record_date` is AFTER the reference date (D3: no fact from after the as-of date may support or contradict a claim; one day after is enough) | NOT_COMPARABLE | `record_after_as_of`; `missing` = "A record dated on or before <reference date>." | high |
@@ -204,18 +204,50 @@ outside -> CANNOT_VERIFY `estimate_gap_unclear`. **Never CONTRADICTED.**
 Always CANNOT_VERIFY `competition_not_judged`; the competitors the source names stay in the evidence. Not in
 `_TYPES_WITH_RULES` (it has no `tolerance_pct`).
 
+### 3.10 market_size (claim.type `market_size`; T33, D16 web source)
+
+Observed: `estimates: [{value, currency, url, domain, quote, published_date, evidence_id}]`, `identity: "not_applicable"`.
+Rows 6-8 use `record_date` (newest estimate); then each estimate is kept only if its own `published_date` is on or before
+the reference date and within `tolerances.market_size.max_record_age_days` (D3, D14), and its value is a positive number.
+Tolerance = `tolerances.market_size.tolerance_pct`, diff = |estimate - claim| / claim.
+
+| Condition (in order) | Label | reason_code | confidence |
+|---|---|---|---|
+| claim value not a positive number | CANNOT_VERIFY | `claim_value_unusable` | low |
+| no kept estimate | CANNOT_VERIFY | `no_evidence` | low |
+| no kept estimate in `claim.unit`'s currency (other currencies are ignored, never converted) | NOT_COMPARABLE | `currency_mismatch` | medium |
+| any same-currency estimate within tolerance | SUPPORTED | `within_tolerance` | medium if diff <= supported_margin x tol, else low |
+| all same-currency estimates outside tolerance, from >= `min_agreeing_sources` distinct domains, and every pair within tolerance of each other | CONTRADICTED | `sources_agree_otherwise` | medium if fresh, else low |
+| anything else (one disagreeing source, same domain twice, sources that disagree with each other) | CANNOT_VERIFY | `source_may_be_incomplete` (market-specific `missing`) | low |
+
+Never high: published estimates differ by method, so one rule cannot be sure.
+
+### 3.11 customer (claim.type `customer`; T33, D16 web source)
+
+Observed: company identity as usual (two-signal rule), `customer_name`, `mentions: [{url, domain, quote,
+published_date, independent, evidence_id}]`. Mentions are kept by the same date rule as 3.10
+(`tolerances.customer.max_record_age_days`). Route-only: not in `_TYPES_WITH_RULES` (no `tolerance_pct`).
+
+| Condition | Label | reason_code | confidence |
+|---|---|---|---|
+| no kept mention | CANNOT_VERIFY | `no_evidence` | low |
+| a kept mention with `independent is True` (the boolean, not a truthy string) | SUPPORTED | `independent_mention` | medium |
+| only self-published mentions | CANNOT_VERIFY | `self_reported_only`; `missing` = "A page from the customer or a news outlet naming the customer." | low |
+
+Never CONTRADICTED: not finding a customer on the web is not evidence that they are not a customer.
+
 ## 4. Reason codes the report lane can rely on
 
 HELD: `timeout`, `error`, `budget`, `time`, `no_checker` (core `HeldReason`). CANNOT_VERIFY: `no_evidence`, `identity_unclear`, `entity_not_found`,
 `claim_value_unusable`, `missing_record_date`, `no_reference_date`, `unsupported_metric`, `source_may_be_incomplete`,
 `round_not_found`, `investor_not_listed`, `employer_not_in_profile`, `title_unmapped`, `missing_dates`,
 T29: `observed_more_than_claimed`, `growth_scale_unclear`, `estimate_gap_unclear`, `founding_year_close`, `location_unclear`,
-`prior_company_not_checked`, `acquirer_differs`, `competition_not_judged`.
+`prior_company_not_checked`, `acquirer_differs`, `competition_not_judged`, T33: `self_reported_only`.
 NOT_COMPARABLE: `record_after_as_of`, `stale_record`, `currency_mismatch`, `informal_title`, T29: `metric_mismatch`, `period_mismatch`,
 plus any checker-given `not_comparable_reason`.
 SUPPORTED: `within_tolerance`, `within_tolerance_undated_rounds`, `within_band`, `investor_listed`, `employer_listed`,
-`title_level_met`, `tenure_within_tolerance`, T29: `acquirer_matches`. CONTRADICTED: `outside_tolerance`, `outside_band`, `observed_higher`,
-`title_level_lower`, `tenure_outside_tolerance`.
+`title_level_met`, `tenure_within_tolerance`, T29: `acquirer_matches`, T33: `independent_mention`. CONTRADICTED: `outside_tolerance`, `outside_band`, `observed_higher`,
+`title_level_lower`, `tenure_outside_tolerance`, T33: `sources_agree_otherwise` (market_size only).
 
 ## 5. Asks for other lanes
 
@@ -240,6 +272,10 @@ SUPPORTED: `within_tolerance`, `within_tolerance_undated_rounds`, `within_band`,
 - T29, checkers/traction.py: say whether `growth_rate` is a fraction or a percent and over which period
   (e.g. `observed["growth_rate_pct_yoy"]`); until then traction growth claims stay `growth_scale_unclear`.
 - T29, ag-b (extract): for hiring, put the role family in `unit` ("engineers", "sales") so subset claims are caught.
+- T33, extract: for market_size put the ISO currency in `claim.unit` and the value in absolute major units; a missing
+  unit makes every estimate `currency_mismatch`. For customer put the customer's name in `claim.value`.
+- T33, web checkers (D16): `independent` must be a real boolean; `domain` must be the registrable domain (sub-pages
+  of one site count as one source for CONTRADICTED); every estimate/mention needs its own `published_date`.
 
 ## 6. rules.yaml keys the engine reads
 
@@ -247,6 +283,10 @@ T29 (read inside each rule, not in REQUIRED_KEYS): `tolerances.hiring.tolerance_
 `tolerances.prior_exit.tolerance_pct`, `tolerances.team_growth.tolerance_pct`, `tolerances.company_fact.tolerance_pct`
 (read by _prepare, unused), NEW `tolerances.company_fact.year_gap_cannot_verify` (PLACEHOLDER 1),
 NEW `tolerances.team_growth.window_tolerance_days` (PLACEHOLDER 45).
+
+T33 (already in rules.yaml, read inside each rule): `tolerances.market_size.tolerance_pct`,
+`tolerances.market_size.min_agreeing_sources`, `tolerances.market_size.max_record_age_days`,
+`tolerances.customer.max_record_age_days`. `tolerances.customer.require_exact_quote` is for the checker, not the engine.
 
 Existing: `tolerances.team_size.tolerance_pct`, `tolerances.funding.tolerance_pct`,
 `tolerances.founder_background.min_title_level`, `tolerances.founder_background.tenure_tolerance_months`,
