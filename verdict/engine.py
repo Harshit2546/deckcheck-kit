@@ -12,7 +12,7 @@ from typing import Any
 
 from core.config import rule
 from core.models import (CheckResult, Claim, ClaimType, Confidence, Verdict, VerdictLabel)
-from verdict import founder, funding, team_size
+from verdict import company_fact, founder, funding, hiring, prior_exit, team_growth, team_size, traction
 from verdict.common import MISSING_TEXT, headcount_missing, make, num, parse_date
 
 REQUIRED_KEYS = [
@@ -31,6 +31,8 @@ _HELD_MISSING = {
 }
 _TYPES_WITH_RULES = {
     ClaimType.TEAM_SIZE: "team_size", ClaimType.FUNDING: "funding", ClaimType.FOUNDER_BACKGROUND: "founder_background",
+    ClaimType.HIRING: "hiring", ClaimType.TRACTION: "traction", ClaimType.COMPANY_FACT: "company_fact",
+    ClaimType.PRIOR_EXIT: "prior_exit", ClaimType.TEAM_GROWTH: "team_growth",
 }
 
 
@@ -68,6 +70,10 @@ def decide(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> Verdict:
     early = _identity_and_comparable(claim, result, rules)
     if early is not None:
         return early
+    if claim.type is ClaimType.PRIOR_EXIT:   # T29: the checker fetches the deck's own company today
+        early = prior_exit.guard(claim, result)
+        if early is not None:
+            return early
     prepared = _prepare(claim, result, rules)
     if isinstance(prepared, Verdict):
         return prepared
@@ -139,6 +145,20 @@ def _route(claim: Claim, result: CheckResult, rules: dict[str, Any], st: dict[st
         return funding.judge(claim, result, st)
     if claim.type is ClaimType.FOUNDER_BACKGROUND:
         return founder.judge(claim, result, rules, st)
+    if claim.type is ClaimType.HIRING:
+        return hiring.judge(claim, result, st)
+    if claim.type is ClaimType.TRACTION:
+        return traction.judge(claim, result, st)
+    if claim.type is ClaimType.COMPANY_FACT:
+        return company_fact.judge(claim, result, rules, st)
+    if claim.type is ClaimType.PRIOR_EXIT:
+        return prior_exit.judge(claim, result, st)
+    if claim.type is ClaimType.TEAM_GROWTH:
+        return team_growth.judge(claim, result, rules, st)
+    if claim.type is ClaimType.COMPETITION:   # not in _TYPES_WITH_RULES: it has no tolerance_pct
+        return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "competition_not_judged", Confidence.LOW,
+                    "Competitor lists are subjective and incomplete, so claims about competitors are not judged "
+                    "automatically; the competitors the source names are in the evidence.")
     return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "unsupported_metric", Confidence.LOW,
                 f"No verdict rule exists yet for {claim.type.value} / {claim.metric!r}.")
 
