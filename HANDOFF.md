@@ -196,3 +196,24 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - Merger: D3 (kit output format) so to_kit() can be written; finance partner: rewrite report/question_templates.yaml.
 Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
+
+### 13:35 · claude-verdict-1 · lane claude-verdict · task T27
+
+Status: in-progress (first merge review done; T27 repeats before every merge to main)
+Done this session:
+- docs/reviews/T27_ag-b.md: 16 numbered fixes for lane ag-b (origin/lane/ag-b @ 64b2a9e) against the real core. Their tests fail at import on the real core (`CheckContext`, `Rules`, `Store` do not exist); every `log_step` call has the wrong argument order; every `Evidence(...)` lacks `retrieved_at` and `call_id`; observed keys differ from D8; funding falls back to the wrong round; Gemini key sits in the URL and can leak into the ledger and logs.
+- docs/reviews/T27_codex-a.md: lane codex-a (origin/lane/codex-a @ 501e19b) has only T02 docs so far, no code. The file lists what breaks on merge (nothing expected) and the contract T08, T10, T12 must meet (signatures, ledger in finally, limits, 5 RPM budget, entities shape, ethics, observed keys).
+- verdict/engine.py: a result with no evidence and `comparable=False` but no `not_comparable_reason` is now CANNOT_VERIFY `no_evidence` (not NOT_COMPARABLE); DESIGN.md row 2 and a test updated. 101 tests pass.
+In progress / exact next step:
+- Tell ag-b and codex-a to read their review file, `git fetch && git merge origin/main`, then work the list in order.
+- T20: waits for the hour-3 requirement change (13:15 in PLAN; read it, write the DECISIONS entry, assign it, change config or code).
+How to run / test:
+- cd dc-claude-verdict && python -m pytest -q
+Known bugs or shortcuts taken:
+- Reviews are static: I ran ag-b's tests on a scratch copy of origin/main (removed afterwards) and read the code; codex-a has no code to run. Items about Crustdata field names are not verified against the live API.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- Entities shape for resolve (codex-a review item 9) is a proposal, not a contract; codex-a and ag-b must agree it in their HANDOFF entries.
+Open questions for a human:
+- Correction: an earlier entry of mine says the adapter moved to kit_io/adapter.py (D4). D6 withdrew D4: the adapter is io/adapter.py, loaded with core.adapter_loader. origin/main has io/adapter.py and no kit_io/. The coordinating session asked me to rename mentions to kit_io; I did not, because that would be wrong on main today. Please confirm D6 is current.
+- Still open from before: D8 keys in rules.yaml (claude-core), finance partner's answers to the three DESIGN.md questions, D3 kit output format.
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate

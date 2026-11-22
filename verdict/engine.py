@@ -61,7 +61,8 @@ def decide(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> Verdict:
         return held_verdict(claim.id, str(result.held_reason), result.observed.get("held_detail"))
     check_rules(rules)
     obs = result.observed
-    if result.comparable and (not result.evidence or not obs):
+    # NOT_COMPARABLE needs an explicit reason from the checker; without evidence and reason it is just "no evidence".
+    if (not result.evidence or not obs) and (result.comparable or not obs.get("not_comparable_reason")):
         return make(claim, result, None, VerdictLabel.CANNOT_VERIFY, "no_evidence", Confidence.LOW,
                     "The checker returned no dated evidence for this claim.")
     early = _identity_and_comparable(claim, result, rules)

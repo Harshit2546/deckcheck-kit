@@ -27,7 +27,7 @@ Every threshold is read with `core.config.rule()`; there are no code defaults, a
 | # | Condition | Label | reason_code | confidence |
 |---|---|---|---|---|
 | 1 | `result.held_reason` is set (`budget`, `time`, `timeout`, `error`, `no_checker`) | HELD | the held_reason itself | low |
-| 2 | `comparable` is True and (no evidence or `observed` empty) | CANNOT_VERIFY | `no_evidence` | low |
+| 2 | no evidence or `observed` empty, unless the checker set `comparable=False` with an explicit `not_comparable_reason` | CANNOT_VERIFY | `no_evidence` | low |
 | 3 | `observed.identity` is `unclear` | CANNOT_VERIFY | `identity_unclear` | low |
 | 4 | `observed.identity` is `not_found` | CANNOT_VERIFY | `entity_not_found` | low |
 | 5 | `result.comparable` is False | NOT_COMPARABLE | `observed.not_comparable_reason` (default `not_comparable`) | medium |
