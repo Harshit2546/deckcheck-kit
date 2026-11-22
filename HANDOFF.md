@@ -1052,3 +1052,26 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - T33 / verdict: the new observed key forecast_quotes_skipped is informational only; no rule reads it yet.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:12 · harshit · merger + claude-core · task merge A5/B10 fixes, second live web run
+
+Status: done
+Done this session:
+- Merged lane/web-client (fb36f6b, web.fetch_timeout_s: 45) and lane/web-checkers (204cf59, market-size relevance and forecast checks) into main as 98ce097. 441 passed; eval 4 PASS, 2 FAIL, 1 SKIP.
+- Live run run-20261122-103822-1686da (approved by harshit):
+  - slides 2 to 5 and 8: unchanged;
+  - slide 7: CANNOT_VERIFY no_evidence (3 pages, none dated), matching the answer key;
+  - slide 6: HELD timeout, the web search took over 20 s.
+  - Ledger: 6 calls, 7 credits, Rs 7.79, 47.6 s.
+- README "Live run with web search" updated; INCIDENTS A6 and B10b.
+In progress / exact next step:
+- Slide 6: raise limits.per_call_timeout_s (for example to 30) in config/rules.yaml, or add web.search_timeout_s in sources/web.py like fetch. Then rerun.
+How to run / test:
+- set -a; . ../deckcheck-kit/.env; set +a; unset GEMINI_API_KEY; python cli.py run --request tests/decks/deck_a_request.json --out out/result_web2.json
+Known bugs or shortcuts taken:
+- GEMINI_API_KEY still invalid.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- Which search timeout should we use?
+Credits / tokens used this session (rough): 7 Crustdata credits, about 1,100 OpenAI tokens (Rs 7.79)

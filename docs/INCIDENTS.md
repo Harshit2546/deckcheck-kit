@@ -43,6 +43,7 @@ Times are IST and come from the HANDOFF/DECISIONS headers, log lines (UTC + 5:30
 | A3 | all day | Crustdata returns no per-call billing receipt on some calls. | codex-a probe | Ledger credits are estimates where the header is missing | Credits recorded from published rates and said so; the web client reads `X-Credits-Used` when present | HANDOFF 13:51 (codex-a), D16 |
 | A4 | 15:30 | Crustdata web search results carry **no publish date**. | Reading the API docs before building | A web fact would have had no record date (breaks D3) | Code reads the date from the fetched page's HTML (JSON-LD, meta tags, `<time>`); pages without one are skipped | docs/WEB_SOURCE.md, D16 |
 | A5 | 15:58 | First live run with web search: the customer page fetch (`POST /web/enrich/live`) took longer than `limits.per_call_timeout_s` (20 s); the other fetch took 13 s. | Live run `run-20261122-102749-b58f62` | Slide 6 HELD (timeout), no verdict; the timed-out call is in the ledger with no credits | Correct handling. Open: a separate, longer timeout for web fetch (config key, web-client lane) | README "Live run with web search" |
+| A6 | 16:08 | Second live web run: the customer **search** call took longer than `limits.per_call_timeout_s` (20 s). Search times so far: 6.4 s, 12.0 s, over 20 s, 6.8 s. | Live run `run-20261122-103822-1686da` | Slide 6 HELD (timeout) again; no credits charged for the timed-out call | Open: raise `limits.per_call_timeout_s` or add a search timeout key (config edit, no code) | README "Live run with web search" |
 
 ## B. Data, dates and verdict correctness
 
@@ -58,6 +59,7 @@ Times are IST and come from the HANDOFF/DECISIONS headers, log lines (UTC + 5:30
 | B8 | 15:11 | The engine read `tolerances.<type>.tolerance_pct` for every ruled type; competition has none. | Design review | Every competition claim would crash with KeyError | Competition excluded from the lookup; always CANNOT_VERIFY `competition_not_judged` | DECISIONS D15 |
 | B9 | 14:35 | A real run raised ValueError at its first verdict: the engine needs a `verdict:` block in rules.yaml that didn't exist yet. | claude-verdict | No run could finish | D8: `verdict:` block added to rules.yaml | DECISIONS D8 |
 | B10 | 15:58 | Live web run: the market-size checker accepted the quote "India's home and household market is projected to reach USD 237 billion by 2030" as evidence for "India's logistics software market is worth $9B". The checker passed no `must_contain` terms, so only the LLM judged relevance, and it also took a 2030 forecast for today's size. | Reading the live result's sources | Verdict stayed safe (CANNOT_VERIFY), only because CONTRADICTED needs 2 agreeing sources (D16). Two such pages would have produced a wrong CONTRADICTED. | Open: code must require the claim's market terms in the quote and skip forecasts dated after the reference year (checkers/market_size.py) | README "Live run with web search" |
+| B10b | 16:08 | Fix for B10 merged (98ce097): the market-size checker now requires the claim's market terms in the quote and skips forecasts for a later year. | Second live run | Slide 7 is now CANNOT_VERIFY `no_evidence` (no dated page), which matches the answer key | Fixed | commits 6175715, 204cf59 |
 
 ## C. Hard-rule violations caught in review (before main)
 
@@ -91,7 +93,7 @@ Times are IST and come from the HANDOFF/DECISIONS headers, log lines (UTC + 5:30
 
 ## Still open
 
-- The market-size quote relevance and forecast checks (B10), and a longer web fetch timeout (A5).
+- The web search timeout is tight (A6): slide 6 stays HELD until `limits.per_call_timeout_s` is raised or search gets its own key.
 
 - `GEMINI_API_KEY` in `.env` is invalid (A1). Fix or remove it before the next live run.
 - No live web call has run yet, so the Crustdata web response shapes are unverified (A4).
