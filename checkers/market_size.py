@@ -20,6 +20,32 @@ from sources import pages, web
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
+# Words of the claim subject that say nothing about WHICH market it is (INCIDENTS B10).
+_STOP_WORDS = {"india", "indian", "global", "the", "of", "and", "market", "size", "industry", "sector"}
+
+# A year in a forecast phrase: "by 2030", "in 2030", "2030E", "projected to reach ... 2030".
+_FORECAST_YEAR = re.compile(
+    r"\b(?:by|in)\s+(20\d{2})\b"
+    r"|\b(20\d{2})E\b"
+    r"|\b(?:projected|expected|forecast(?:ed)?)\b[^.]*?\b(20\d{2})\b",
+    re.IGNORECASE,
+)
+
+
+def _required_terms(subject: str) -> list[str]:
+    """Lower-case subject words minus stop words; each must appear in the quote (B10)."""
+    words = re.findall(r"[a-z0-9]+", subject.lower())
+    return [w for w in dict.fromkeys(words) if w not in _STOP_WORDS]
+
+
+def _is_forecast(quote: str, reference_year: int) -> bool:
+    """True when the quote projects to a year after the reference year."""
+    for m in _FORECAST_YEAR.finditer(quote):
+        year = next(g for g in m.groups() if g)
+        if int(year) > reference_year:
+            return True
+    return False
+
 
 def _reference_date(claim: Claim, ctx: RunContext) -> tuple[str | None, str]:
     """(reference_date, reference_date_source): claim.as_of if ISO, else the deck date."""
@@ -62,8 +88,10 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
         "estimates": [],
         "pages_without_date": 0,
         "pages_after_reference": 0,
+        "forecast_quotes_skipped": 0,
     }
     subject = (claim.subject or claim.quote).strip()
+    terms = _required_terms(claim.subject or "")
     results, _search_call = web.search(ctx, f"{subject} market size", end_date=ref_date)
     urls = _top_urls(results, int(ctx.rules["web"]["results_to_fetch"]))
     fetched, fetch_call = web.fetch(ctx, urls) if urls else ([], None)
@@ -80,8 +108,11 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
             continue
         text = pages.page_text(html)
         quote, _llm_call = quotes.pick_quote(
-            ctx, text, f"What is the size of the {subject} market?", [])
-        if not quote:
+            ctx, text, f"What is the size of the {subject} market?", terms)
+        if not quote or any(t not in quote.casefold() for t in terms):
+            continue   # no quote, or a quote about another market (B10)
+        if _is_forecast(quote, int((ref_date or published)[:4])):
+            observed["forecast_quotes_skipped"] += 1
             continue
         value, currency = quotes.parse_amount(quote)
         if value is None:
@@ -107,5 +138,6 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
         observed["record_date"] = max(e["published_date"] for e in observed["estimates"])
     log_step(ctx.run.id, claim.id, "check.market_size", "ok", urls=len(urls), pages=len(fetched),
              evidence_count=len(evidence), pages_without_date=observed["pages_without_date"],
-             pages_after_reference=observed["pages_after_reference"])
+             pages_after_reference=observed["pages_after_reference"],
+             forecast_quotes_skipped=observed["forecast_quotes_skipped"])
     return CheckResult(evidence=evidence, observed=observed, comparable=True, held_reason=None)

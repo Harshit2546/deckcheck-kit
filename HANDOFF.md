@@ -1034,4 +1034,21 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 - none (config key only; contract unchanged)
 Open questions for a human:
 - Finance partner: real value for web.fetch_timeout_s.
+
+### 16:50 · web-checkers · task T32 fix (INCIDENTS B10)
+
+Status: done
+Fixes:
+- B10, the wrong market was accepted: live run run-20261122-102749-b58f62 used a household-market quote ("... USD 237 billion by 2030") for "India logistics software". checkers/market_size.py now builds the required terms in code from claim.subject: lower-case words minus {india, indian, global, the, of, and, market, size, industry, sector}. It passes them to pick_quote as must_contain and checks them again on the returned quote. A subject with no terms left keeps the old behaviour.
+- B10, forecasts: a quote that projects to a year after the reference year ("by/in 20XX", "20XXE", "projected/expected/forecast ... 20XX") is skipped and counted in the new observed["forecast_quotes_skipped"]. With no reference date, the page's published year is used.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (437 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- The term check is a substring check (the same as extract/quotes._accept), so "software" also matches "softwares". The forecast regex stops at the first full stop after projected/expected/forecast.
+- Correction to the 16:05 entry: test_market_size.py had 8 tests then, not 9; it has 16 now.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- T33 / verdict: the new observed key forecast_quotes_skipped is informational only; no rule reads it yet.
 Credits / tokens used this session (rough): 0 Crustdata credits

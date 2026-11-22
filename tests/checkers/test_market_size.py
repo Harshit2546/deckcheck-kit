@@ -27,10 +27,10 @@ from core.models import Claim, ClaimType, SourceType  # noqa: E402
 RULES = {"web": {"results_to_fetch": 3}}
 
 
-def _claim(as_of: str | None = None) -> Claim:
+def _claim(as_of: str | None = None, subject: str | None = "India logistics software") -> Claim:
     return Claim(id="c_market", run_id="run_1", slide=7,
                  quote="India's logistics software market is worth $9B.", type=ClaimType.MARKET_SIZE,
-                 subject="India logistics software", metric="market_size", value=9_000_000_000,
+                 subject=subject, metric="market_size", value=9_000_000_000,
                  unit="USD", as_of=as_of)
 
 
@@ -79,7 +79,7 @@ def _ctx() -> Any:
 
 def test_estimates_evidence_and_skips(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = _install(monkeypatch, {
-        "https://www.reports.example.com/a": {"date": "2024-01-10", "quote": "The market is worth $9 billion.",
+        "https://www.reports.example.com/a": {"date": "2024-01-10", "quote": "India's logistics software market is valued at $9 billion.",
                                               "amount": (9e9, "USD")},
         "https://news.example.org/b": {"date": None, "quote": "undated"},
         "https://late.example.net/c": {"date": "2025-02-01", "quote": "after"},
@@ -97,21 +97,21 @@ def test_estimates_evidence_and_skips(monkeypatch: pytest.MonkeyPatch) -> None:
     ev = res.evidence[0]
     assert ev.source_type == SourceType.WEB_PAGE
     assert ev.locator == "https://www.reports.example.com/a"
-    assert ev.field_or_quote == "The market is worth $9 billion."
+    assert ev.field_or_quote == "India's logistics software market is valued at $9 billion."
     assert ev.value == 9e9
     assert ev.record_date == "2024-01-10"
     assert ev.call_id == "call-fetch"
     assert ev.retrieved_at == "2026-11-22T10:00:00Z"
     assert obs["estimates"] == [{
         "value": 9e9, "currency": "USD", "url": "https://www.reports.example.com/a",
-        "domain": "reports.example.com", "quote": "The market is worth $9 billion.",
+        "domain": "reports.example.com", "quote": "India's logistics software market is valued at $9 billion.",
         "published_date": "2024-01-10", "evidence_id": ev.id,
     }]
 
 
 def test_as_of_is_the_reference_date(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = _install(monkeypatch, {
-        "https://a.example.com/x": {"date": "2024-01-10", "quote": "q", "amount": (1.0, "USD")},
+        "https://a.example.com/x": {"date": "2024-01-10", "quote": "Logistics software spend is $1.", "amount": (1.0, "USD")},
     })
     res = market_size.check(_claim(as_of="2023-12-31"), _ctx())
     assert calls["search"]["end_date"] == "2023-12-31"
@@ -121,7 +121,7 @@ def test_as_of_is_the_reference_date(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_quote_without_amount_or_unverified_gives_no_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
     _install(monkeypatch, {
-        "https://a.example.com/x": {"date": "2024-01-10", "quote": "No number here.", "amount": (None, None)},
+        "https://a.example.com/x": {"date": "2024-01-10", "quote": "Logistics software is growing.", "amount": (None, None)},
         "https://b.example.com/y": {"date": "2024-01-10", "quote": None},
     })
     res = market_size.check(_claim(), _ctx())
@@ -160,3 +160,75 @@ def test_source_errors_propagate(monkeypatch: pytest.MonkeyPatch, which: str) ->
     monkeypatch.setattr(market_size.web, which, boom)
     with pytest.raises(TimeoutError):
         market_size.check(_claim(), _ctx())
+
+
+HOUSEHOLD = ("India's home and household market is projected to reach USD 237 billion by 2030, "
+             "growing at over 10% annually.")
+
+
+def test_quote_about_another_market_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """INCIDENTS B10: the live run took this household-market quote for logistics software."""
+    calls: dict[str, Any] = {}
+    _install(monkeypatch, {"https://m.economictimes.com/x": {
+        "date": "2024-09-18", "quote": HOUSEHOLD, "amount": (237e9, "USD")}}, calls=calls)
+    ctx = make_ctx(run_id="run_ms", company_domain="locus.sh", deck_date="2024-12-01")
+    ctx.rules = RULES
+    res = market_size.check(_claim(), ctx)
+    assert res.evidence == [] and res.observed["estimates"] == []
+
+
+def test_required_terms_passed_to_pick_quote(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[list[str]] = []
+    _install(monkeypatch, {"https://a.example.com/x": {
+        "date": "2024-01-10", "quote": "India's logistics software market is valued at $9 billion.",
+        "amount": (9e9, "USD")}})
+    real = market_size.quotes.pick_quote
+    monkeypatch.setattr(market_size.quotes, "pick_quote",
+                        lambda ctx, text, q, must: (seen.append(must), real(ctx, text, q, must))[1])
+    res = market_size.check(_claim(), _ctx())
+    assert seen == [["logistics", "software"]]
+    assert len(res.evidence) == 1 and res.evidence[0].value == 9e9
+
+
+def test_forecast_quote_is_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install(monkeypatch, {
+        "https://a.example.com/x": {"date": "2024-01-10", "amount": (20e9, "USD"),
+                                    "quote": "India's logistics software market will be $20 billion by 2030."},
+        "https://b.example.com/y": {"date": "2024-01-10", "amount": (15e9, "USD"),
+                                    "quote": "Logistics software revenue: $15 billion (2028E)."},
+        "https://c.example.com/z": {"date": "2024-01-10", "amount": (8e9, "USD"),
+                                    "quote": "India's logistics software market was $8 billion in 2023."},
+    })
+    res = market_size.check(_claim(), _ctx())
+    assert res.observed["forecast_quotes_skipped"] == 2
+    assert [e["value"] for e in res.observed["estimates"]] == [8e9]
+
+
+@pytest.mark.parametrize("quote", [
+    "The market is projected to reach $20 billion in 2027.",
+    "Market expected to reach $20 billion over the next years, by 2029.",
+])
+def test_forecast_detection(quote: str) -> None:
+    assert market_size._is_forecast(quote, 2024)
+
+
+def test_past_year_is_not_a_forecast() -> None:
+    assert not market_size._is_forecast("The market was $8 billion in 2023.", 2024)
+    assert not market_size._is_forecast("It is expected to stay flat, as in 2024.", 2024)
+
+
+def test_empty_subject_has_no_required_terms(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[list[str]] = []
+    _install(monkeypatch, {"https://a.example.com/x": {
+        "date": "2024-01-10", "quote": "The market is worth $9 billion.", "amount": (9e9, "USD")}})
+    real = market_size.quotes.pick_quote
+    monkeypatch.setattr(market_size.quotes, "pick_quote",
+                        lambda ctx, text, q, must: (seen.append(must), real(ctx, text, q, must))[1])
+    res = market_size.check(_claim(subject=""), _ctx())
+    assert seen == [[]]
+    assert len(res.evidence) == 1
+
+
+def test_stop_words_only_subject_has_no_terms() -> None:
+    assert market_size._required_terms("Global market size of the industry") == []
+    assert market_size._required_terms("India Logistics software market") == ["logistics", "software"]
