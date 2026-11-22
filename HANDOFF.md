@@ -725,3 +725,34 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - none
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 17:15 · yash · lane ag-b · task funding milestones bugfix
+
+Status: done
+Done this session:
+- checkers/funding.py: fixed funding milestones handling for live Crustdata responses.
+  - Parses `funding.milestones[]` when present (with fallback to `funding.last_round_*` / `total_investment_usd` only if milestones is absent).
+  - Uses milestones with date <= reference date (`claim.as_of` if ISO YYYY-MM-DD, else `ctx.run.input.deck_date`).
+  - Sets `total_raised` = sum of their `amount_usd`.
+  - Sets `record_date` = newest of those dates (or the matched milestone's date).
+  - Sets `excluded_later_rounds` = count of milestones dated after reference date.
+  - Sets `undated_rounds` = count of milestones missing date OR `amount_usd` (not counted in total).
+  - Matches `matched_round` against candidates by round type/stage, date/year/month, and amount: returns `{stage, amount, currency: "USD", date, investors[]}`.
+  - Populates `investors_found` from all milestones' investors lists (handling comma-separated strings, lists, and detailed records).
+  - Attaches `Evidence` with `field_or_quote = f"funding.milestones[{m_date}].amount_usd"` and `record_date = m_date`.
+- tests/checkers/test_funding.py: added `locus_company_fixture` and 2 comprehensive unit + engine integration tests:
+  - `test_funding_locus_slide_3_series_c`: slide 3 claim matches Series C milestone (stage: `series_c`, amount: 50,000,000.0 USD, date: `2021-06-02`, investors: GIC, Alpha Wave Global, etc.), evidence quote `funding.milestones[2021-06-02].amount_usd`, engine verdict SUPPORTED (`within_tolerance`).
+  - `test_funding_locus_slide_4_total_funding`: slide 4 claim computes `total_raised` = 78,750,000.0 USD, `undated_rounds` = 3, `record_date` = `2021-06-02`, engine verdict SUPPORTED (`within_tolerance_undated_rounds`).
+- Full test suite: 228 passed in 13.49s (`python -m pytest -q`).
+In progress / exact next step:
+- Ready for human merge to main.
+How to run / test:
+- python -m pytest tests/checkers/test_funding.py -v
+- python -m pytest -q
+Known bugs or shortcuts taken:
+- None. Full test suite is 100% green.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- In accordance with D13 & D14, funding milestone dates drive record_date and total_raised summation; undated or missing amount milestones are excluded from total and counted as undated_rounds.
+Open questions for a human:
+- None. Ready for merge to main.
+Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
