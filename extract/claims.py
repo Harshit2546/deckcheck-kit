@@ -3,13 +3,13 @@
 Who calls it: core/runner.py (STAGES["extract"]), cli.py.
 What it calls: extract/pdf.py, core/limits.py (ensure_within), core/ledger.py (record),
 core/log.py (log_step, log_error), core/models.py (Claim, ClaimType, ClaimState, Provider),
-core/config.py (rule), core/store.py (update_run_input).
+core/config.py (rule), core/env.py (get_key: API keys from env or .env),
+core/store.py (update_run_input).
 """
 
 from __future__ import annotations
 
 import json
-import os
 import re
 import time
 import uuid
@@ -19,6 +19,7 @@ from typing import Any
 
 from core import store
 from core.config import rule
+from core.env import ENV_FILE, get_key
 from core.ledger import record
 from core.limits import ensure_within
 from core.log import log_error, log_step
@@ -205,70 +206,81 @@ def _parse_claims_json(raw_json: str, run_id: str) -> list[Claim]:
     return claims
 
 
+def _call_openai(key: str, prompt: str, model: str | None, timeout_s: float) -> tuple[str, str, int, int]:
+    import requests
+
+    model_name = model if model and not model.startswith("gemini") else "gpt-4o-mini"
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    payload = {
+        "model": model_name,
+        "messages": [{"role": "user", "content": prompt}],
+        "response_format": {"type": "json_object"},
+    }
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
+        resp.raise_for_status()
+    except requests.exceptions.Timeout as exc:
+        raise TimeoutError(f"OpenAI API call timed out after {timeout_s}s") from exc
+    except Exception as exc:
+        clean_msg = re.sub(r"Bearer\s+[^\s]+", "Bearer REDACTED", str(exc))
+        raise RuntimeError(f"OpenAI API call failed: {clean_msg}") from exc
+
+    res_data = resp.json()
+    content = res_data["choices"][0]["message"]["content"]
+    usage = res_data.get("usage", {})
+    tokens_in = usage.get("prompt_tokens", len(prompt) // 4)
+    tokens_out = usage.get("completion_tokens", len(content) // 4)
+    return content, model_name, tokens_in, tokens_out
+
+
+def _call_gemini(key: str, prompt: str, model: str | None, timeout_s: float) -> tuple[str, str, int, int]:
+    import requests
+
+    model_name = model if model and model.startswith("gemini") else "gemini-2.5-flash"
+    # Key sent in header only, never in URL
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+    headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"response_mime_type": "application/json"},
+    }
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
+        resp.raise_for_status()
+    except requests.exceptions.Timeout as exc:
+        raise TimeoutError(f"Gemini API call timed out after {timeout_s}s") from exc
+    except Exception as exc:
+        clean_msg = re.sub(r"key=[^\s&]+", "key=REDACTED", str(exc))
+        raise RuntimeError(f"Gemini API call failed: {clean_msg}") from exc
+
+    res_data = resp.json()
+    content = res_data["candidates"][0]["content"]["parts"][0]["text"]
+    usage = res_data.get("usageMetadata", {})
+    tokens_in = usage.get("promptTokenCount", len(prompt) // 4)
+    tokens_out = usage.get("candidatesTokenCount", len(content) // 4)
+    return content, model_name, tokens_in, tokens_out
+
+
 def _default_llm_call(prompt: str, model: str | None = None, timeout_s: float = 30.0) -> tuple[str, str, int, int]:
-    """Execute live LLM call using available credentials (Gemini or OpenAI).
+    """Execute a live LLM call: OpenAI if OPENAI_API_KEY is set, else Gemini (GEMINI_API_KEY or
+    GOOGLE_API_KEY). Keys come from the environment or, failing that, the repo-root .env
+    (core/env.py), so no shell has to `source .env` first.
 
     Returns:
         tuple[content, model_used, tokens_in, tokens_out]
     """
-    import requests
-
-    # gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    openai_key = os.environ.get("OPENAI_API_KEY")
-
-    # if gemini_key:
-    #     model_name = model or "gemini-2.5-flash"
-    #     # Key sent in header only, never in URL
-    #     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-    #     headers = {"x-goog-api-key": gemini_key, "Content-Type": "application/json"}
-    #     payload = {
-    #         "contents": [{"parts": [{"text": prompt}]}],
-    #         "generationConfig": {"response_mime_type": "application/json"},
-    #     }
-    #     try:
-    #         resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
-    #         resp.raise_for_status()
-    #     except requests.exceptions.Timeout as exc:
-    #         raise TimeoutError(f"Gemini API call timed out after {timeout_s}s") from exc
-    #     except Exception as exc:
-    #         # Strip any potential sensitive details from exception string
-    #         clean_msg = re.sub(r"key=[^\s&]+", "key=REDACTED", str(exc))
-    #         raise RuntimeError(f"Gemini API call failed: {clean_msg}") from exc
-
-    #     res_data = resp.json()
-    #     content = res_data["candidates"][0]["content"]["parts"][0]["text"]
-    #     usage = res_data.get("usageMetadata", {})
-    #     tokens_in = usage.get("promptTokenCount", len(prompt) // 4)
-    #     tokens_out = usage.get("candidatesTokenCount", len(content) // 4)
-    #     return content, model_name, tokens_in, tokens_out
-
+    openai_key = get_key("OPENAI_API_KEY")
     if openai_key:
-        model_name = model or "gpt-4o-mini"
-        url = "https://api.openai.com/v1/chat/completions"
-        headers = {"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"}
-        payload = {
-            "model": model_name,
-            "messages": [{"role": "user", "content": prompt}],
-            "response_format": {"type": "json_object"},
-        }
-        try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
-            resp.raise_for_status()
-        except requests.exceptions.Timeout as exc:
-            raise TimeoutError(f"OpenAI API call timed out after {timeout_s}s") from exc
-        except Exception as exc:
-            clean_msg = re.sub(r"Bearer\s+[^\s]+", "Bearer REDACTED", str(exc))
-            raise RuntimeError(f"OpenAI API call failed: {clean_msg}") from exc
+        return _call_openai(openai_key, prompt, model, timeout_s)
 
-        res_data = resp.json()
-        content = res_data["choices"][0]["message"]["content"]
-        usage = res_data.get("usage", {})
-        tokens_in = usage.get("prompt_tokens", len(prompt) // 4)
-        tokens_out = usage.get("completion_tokens", len(content) // 4)
-        return content, model_name, tokens_in, tokens_out
+    gemini_key = get_key("GEMINI_API_KEY", "GOOGLE_API_KEY")
+    if gemini_key:
+        return _call_gemini(gemini_key, prompt, model, timeout_s)
 
     raise RuntimeError(
-        "No LLM credentials configured. Set GEMINI_API_KEY or OPENAI_API_KEY in environment."
+        "No LLM credentials found. Set OPENAI_API_KEY (or GEMINI_API_KEY) in the environment "
+        f"or in {ENV_FILE}."
     )
 
 
