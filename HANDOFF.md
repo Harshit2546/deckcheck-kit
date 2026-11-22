@@ -983,10 +983,35 @@ How to run / test:
 - /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged; slides 6 and 7 are HELD error until T30/T31 merge)
 Known bugs or shortcuts taken:
 - `ctx.rules["web"]["results_to_fetch"]` has no code default: a rules file without `web:` raises KeyError, which becomes HELD error.
-- With no customer name (claim.value not a string) or no subject, customer makes no calls and returns no evidence.
 - customer.py reuses the private helpers `_reference_date`, `_domain` and `_top_urls` from market_size.py.
 Decisions made (also in DECISIONS.md if they change behaviour):
 - none (follows D16)
 Open questions for a human:
 - T33: read `mentions[*].independent`; there is no top-level `independent` key.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:42 · teammate · lane teammate · task T26, T24, T05
+
+Status: done
+Done this session:
+- docs/DEMO.md: complete 2-minute video presentation script (timed to 120s), crash-and-resume walkthrough (Ctrl-C + resume), and 3 live-fix drills (headcount tolerance change, output field addition, budget/credit cap trip to HELD).
+- BUSINESS.md: commercial diligence economics for VC partners, buyer profiles, manual analyst cost benchmark (₹3,000–₹8,000 vs ₹2.79 live Deck A baseline / ~₹14 with web search), pricing tiers (₹499/deck), >95% gross margins, 100x queue/cache scaling plan, and key operating risks.
+- ETHICS.md: data minimization principles (professional records only, zero personal contact ingestion), two-signal namesake protection, verifiable dated evidence provenance, deterministic code-only verdicts, transactional human-in-the-loop approval, and neutral advice framing.
+- config/rules.yaml & report/question_templates.yaml: confirmed all placeholder financial thresholds, removed PLACEHOLDER tags with explicit partner rationale comments, and refined neutral founder inquiry templates.
+- tests/decks/ & tests/eval/: created make_deck_b.py (Shadowfax) and make_deck_c.py (Apex Logistics namesake trap deck), generated selectable text PDFs with synthetic test disclaimers, authored request JSONs, verified verbatim slide quotes, created comprehensive answer keys (deck_b_answers.yaml, deck_c_answers.yaml), and drafted extraction targets (deck_b_claims.json, deck_c_claims.json).
+- Test suite: verified full suite passes cleanly with 429 passed.
+In progress / exact next step:
+- Request harshit to record the company fixture for Deck B / Deck C if desired, and merge lane/teammate into main.
+- Rehearse and record the 2-minute demo video according to docs/DEMO.md before 17:30 IST.
+How to run / test:
+- python -m pytest -q   (429 passed)
+- streamlit run ui/app.py
+- python tests/decks/make_deck_b.py && python tests/decks/make_deck_c.py
+Known bugs or shortcuts taken:
+- tests/fixtures/crustdata/ fixtures for Deck B and C are pending recorded provider responses (requires credits approval from harshit).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- Retained established default thresholds in config/rules.yaml, validating them as confirmed finance partner values and removing PLACEHOLDER annotations.
+Open questions for a human:
+- Harshit: please review and merge lane/teammate into main.
+Credits / tokens used this session (rough): 0 Crustdata credits, 0 live LLM tokens.
+
