@@ -1,0 +1,12 @@
+{
+  "api_version": "2025-11-01",
+  "token_limit_rpm": 100,
+  "endpoints": [
+    {
+      "path": "/company/enrich",
+      "status": "enabled",
+      "effective_rate_limit_rpm": 5,
+      "base_credits": 2
+    }
+  ]
+}

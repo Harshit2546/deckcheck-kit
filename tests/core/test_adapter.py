@@ -73,3 +73,11 @@ def test_to_kit_without_company_or_email():
     out = load_adapter().to_kit(REPORT)
     assert out["company"]["domain"] == "example.in" and out["company"]["name"] is None
     assert out["founder_email"] is None
+
+
+def test_example_request_file_is_valid_d3():
+    import json
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "requests" / "example_request.json"
+    r = load_adapter().from_kit(json.loads(path.read_text()))
+    assert r.domain == "example.in" and r.deck_date == "2026-10-01"

@@ -80,6 +80,17 @@ Why: the user clarified after D9 was pushed. DECISIONS is append-only, so this i
 Files affected: none in code.
 Who must know (lanes): all lanes, both humans
 
+### 15:05 · claude-verdict@win · D12: entities shape from resolve (T10) and the three sources.crust functions it calls
+Change: `resolve/entities.py: run(ctx, claims)` returns `{"company": E, "founders": [E, ...]}` where E has `id`, `identity` (confirmed | unclear | not_found), `identity_signals` (int), `confidence` (high: signals > identity.min_signals, medium: equal, low: fewer), `signals` (codes), `reason` (code or null), `call_id` (ledger id of the source call). Founder entries also have `name` (as written in the deck, or null) and `profile_url`. No raw payloads and no contact fields. Company signals: `domain` (exact match on primary or alias domain), `name` (deck company name equals provider name after legal suffixes are dropped), `founder` (a deck founder is in the company's founder list). Person signals: `profile_url` (requested URL returned), `name` (deck name equals provider name, token set, no fuzzy score), `employer` (a role at the confirmed company id), `company_founder_list`. A person or company is `confirmed` only with at least `identity.min_signals` signals; a namesake without the company link never qualifies; two qualifying candidates are `unclear`. A founder is searched only when the company is confirmed. Source errors (limit, timeout, failure) are not caught; the runner stops the run in state `extracted` and a resume repeats the stage.
+codex-a (T08) must provide in `sources/crust.py`, each returning `(payload | None, ledger call_id | None)` and doing `limits.ensure_within(ctx)` plus a ledger row per call:
+  `get_company(ctx, domain)` (exact domain match), `get_people(ctx, profile_urls: list[str])` (ONE batched call), `search_people(ctx, name: str, company_id: str)` (name plus employer id).
+Payload shapes read: `matches[].company_data` / `matches[].person_data` / `profiles[]` as in docs/crustdata_fields.md; ids `crustdata_company_id`, `crustdata_person_id`; they are not verified against a live response yet.
+Checkers find a founder with `resolve.names.find_founder(ctx.entities, claim.subject)`.
+Note: checkers/_common.py cites "D11" for the get_company signature, but no D11 exists in the repo yet; this entry is the written source for all three signatures.
+Why: checkers and the verdict engine need one shape, and the namesake case must end in `unclear`, never a guess.
+Files affected: resolve/, sources/crust.py (codex-a), checkers/ (read `ctx.entities`), verdict (identity keys unchanged).
+Who must know (lanes): codex-a, ag-b, claude-core
+
 ### 15:20 · human (written by harshit on the merger's word) · D3: request and result format (Investing track, 2.2 The Diligence Desk)
 Change: the problem statement and builder handbook give no fixed Investing I/O format, so this is our own; `io/adapter.py` `from_kit()` / `to_kit()` are the only places to change if the organizers publish one.
 Input (one request, JSON):
@@ -119,3 +130,23 @@ Neither option 1 (past decks never get a headcount verdict) nor option 2 (refres
 Why: the handbook's Investing brief asks for calls "replayed from a past date ... with no fact from after that date", and hidden test cases use events after 1 September 2026, so decks will be dated in the past. Crustdata documents dated headcount points (docs/crustdata_fields.md: latest timeseries point dated 2026-11-02), so strict D3 still yields verdicts. The verdict engine needs no change.
 Files affected: checkers/team_size.py, checkers/team_growth.py (ag-b); tests/checkers; verdict/DESIGN.md section 3.1 wording (claude-verdict).
 Who must know (lanes): ag-b, claude-verdict, codex-a (get_company must request the headcount section including timeseries)
+
+### 16:20 · claude-verdict@win · D14: record age limit per claim type (ACTION for the merger / claude-core: add one key to rules.yaml)
+Change: verdict/engine.py now reads the age limit for the staleness row from `tolerances.<claim type>.max_record_age_days` when that key exists, and from the global `tolerances.max_record_age_days` (365) otherwise. D3 is unchanged: a record dated after the reference date is NOT_COMPARABLE `record_after_as_of` whatever the limit. Reason: a funding round is an event, and its date is when it happened, not when we looked. Locus (company 7403) has its last dated round on 2021-06-02; with a 365-day limit every funding claim in a 2026 deck would be `stale_record`.
+Key to add (merger places it, finance partner confirms the value), under `tolerances.funding` in config/rules.yaml:
+```yaml
+  funding:
+    tolerance_pct: 10
+    max_record_age_days: 3650   # PLACEHOLDER. A funding round up to 10 years before the deck date still counts
+```
+Until it is added, funding records older than 365 days stay `stale_record` (safe default, no wrong verdict). Tests inject the key into the rules fixture.
+Checker note for ag-b (funding): `observed.record_date` = date of the newest dated round used (here the Series C, 2021-06-02); `undated_rounds` = rounds with no date (here 6 of 7); `total_raised` stays the provider total. With undated rounds the engine says SUPPORTED low confidence (`within_tolerance_undated_rounds`) when the total matches, never high.
+Why: the age limit made sense for snapshots, not for dated events.
+Files affected: verdict/engine.py, verdict/DESIGN.md (rows 8 and section 6), config/rules.yaml (merger), docs/LIVE_FIX_MAP.md
+Who must know (lanes): claude-core / merger (rules.yaml), ag-b, finance partner
+
+### 13:25 · yash · D11: Crustdata company lookup and call provenance
+Change: `sources.crust.get_company(ctx, domain) -> tuple[dict, str]` returns the unique exact-domain company record and its ledger call ID. The record includes `retrieved_at` (original fetch time). An empty match list returns an empty record. Multiple exact matches raise a source error because current checkers cannot compare ambiguous records. Checkers should use the record's `retrieved_at` for Evidence.
+Why: all callers share one short-lived company result per run and domain. The authenticated account endpoint supplies current pacing and credit rates, without new rules.yaml keys. With no receipt, charge estimates use credits per returned record. A 429 or 5xx gets one retry after pacing and any Retry-After delay, subject to D7 limits. Every attempt, including the metadata request, produces its own ledger row.
+Files affected: sources/crust.py, docs/crustdata_fields.md, tests/sources/
+Who must know (lanes): codex-a, ag-b, claude-core
