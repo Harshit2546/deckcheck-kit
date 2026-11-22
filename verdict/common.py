@@ -31,6 +31,7 @@ MISSING_TEXT: dict[str, str] = {
     "title_unmapped": "The exact title at that employer from a profile or article.",
     "missing_dates": "Start and end dates of the role from a profile or article.",
     "stale_record": "A record dated close to the date the claim refers to.",
+    "record_after_as_of": "A record dated on or before the date the claim refers to.",
     "currency_mismatch": "The figure in the same currency as the deck states it.",
     "informal_title": "A formal title from a profile or article.",
 }
@@ -86,10 +87,11 @@ def source_text(result: CheckResult) -> str:
 
 
 def make(claim: Claim, result: CheckResult, st: dict[str, Any] | None, label: VerdictLabel, reason: str,
-         conf: Confidence, text: str) -> Verdict:
-    """Build the Verdict. Applies the confidence ceiling from `st` and fills `missing` for non-SUPPORTED labels."""
+         conf: Confidence, text: str, missing: str | None = None) -> Verdict:
+    """Build the Verdict. Applies the confidence ceiling from `st`; `missing` defaults to MISSING_TEXT for non-SUPPORTED labels."""
     if st is not None:
         conf = cap(conf, st["ceiling"])
-    missing = None if label is VerdictLabel.SUPPORTED else MISSING_TEXT.get(reason, "More dated evidence from a named source.")
+    if missing is None and label is not VerdictLabel.SUPPORTED:
+        missing = MISSING_TEXT.get(reason, "More dated evidence from a named source.")
     return Verdict(claim_id=claim.id, label=label, reason_code=reason, explanation=text,
                    evidence_ids=[e.id for e in result.evidence], confidence=conf, missing=missing)

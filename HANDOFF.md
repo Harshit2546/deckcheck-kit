@@ -469,3 +469,23 @@ Open questions for a human:
 - claude-verdict: verdict/engine.py `_prepare` uses abs(record_date - reference_date), so a record dated AFTER as_of can still support or contradict. D3 says it must be excluded or NOT_COMPARABLE.
 - Should cli.py accept a D3 request file and export the D3 result? (claude-core can add it.)
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:40 · claude-verdict@win · lane claude-verdict · task T13 (D3 date rule)
+
+Status: done (the D3 rule); T10 resumes
+Done this session:
+- Merged origin/main (dc0af36: D3, io/adapter.py, D8 keys, T19) into lane/claude-verdict; conflicts in DECISIONS.md, HANDOFF.md, LIVE_FIX_MAP.md resolved by keeping both sides.
+- verdict/engine.py: a record dated AFTER the reference date is NOT_COMPARABLE `record_after_as_of` (confidence high, missing "A record dated on or before <date>."), checked before staleness; staleness now counts only records older than the reference date. 8 tests added or changed in tests/verdict/test_engine_order.py (one day after, far after, same day allowed, wildly wrong number still not decided, claim.as_of earlier than the deck date, all three claim types, old record still stale). verdict/DESIGN.md sections 2, 4, 5 updated. 175 tests pass.
+In progress / exact next step:
+- T10: D12 published; codex-a must build get_company / get_people / search_people.
+- Checkers (ag-b, codex-a): set `observed.record_date` to the data point's own date. A Crustdata snapshot refreshed after the deck date will now come out NOT_COMPARABLE; use only dated events (funding rounds, roles) on or before the reference date.
+- Test decks (T05): the deck date must be on or after the date of the live data it is checked against, or every claim comes out NOT_COMPARABLE.
+How to run / test:
+- cd dc-claude-verdict && python -m pytest -q
+Known bugs or shortcuts taken:
+- Nothing about this rule is configurable (it is the handbook rule), so no LIVE_FIX_MAP line.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- Implements D3; no new decision.
+Open questions for a human:
+- For headcount and other snapshot fields, Crustdata gives no measurement date, only a record refresh date. Under D3 these will be NOT_COMPARABLE for any deck dated before the refresh. Does the handbook allow treating the refresh date as the as-of date when the deck date is today?
+Credits / tokens used this session (rough): none

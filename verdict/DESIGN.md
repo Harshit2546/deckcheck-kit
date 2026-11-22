@@ -34,7 +34,8 @@ Every threshold is read with `core.config.rule()`; there are no code defaults, a
 | 5b | `identity` is not `confirmed`, or `identity_signals` < `identity.min_signals` (a missing key counts as not confirmed) | CANNOT_VERIFY | `identity_unclear` | low |
 | 6 | no `observed.record_date` (or not a date) | CANNOT_VERIFY | `missing_record_date` | low |
 | 7 | no reference date | CANNOT_VERIFY | `no_reference_date` | low |
-| 8 | gap between record date and reference date > `tolerances.max_record_age_days` | NOT_COMPARABLE | `stale_record` | medium |
+| 7b | `record_date` is AFTER the reference date (D3: no fact from after the as-of date may support or contradict a claim; one day after is enough) | NOT_COMPARABLE | `record_after_as_of`; `missing` = "A record dated on or before <reference date>." | high |
+| 8 | record date more than `tolerances.max_record_age_days` BEFORE the reference date | NOT_COMPARABLE | `stale_record` | medium |
 | 9 | metric rules in section 3 (they also return `claim_value_unusable` when the claim's value is not a usable number) | any | see section 3 | see section 3 |
 
 Reference date = `observed.reference_date` (the checker sets it to `claim.as_of` when that is an ISO date, else the run's
@@ -144,7 +145,7 @@ Never CONTRADICTED because an employer is missing from a profile.
 HELD: `timeout`, `error`, `budget`, `time`, `no_checker` (core `HeldReason`). CANNOT_VERIFY: `no_evidence`, `identity_unclear`, `entity_not_found`,
 `claim_value_unusable`, `missing_record_date`, `no_reference_date`, `unsupported_metric`, `source_may_be_incomplete`,
 `round_not_found`, `investor_not_listed`, `employer_not_in_profile`, `title_unmapped`, `missing_dates`.
-NOT_COMPARABLE: `stale_record`, `currency_mismatch`, `informal_title`, plus any checker-given `not_comparable_reason`.
+NOT_COMPARABLE: `record_after_as_of`, `stale_record`, `currency_mismatch`, `informal_title`, plus any checker-given `not_comparable_reason`.
 SUPPORTED: `within_tolerance`, `within_tolerance_undated_rounds`, `within_band`, `investor_listed`, `employer_listed`,
 `title_level_met`, `tenure_within_tolerance`. CONTRADICTED: `outside_tolerance`, `outside_band`, `observed_higher`,
 `title_level_lower`, `tenure_outside_tolerance`.
@@ -158,6 +159,10 @@ SUPPORTED: `within_tolerance`, `within_tolerance_undated_rounds`, `within_band`,
   Row 3 applies to company claims too, so say in your HANDOFF how many signals a company matched by exact domain gets
   (if one signal is enough for a company, the checker must report at least `identity.min_signals`, or the engine will stop at `identity_unclear`).
 - Checkers: set `observed.record_date` to the date of the data point, never to the fetch time.
+  D3 consequence: a live snapshot (for example a company record refreshed today) is dated today, so against an older deck date it is
+  `record_after_as_of`, never SUPPORTED or CONTRADICTED. Where a source has its own dated events (funding rounds with a date, a role with
+  a start date), use only those dated on or before the reference date and set `record_date` to the newest of them. Test decks must carry a
+  deck date on or after the date of the data they are checked against.
 
 ## 6. rules.yaml keys the engine reads
 

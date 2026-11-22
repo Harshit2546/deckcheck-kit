@@ -105,10 +105,14 @@ def _prepare(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> dict[s
     ref = parse_date(obs.get("reference_date")) or parse_date(claim.as_of)
     if ref is None:
         return _cannot(claim, result, "no_reference_date", "Neither the claim nor the deck gives a date to compare the record with.")
-    gap = abs((rec - ref).days)
+    if rec > ref:   # D3: no fact from after the as-of date may support or contradict a claim
+        return make(claim, result, None, VerdictLabel.NOT_COMPARABLE, "record_after_as_of", Confidence.HIGH,
+                    f"The record is dated {rec}, after the date the claim refers to ({ref}); it cannot support or "
+                    "contradict the claim.", missing=f"A record dated on or before {ref}.")
+    gap = (ref - rec).days
     if gap > rule(rules, "tolerances.max_record_age_days"):
         return make(claim, result, None, VerdictLabel.NOT_COMPARABLE, "stale_record", Confidence.MEDIUM,
-                    f"The record is dated {rec}, {gap} days from the claim's date {ref}; too far apart to compare.")
+                    f"The record is dated {rec}, {gap} days before the claim's date {ref}; too far apart to compare.")
     ceiling = Confidence.MEDIUM if obs.get("reference_date_source") in ("pdf_metadata", "missing") else Confidence.HIGH
     tol_key = _TYPES_WITH_RULES.get(claim.type)
     tol = (rule(rules, f"tolerances.{tol_key}.tolerance_pct") / 100) if tol_key and tol_key != "founder_background" else 0.0
