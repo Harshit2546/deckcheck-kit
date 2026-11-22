@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeckCheck launch film</title>
+<style>
+:root{--ink:#06080C;--panel:#10141B;--line:#252C3A;--text:#F4F5F7;--mute:#9AA3B2;--blue:#7DB7FF;--green:#5ED0A2;--red:#FF7B7B;--amber:#F3BE5B;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#000;color:var(--text);font-family:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;overflow:hidden}
+#stage{position:relative;width:min(100vw,177.78vh);height:min(100vh,56.25vw);margin:auto;top:50%;transform:translateY(-50%);background:var(--ink);overflow:hidden;font-size:calc(min(100vw,177.78vh)/100)}
+.scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:8em;opacity:0;visibility:hidden;transition:opacity .7s ease,visibility .7s}
+.scene.active{opacity:1;visibility:visible}
+.big{font-size:8.2em;font-weight:700;letter-spacing:-.03em;line-height:1.02;text-align:center}
+.mid{font-size:3.6em;font-weight:600;letter-spacing:-.02em;text-align:center;line-height:1.15}
+.sub{font-size:2.1em;color:var(--mute);text-align:center;margin-top:1.4em;max-width:70%}
+.blue{color:var(--blue)}.green{color:var(--green)}.red{color:var(--red)}.amber{color:var(--amber)}
+.rise{opacity:0}
+.scene.active .rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) both;animation-delay:var(--d,0s)}
+@keyframes rise{from{opacity:0;transform:translateY(2.2em)}to{opacity:1;transform:none}}
+.scene.active .fade{animation:fade 1s both;animation-delay:var(--d,0s)}
+.fade{opacity:0}
+@keyframes fade{to{opacity:1}}
+
+/* scene 1: claims */
+.claims{display:flex;flex-direction:column;gap:1.4em;align-items:flex-start}
+.claim{font-size:4.2em;font-weight:600;letter-spacing:-.02em}
+.claim i{font-style:normal;color:var(--blue)}
+/* scene 2: counter */
+.hours{font-size:15em;font-weight:700;letter-spacing:-.05em;line-height:1}
+/* scene 3: logo */
+.logo{font-size:13em;font-weight:700;letter-spacing:-.05em}
+/* scene 4: workflow */
+.wf{display:flex;gap:1.6em;margin-top:3.5em;align-items:stretch}
+.node{width:14em;padding:1.6em 1.4em;border:1px solid var(--line);border-radius:1.2em;background:var(--panel);opacity:.28;transform:scale(.96);transition:all .5s}
+.node.on{opacity:1;transform:scale(1);border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)}
+.node b{display:block;font-size:2.4em;margin-bottom:.35em}
+.node span{font-size:1.5em;color:var(--mute);line-height:1.35;display:block}
+.node em{font-style:normal;color:var(--blue);font-weight:700;font-size:1.6em;display:block;margin-bottom:.4em}
+.track{position:relative;width:calc(6*14em + 5*1.6em);height:.35em;background:var(--line);margin-top:2.2em;border-radius:1em;overflow:hidden}
+.track i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--blue);transition:width 3.9s linear}
+.track.go i{width:100%}
+.chips{display:flex;gap:1.2em;margin-top:1.4em}
+.chip{padding:.5em 1.1em;border:1px solid var(--line);border-radius:2em;font-size:1.7em;color:var(--mute);background:var(--panel)}
+/* scene 5: verdict cards */
+.vrow{display:flex;gap:2em;margin-top:3em}
+.vcard{width:30em;padding:2.2em;border-radius:1.4em;background:var(--panel);border:1px solid var(--line);perspective:1000px}
+.vcard .q{font-size:2.2em;font-weight:600;line-height:1.25;min-height:2.6em}
+.vcard .tag{margin-top:1.2em;font-size:2.6em;font-weight:700;letter-spacing:-.01em}
+.vcard .src{margin-top:.7em;font-size:1.5em;color:var(--mute);line-height:1.4}
+.vcard .ans{opacity:0;transform:translateY(1em);transition:all .7s}
+.vcard.reveal .ans{opacity:1;transform:none}
+/* scene 6: terminal */
+.term{width:38em;background:#0B0F15;border:1px solid var(--line);border-radius:.7em;padding:1em 1.2em;font-family:Consolas,"SF Mono",Menlo,monospace;font-size:1.7em;line-height:1.7;margin-top:1.4em;min-height:10em}
+.term .l{opacity:0;white-space:pre}
+.scene.active .term .l{animation:fade .01s both;animation-delay:var(--d)}
+.term .dim{color:var(--mute)}.term .ok{color:var(--green)}.term .warn{color:var(--amber)}
+/* scene 7: email */
+.mail{width:52em;background:var(--panel);border:1px solid var(--line);border-radius:1.4em;padding:2.2em;margin-top:2em;position:relative}
+.mail h4{font-size:2.2em;margin-bottom:.6em}
+.mail p{font-size:1.7em;color:var(--mute);line-height:1.5}
+.status{display:inline-block;margin-top:1.2em;padding:.4em 1.1em;border-radius:2em;font-size:1.7em;font-weight:700;background:#2a2412;color:var(--amber)}
+.btn{display:inline-block;margin-left:1.2em;padding:.55em 1.5em;border-radius:2em;font-size:1.7em;font-weight:700;background:var(--blue);color:#06080C}
+.scene.active .status.s1,.scene.active .btn{animation:fadeout .4s 3.2s both}
+@keyframes fadeout{to{opacity:0;transform:scale(.9)}}
+.scene.active .status.s2{animation:fade .6s 3.5s both}
+.status.s2{position:absolute;left:2.2em;bottom:2.2em;margin:0;background:#12281f;color:var(--green)}
+/* scene 8: numbers */
+.nums{display:flex;gap:5em;margin-top:2.6em}
+.num{text-align:center}.num b{display:block;font-size:6.4em;letter-spacing:-.04em}.num span{font-size:1.9em;color:var(--mute)}
+/* scene 9: close */
+#s9{background:var(--blue)}
+#s9 .big,#s9 .sub{color:#06080C}
+/* captions + hud */
+#cap{position:absolute;left:0;right:0;bottom:3.2em;text-align:center;font-size:2.1em;color:var(--text);padding:0 12%;text-shadow:0 .1em .6em #000;transition:opacity .4s;pointer-events:none}
+#s9.active ~ #cap{color:#06080C;text-shadow:none}
+#bar{position:absolute;left:0;bottom:0;height:.45em;background:var(--blue);width:0}
+#hud{position:absolute;right:1.6em;top:1.2em;font-size:1.4em;color:var(--mute);opacity:.0;transition:opacity .3s}
+#stage.moved:hover #hud{opacity:.8}
+#start{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--ink);cursor:pointer}
+#start button{font-size:2.4em;padding:.6em 1.8em;border-radius:2em;border:0;background:var(--blue);color:#06080C;font-weight:700;cursor:pointer}
+#start p{font-size:1.7em;color:var(--mute);margin-top:1.4em;text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+<div id="stage">
+
+<div class="scene" id="s1">
+  <div class="claims">
+    <div class="claim rise" style="--d:.2s">“We have <i>350 people</i>.”</div>
+    <div class="claim rise" style="--d:1.6s">“We raised a <i>$50M Series C</i>.”</div>
+    <div class="claim rise" style="--d:3s">“Trusted by <i>Acme Freight Corp</i>.”</div>
+  </div>
+  <div class="sub fade" style="--d:5s">Every pitch deck is full of claims.</div>
+</div>
+
+<div class="scene" id="s2">
+  <div class="hours rise" style="--d:.1s"><span class="blue">3–8</span> h</div>
+  <div class="mid rise" style="--d:1s">to check one deck by hand.</div>
+  <div class="sub fade" style="--d:2.4s">Before the second meeting. For every startup.</div>
+</div>
+
+<div class="scene" id="s3">
+  <div class="logo rise" style="--d:.2s">DeckCheck</div>
+  <div class="mid rise" style="--d:1.4s"><span class="blue">Every claim.</span> Checked. Sourced. Dated.</div>
+</div>
+
+<div class="scene" id="s4">
+  <div class="mid rise" style="--d:0s">Six stages. Each one saved before the next.</div>
+  <div class="wf" id="wf">
+    <div class="node"><em>1</em><b>Read</b><span>Claims and exact quotes from the PDF. Code checks every quote.</span></div>
+    <div class="node"><em>2</em><b>Identify</b><span>Which company, which founders. Two signals or “unclear”.</span></div>
+    <div class="node"><em>3</em><b>Check</b><span>Live Crustdata and web. Each fact keeps its own date.</span></div>
+    <div class="node"><em>4</em><b>Decide</b><span>Rules from one config file. The AI never decides.</span></div>
+    <div class="node"><em>5</em><b>Report</b><span>Red flags, founder questions, cost ledger.</span></div>
+    <div class="node"><em>6</em><b>Approve</b><span>A person clicks. Sent once.</span></div>
+  </div>
+  <div class="track" id="track"><i></i></div>
+  <div class="chips fade" style="--d:1s"><div class="chip">PDF</div><div class="chip">Crustdata</div><div class="chip">Web</div><div class="chip">SQLite</div><div class="chip">Rules.yaml</div></div>
+</div>
+
+<div class="scene" id="s5">
+  <div class="mid rise" style="--d:0s">Five possible answers. <span class="amber">Honest ones included.</span></div>
+  <div class="vrow">
+    <div class="vcard" id="v1"><div class="q">“350 people.”</div><div class="ans"><div class="tag green">SUPPORTED</div><div class="src">349 on 2026-11-02<br>Crustdata headcount history</div></div></div>
+    <div class="vcard" id="v2"><div class="q">“Over 700 employees.”</div><div class="ans"><div class="tag red">CONTRADICTED</div><div class="src">349 on 2026-11-02<br>Same record, different claim</div></div></div>
+    <div class="vcard" id="v3"><div class="q">“Trusted by Acme Freight Corp.”</div><div class="ans"><div class="tag amber">CANNOT VERIFY</div><div class="src">3 pages found, none dated.<br>The report names what would settle it.</div></div></div>
+  </div>
+</div>
+
+<div class="scene" id="s6">
+  <div class="mid rise" style="--d:0s">Kill it mid-run. <span class="blue">It picks up where it stopped.</span></div>
+  <div class="term">
+    <div class="l dim" style="--d:.6s">$ python cli.py run --request deck_a_request.json</div>
+    <div class="l ok" style="--d:1.4s">extracted   7 claims, every quote found on its slide</div>
+    <div class="l ok" style="--d:2.2s">resolved    Locus confirmed on 2 signals</div>
+    <div class="l warn" style="--d:3.0s">^C          process killed during checking</div>
+    <div class="l dim" style="--d:4.0s">$ python cli.py resume run-20261122-…</div>
+    <div class="l ok" style="--d:4.9s">resumed     3 claims already checked, skipped</div>
+    <div class="l ok" style="--d:5.7s">done        no duplicate calls, no duplicate charges</div>
+  </div>
+</div>
+
+<div class="scene" id="s7">
+  <div class="mid rise" style="--d:0s">Nothing irreversible without a person.</div>
+  <div class="mail rise" style="--d:.8s">
+    <h4>Founder email: questions on slide 5</h4>
+    <p>“Your deck states over 700 employees. Public records show 349 on 2 November 2026. Could you share the source for the larger figure?”</p>
+    <span class="status s1">PENDING APPROVAL</span><span class="btn">Approve</span>
+    <span class="status s2">SENT ONCE · local inbox</span>
+  </div>
+  <div class="sub fade" style="--d:4s">One database transaction. One unique key. No real address.</div>
+</div>
+
+<div class="scene" id="s8">
+  <div class="mid rise" style="--d:0s">One full check, measured from the ledger.</div>
+  <div class="nums">
+    <div class="num rise" style="--d:.6s"><b class="blue">₹11.96</b><span>total cost*</span></div>
+    <div class="num rise" style="--d:1.1s"><b>11</b><span>Crustdata credits</span></div>
+    <div class="num rise" style="--d:1.6s"><b>75 s</b><span>time in calls</span></div>
+    <div class="num rise" style="--d:2.1s"><b class="green">6 / 6</b><span>match the answer key</span></div>
+  </div>
+  <div class="sub fade" style="--d:3.2s;font-size:1.6em">*At placeholder rupee rates. By hand: 3 to 8 hours of analyst time.</div>
+</div>
+
+<div class="scene" id="s9">
+  <div class="big rise" style="--d:.2s">“Cannot verify”<br>is an answer.</div>
+  <div class="sub fade" style="--d:1.6s">DeckCheck · ContextCon 05 · Investing track</div>
+</div>
+
+<div id="cap"></div>
+<div id="bar"></div>
+<div id="hud">Space play/pause · ← → scene · R restart · C captions</div>
+
+<div id="start"><button id="go">Play launch film</button><p>About 2 minutes. Press F11 for full screen, then start your screen recorder, then click Play.<br>Space pauses. Arrow keys jump between scenes. C toggles captions.</p></div>
+</div>
+
+<script>
+const scenes=[
+ {id:'s1',t:9, cap:"Every pitch deck is full of claims."},
+ {id:'s2',t:8, cap:"Checking them by hand takes an analyst three to eight hours."},
+ {id:'s3',t:8, cap:"This is DeckCheck. Every claim, checked, sourced and dated."},
+ {id:'s4',t:14,cap:"It reads the deck, finds the real company, fetches live data, decides with code, writes the report, and asks a person before anything is sent."},
+ {id:'s5',t:14,cap:"Every claim gets one of five verdicts, with its source and the record's own date. When no source settles it, we say so."},
+ {id:'s6',t:14,cap:"Kill it mid-run and it resumes from its last saved step, without repeating a single call."},
+ {id:'s7',t:12,cap:"The founder email waits for a human. When approved, it is sent exactly once, into a local test inbox."},
+ {id:'s8',t:11,cap:"One full check cost about twelve rupees at placeholder rates, in under two minutes. By hand, it is hours."},
+ {id:'s9',t:8, cap:"Cannot verify is an answer."}
+];
+let i=-1,timer=null,paused=false,elapsed=0,total=scenes.reduce((a,s)=>a+s.t,0),sceneStart=0,capsOn=true;
+const $=id=>document.getElementById(id), cap=$('cap'), bar=$('bar');
+function reset(el){el.classList.remove('active');void el.offsetWidth}
+function show(n){
+  if(n<0||n>=scenes.length)return;
+  i=n; sceneStart=scenes.slice(0,n).reduce((a,s)=>a+s.t,0); elapsed=sceneStart;
+  scenes.forEach(s=>reset($(s.id))); $(scenes[n].id).classList.add('active');
+  cap.textContent=capsOn?scenes[n].cap:''; hooks(scenes[n].id);
+  clearTimeout(timer); if(!paused) timer=setTimeout(()=>next(),scenes[n].t*1000);
+}
+function next(){ if(i<scenes.length-1) show(i+1); }
+function hooks(id){
+  if(id==='s4'){const nodes=[...document.querySelectorAll('#wf .node')];nodes.forEach(n=>n.classList.remove('on'));$('track').classList.remove('go');void $('track').offsetWidth;
+    setTimeout(()=>$('track').classList.add('go'),300);nodes.forEach((n,k)=>setTimeout(()=>{if(i===3)n.classList.add('on')},1200+k*1700));}
+  if(id==='s5'){['v1','v2','v3'].forEach((v,k)=>{$(v).classList.remove('reveal');setTimeout(()=>{if(i===4)$(v).classList.add('reveal')},2200+k*2600);});}
+}
+setInterval(()=>{ if(i<0||paused)return; elapsed=Math.min(total,elapsed+0.1); bar.style.width=(elapsed/total*100)+'%'; },100);
+function start(){ $('start').style.display='none'; paused=false; show(0); }
+document.addEventListener('mousemove',()=>$('stage').classList.add('moved'),{once:true});
+$('go').onclick=start; $('start').onclick=e=>{if(e.target.id!=='go')start()};
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault(); if(i<0){start();return} paused=!paused; if(paused){clearTimeout(timer);document.getAnimations().forEach(a=>a.pause())}else{document.getAnimations().forEach(a=>a.play());timer=setTimeout(()=>next(),Math.max(500,(sceneStart+scenes[i].t-elapsed)*1000))}}
+  if(e.key==='ArrowRight'){paused=false;show(Math.min(i+1,scenes.length-1))}
+  if(e.key==='ArrowLeft'){paused=false;show(Math.max(i-1,0))}
+  if(e.key==='r'||e.key==='R'){paused=false;show(0)}
+  if(e.key==='c'||e.key==='C'){capsOn=!capsOn;cap.textContent=capsOn&&i>=0?scenes[i].cap:''}
+});
+</script>
+</body>
+</html>
