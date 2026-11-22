@@ -1075,3 +1075,24 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - Which search timeout should we use?
 Credits / tokens used this session (rough): 7 Crustdata credits, about 1,100 OpenAI tokens (Rs 7.79)
+
+### 16:15 · harshit · merger + claude-core · task timeout 30 s, third live web run
+
+Status: done
+Done this session:
+- config/rules.yaml: limits.per_call_timeout_s 20 -> 30 (approved by harshit); merged as d4b1da6, 441 passed.
+- Live run run-20261122-104047-1b295e: 6 PASS, 0 FAIL, 1 SKIP against tests/decks/deck_a_answers.yaml.
+  - Slides 6 and 7: CANNOT_VERIFY no_evidence, as the key expects.
+  - Ledger: 8 calls, 11 credits, Rs 11.96, 74.8 s.
+- README "Latest live run" section (headline result); INCIDENTS A6b.
+In progress / exact next step:
+- Demo video (17:30), BUSINESS.md, ETHICS.md (teammate), UI polish merge, make the repo public, submit the form (18:00).
+How to run / test:
+- set -a; . ../deckcheck-kit/.env; set +a; unset GEMINI_API_KEY; python cli.py run --request tests/decks/deck_a_request.json --out out/result.json
+Known bugs or shortcuts taken:
+- GEMINI_API_KEY still invalid. Web results vary from run to run (search is live), so slides 6 and 7 can differ between runs; the rules keep them safe.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- none
+Credits / tokens used this session (rough): 11 Crustdata credits (Rs 11.96 total)
