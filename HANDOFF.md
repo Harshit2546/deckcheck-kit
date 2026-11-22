@@ -400,3 +400,28 @@ Open questions for a human:
 - Add a root `pytest.ini` with `pythonpath = .` (outside every lane's folders), or tell ag-b to add a sys.path line in tests/checkers/conftest.py.
 - Finance partner: real values for the `verdict:` block.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:05 · harshit · lane claude-core · task T19
+
+Status: done
+Done this session:
+- actions/email.py:
+  - draft(conn, rules, run_id) -> Action | None: pending founder email built from the saved report's founder_questions and evidence_requests; None when there is nothing to ask; one per run (UNIQUE idempotency key). The runner calls it as its last step (D7).
+  - approve(conn, rules, action_id, decided_by) / reject(conn, action_id, decided_by): pending only, a human name is required.
+  - send_approved(conn, rules): first reconcile() (every `sending` row: key already in inbox -> mark sent, else deliver), then each approved row: approved -> sending (own commit), then inbox insert + sent (one transaction). Safe to call any number of times.
+  - check_recipient(): anything other than rules actions.test_inbox raises RecipientRefused, at draft, approve, send and reconcile.
+  - "Send" is an insert into the local inbox table. No smtplib / email.mime / requests / urllib / http in actions/ (a test checks this).
+- core/store.py: set_action_status() (compare-and-set), insert_inbox(), inbox_has_key().
+- tests/actions/: 12 tests incl. a real os._exit(137) kill after approve and after `sending`, restart, exactly one inbox row; wrong and tampered recipients never sent.
+In progress / exact next step:
+- io/adapter.py from_kit()/to_kit() once D3 (kit format) is in DECISIONS.md.
+How to run / test:
+- .venv/bin/python -m pytest -q tests/actions   (12 passed); full suite: .venv/bin/python -m pytest -q (132 passed)
+Known bugs or shortcuts taken:
+- Email text is fixed English in actions/email.py `_body()`; the per-claim questions come from report/.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none beyond PLAN.md section 3
+Open questions for a human:
+- ui lane (ag): the approvals page should call actions.email.approve/reject and then send_approved; the inbox page reads store.list_inbox().
+- Finance partner: the real actions.test_inbox address.
+Credits / tokens used this session (rough): 0 Crustdata credits
