@@ -149,14 +149,72 @@ lowercased title. Seniority order = the order of the keys in `title_levels` in r
 Observed tenure months = months from `start_date` to `end_date` (or `record_date` when current).
 Never CONTRADICTED because an employer is missing from a profile.
 
+### 3.4 hiring (claim.type `hiring`; T29)
+
+Observed: `openings_count`, `growth_percent`. Tolerance `tolerances.hiring.tolerance_pct`.
+- A count claim whose unit names a subset (anything other than empty, people, roles, openings, jobs, positions, hires;
+  e.g. Deck A slide 8 "engineers") -> NOT_COMPARABLE `metric_mismatch`: total openings can never support it.
+- Metric containing "growth" needs unit `%` and compares with `growth_percent`; otherwise `metric_mismatch`.
+- Within tolerance -> SUPPORTED `within_tolerance`, medium when close and fresh, else low (never high).
+- Fewer openings than claimed -> CANNOT_VERIFY `source_may_be_incomplete` (job indexes undercount); more than claimed ->
+  CANNOT_VERIFY `observed_more_than_claimed`. **Never CONTRADICTED.**
+
+### 3.5 traction (claim.type `traction`; T29)
+
+Observed: `revenue`, `arr` (USD estimates), `growth_rate`. Tolerance `tolerances.traction.tolerance_pct`.
+- Like with like only: revenue/annual_revenue/turnover -> `revenue`, arr -> `arr`. GMV, bookings, run rate, MRR, monthly,
+  orders, profit and any other metric -> NOT_COMPARABLE `metric_mismatch`.
+- Growth claims -> CANNOT_VERIFY `growth_scale_unclear` (the checker does not say whether growth_rate is a fraction or a
+  percent, or its period).
+- Unit not `USD` (including none) -> NOT_COMPARABLE `currency_mismatch`.
+- diff <= tol -> SUPPORTED (medium when close and fresh, else low); tol < diff < strong_margin x tol -> CANNOT_VERIFY
+  `estimate_gap_unclear`; diff >= strong_margin x tol -> CONTRADICTED `outside_tolerance`, medium if fresh else low. Never high.
+
+### 3.6 company_fact (claim.type `company_fact`; T29)
+
+Observed: `year_founded`, `headquarters` (string or dict with city/name).
+- Founded year (metric contains "year" or "found"): exact -> SUPPORTED high (capped by the date ceiling); gap up to
+  `tolerances.company_fact.year_gap_cannot_verify` -> CANNOT_VERIFY `founding_year_close` (incorporation vs launch);
+  larger -> CONTRADICTED `outside_tolerance` medium.
+- Headquarters (metric contains "headquarter", "hq" or "location"): first comma part, lower-cased, aliases
+  (Bangalore=Bengaluru, Gurgaon=Gurugram, Bombay=Mumbai, New Delhi=Delhi, Madras=Chennai, Calcutta=Kolkata, Poona=Pune);
+  equal -> SUPPORTED medium, anything else -> CANNOT_VERIFY `location_unclear`. **Never CONTRADICTED.**
+- Other metrics -> `unsupported_metric`. Note: while the company record is a snapshot dated today, most of these stop
+  earlier at `record_after_as_of` (section 2).
+
+### 3.7 prior_exit (claim.type `prior_exit`; T29)
+
+Guard, right after the identity check: unless `observed.prior_company_checked is True` -> CANNOT_VERIFY
+`prior_company_not_checked`. Today's checker fetches the deck's OWN company (Locus shows acquired_by Ingka), so every
+prior_exit claim stops here. Once the flag is set: acquirer (metric with "acquir", "buyer", "exit", "sold") matched with
+`resolve.names.company_names_match` -> SUPPORTED `acquirer_matches` medium, different -> CANNOT_VERIFY `acquirer_differs`,
+none -> `source_may_be_incomplete`; amount (metric with "amount", "value", "price") in USD within
+`tolerances.prior_exit.tolerance_pct` -> SUPPORTED medium, outside -> CANNOT_VERIFY `estimate_gap_unclear`, missing ->
+`source_may_be_incomplete`, other currency -> `currency_mismatch`. **Never CONTRADICTED.**
+
+### 3.8 team_growth (claim.type `team_growth`; T29)
+
+Needs `observed.baseline_date` and a yearly metric (yoy, year, annual, 12m); the window record_date - baseline_date must be
+365 +- `tolerances.team_growth.window_tolerance_days`. Otherwise NOT_COMPARABLE `period_mismatch` (today's checker: always).
+Then unit `%` required (else `metric_mismatch`); within `tolerances.team_growth.tolerance_pct` -> SUPPORTED medium,
+outside -> CANNOT_VERIFY `estimate_gap_unclear`. **Never CONTRADICTED.**
+
+### 3.9 competition (claim.type `competition`; T29)
+
+Always CANNOT_VERIFY `competition_not_judged`; the competitors the source names stay in the evidence. Not in
+`_TYPES_WITH_RULES` (it has no `tolerance_pct`).
+
 ## 4. Reason codes the report lane can rely on
 
 HELD: `timeout`, `error`, `budget`, `time`, `no_checker` (core `HeldReason`). CANNOT_VERIFY: `no_evidence`, `identity_unclear`, `entity_not_found`,
 `claim_value_unusable`, `missing_record_date`, `no_reference_date`, `unsupported_metric`, `source_may_be_incomplete`,
-`round_not_found`, `investor_not_listed`, `employer_not_in_profile`, `title_unmapped`, `missing_dates`.
-NOT_COMPARABLE: `record_after_as_of`, `stale_record`, `currency_mismatch`, `informal_title`, plus any checker-given `not_comparable_reason`.
+`round_not_found`, `investor_not_listed`, `employer_not_in_profile`, `title_unmapped`, `missing_dates`,
+T29: `observed_more_than_claimed`, `growth_scale_unclear`, `estimate_gap_unclear`, `founding_year_close`, `location_unclear`,
+`prior_company_not_checked`, `acquirer_differs`, `competition_not_judged`.
+NOT_COMPARABLE: `record_after_as_of`, `stale_record`, `currency_mismatch`, `informal_title`, T29: `metric_mismatch`, `period_mismatch`,
+plus any checker-given `not_comparable_reason`.
 SUPPORTED: `within_tolerance`, `within_tolerance_undated_rounds`, `within_band`, `investor_listed`, `employer_listed`,
-`title_level_met`, `tenure_within_tolerance`. CONTRADICTED: `outside_tolerance`, `outside_band`, `observed_higher`,
+`title_level_met`, `tenure_within_tolerance`, T29: `acquirer_matches`. CONTRADICTED: `outside_tolerance`, `outside_band`, `observed_higher`,
 `title_level_lower`, `tenure_outside_tolerance`.
 
 ## 5. Asks for other lanes
@@ -173,7 +231,22 @@ SUPPORTED: `within_tolerance`, `within_tolerance_undated_rounds`, `within_band`,
   a start date), use only those dated on or before the reference date and set `record_date` to the newest of them. Test decks must carry a
   deck date on or after the date of the data they are checked against.
 
+- T29, codex-a (checkers/prior_exit.py): fetch the founder's EARLIER company (from the claim subject or the founder's
+  profile), not `ctx.run.input.domain`, and set `observed["prior_company_checked"] = True` only then. Exit records are old,
+  so also add `tolerances.prior_exit.max_record_age_days` (e.g. 3650, like funding) to rules.yaml when this is enabled.
+- T29, ag-b (checkers/team_growth.py): choose the baseline point from the claim's period (one year before the newest
+  point for "YoY"/"in the last year") instead of the first history point, and expose it as `observed["baseline_date"]`
+  (do not hide it only in `field_or_quote`).
+- T29, checkers/traction.py: say whether `growth_rate` is a fraction or a percent and over which period
+  (e.g. `observed["growth_rate_pct_yoy"]`); until then traction growth claims stay `growth_scale_unclear`.
+- T29, ag-b (extract): for hiring, put the role family in `unit` ("engineers", "sales") so subset claims are caught.
+
 ## 6. rules.yaml keys the engine reads
+
+T29 (read inside each rule, not in REQUIRED_KEYS): `tolerances.hiring.tolerance_pct`, `tolerances.traction.tolerance_pct`,
+`tolerances.prior_exit.tolerance_pct`, `tolerances.team_growth.tolerance_pct`, `tolerances.company_fact.tolerance_pct`
+(read by _prepare, unused), NEW `tolerances.company_fact.year_gap_cannot_verify` (PLACEHOLDER 1),
+NEW `tolerances.team_growth.window_tolerance_days` (PLACEHOLDER 45).
 
 Existing: `tolerances.team_size.tolerance_pct`, `tolerances.funding.tolerance_pct`,
 `tolerances.founder_background.min_title_level`, `tolerances.founder_background.tenure_tolerance_months`,

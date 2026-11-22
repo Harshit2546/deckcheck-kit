@@ -866,3 +866,28 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - Fix or remove GEMINI_API_KEY in .env.
 Credits / tokens used this session (rough): 2 Crustdata credits; 1,068 OpenAI tokens (Rs 2.79 total)
+
+### 16:00 · claude-verdict@mac (harshit's account, at the merger session's request) · lane claude-verdict · task T29
+
+Status: done
+Done this session:
+- verdict/hiring.py, traction.py, company_fact.py, prior_exit.py, team_growth.py; competition in verdict/engine.py `_route`. engine `_TYPES_WITH_RULES` gains hiring, traction, company_fact, prior_exit, team_growth (competition is route-only: it has no tolerance_pct). prior_exit guard runs right after the identity check.
+- Cautious by design: hiring, HQ, prior_exit, team_growth never CONTRADICTED; traction CONTRADICTED only at >= strong_margin x tolerance, never above medium; founded year CONTRADICTED (medium) only beyond the year-gap key; competition never decided.
+- config/rules.yaml: `tolerances.company_fact.year_gap_cannot_verify: 1`, `tolerances.team_growth.window_tolerance_days: 45` (PLACEHOLDER). docs/LIVE_FIX_MAP.md: two lines. verdict/common.py MISSING_TEXT: one entry per new reason code.
+- verdict/DESIGN.md sections 3.4-3.9, 4, 5 (asks), 6 (keys). DECISIONS D15.
+- tests/verdict/test_t29_rules.py: 81 tests, every label per rule plus "never CONTRADICTED" tests on the cautious paths (incl. the Locus/Ingka prior_exit shape).
+In progress / exact next step:
+- Merge to main: waiting for the user's OK (AGENTS.md: only a human merges to main).
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (320 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- Deck A is unchanged: slide 8 (hiring, "engineers") still stops at missing_record_date because the hiring checker gives no dated field; with a date it would be NOT_COMPARABLE metric_mismatch. The gain is for unseen decks.
+- Founded year and HQ come from a company snapshot dated today, so against an older deck date they mostly stop at record_after_as_of (D3), not at these rules.
+- prior_exit and team_growth cannot decide until their checkers change (DESIGN.md section 5).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D15.
+Open questions for a human:
+- Finance partner: values for the two new keys; is a 1-year founded-year gap the right "unclear" band?
+- codex-a / ag-b: the checker asks in DESIGN.md section 5.
+Credits / tokens used this session (rough): 0 Crustdata credits
