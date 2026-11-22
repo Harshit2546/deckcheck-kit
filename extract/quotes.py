@@ -111,15 +111,15 @@ def pick_quote(ctx: RunContext, page_text: str, question: str, must_contain: lis
 
 _PRE = r"(?P<pre>US\$|\bUSD|\bINR|\bRs\.?|₹|(?<![A-Za-z])\$)"
 _NUM = r"(?P<num>(?<![\d.,])\d{1,3}(?:,\d{2,3})+(?:\.\d+)?|(?<![\d.,])\d+(?:\.\d+)?)"
-_SCALE = (r"(?P<scale>(?i:lakh\s+crores?|lakhs?|crores?|trillion|billion|million|thousand|tn|bn|mn|cr)\b"
-          r"|[MBK]\b)")
+_SCALE = (r"(?P<scale>(?i:lakh\s+crores?|lakhs?|lacs?|crores?|trillion|billion|million|thousand|tn|bn|mn|cr)\b"
+          r"|[MBK]\b|(?<=\d)[mbk]\b)")
 _POST = r"(?P<post>(?i:US\s+dollars|dollars|rupees)\b|\bUSD\b|\bINR\b)"
 _AMOUNT_RE = re.compile(rf"(?:{_PRE}\s*)?{_NUM}(?:\s*{_SCALE})?(?:\s*{_POST})?")
 # '$5-7 billion', 'Rs 500 to 700 crore': a currency amount followed by a dash or 'to' and a bare number.
 _RANGE_RE = re.compile(rf"{_PRE}\s*{_NUM}(?:\s*{_SCALE})?\s*(?:[-–—]|\bto\b)\s*\d")
 
 _SCALES = {
-    "lakh crore": Decimal("1e12"), "lakh": Decimal("1e5"), "crore": Decimal("1e7"),
+    "lakh crore": Decimal("1e12"), "lakh": Decimal("1e5"), "lac": Decimal("1e5"), "crore": Decimal("1e7"),
     "cr": Decimal("1e7"), "trillion": Decimal("1e12"), "tn": Decimal("1e12"),
     "billion": Decimal("1e9"), "bn": Decimal("1e9"), "b": Decimal("1e9"),
     "million": Decimal("1e6"), "mn": Decimal("1e6"), "m": Decimal("1e6"),
@@ -127,14 +127,16 @@ _SCALES = {
 }
 
 
+_CURRENCY_MARKERS = {
+    "rs": "INR", "rs.": "INR", "₹": "INR", "inr": "INR", "rupees": "INR",
+    "$": "USD", "us$": "USD", "usd": "USD", "dollars": "USD", "us dollars": "USD",
+}
+
+
 def _currency(pre: str | None, post: str | None) -> str | None:
     """ISO code from a prefix or suffix marker, or None if there is no marker."""
-    marker = (pre or post or "").lower()
-    if not marker:
-        return None
-    if "rs" in marker or "₹" in marker or "inr" in marker or "rupee" in marker:
-        return "INR"
-    return "USD"
+    marker = " ".join((pre or post or "").lower().split())
+    return _CURRENCY_MARKERS.get(marker)
 
 
 def _scale(word: str | None) -> Decimal:
@@ -159,6 +161,8 @@ def parse_amount(quote: str) -> tuple[float | None, str | None]:
         currency = _currency(m.group("pre"), m.group("post"))
         if currency is None:
             continue
+        if m.group("scale") is None and re.match(r"[A-Za-z]", text[m.end("num"):m.end("num") + 1]):
+            return None, None  # an attached unit we do not know ('$5x'): never guess the scale
         try:
             value = Decimal(m.group("num").replace(",", "")) * _scale(m.group("scale"))
         except (InvalidOperation, KeyError):

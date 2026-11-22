@@ -143,6 +143,15 @@ def test_empty_page_makes_no_call(ctx: RunContext, monkeypatch: Any) -> None:
         ("INR 1.5 lakh crore", (1.5e12, "INR")),
         ("₹2 billion", (2e9, "INR")),
         ("$9 billion in 2023, or $9 billion by most counts", (9e9, "USD")),
+        ("9.2 billion dollars", (9.2e9, "USD")),
+        ("9.2 billion US dollars", (9.2e9, "USD")),
+        ("5,000 crore rupees", (5e10, "INR")),
+        ("raised $5m", (5e6, "USD")),
+        ("$100k ARR", (1e5, "USD")),
+        ("a $9b market", (9e9, "USD")),
+        ("Rs 50 lacs", (5e6, "INR")),
+        ("Rs 500 Cr.", (5e9, "INR")),
+        ("$5 per user", (5.0, "USD")),
     ],
 )
 def test_parse_amount_reads_value_and_currency(quote: str, expected: tuple[float, str]) -> None:
@@ -161,6 +170,7 @@ def test_parse_amount_reads_value_and_currency(quote: str, expected: tuple[float
         "A range of $5-7 billion.",                             # range
         "Rs 500 to 700 crore",                                  # range with 'to'
         "A$5 billion in Australia",                             # not USD
+        "a $5x return",                                         # unknown attached unit: no guessing
         "",
     ],
 )
