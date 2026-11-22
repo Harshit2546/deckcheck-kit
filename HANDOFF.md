@@ -891,3 +891,29 @@ Open questions for a human:
 - Finance partner: values for the two new keys; is a 1-year founded-year gap the right "unclear" band?
 - codex-a / ag-b: the checker asks in DESIGN.md section 5.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:31 · web-client (claude, side session of the merger) · lane web-client · task T30
+
+Status: done
+Done this session:
+- sources/web.py: `search(ctx, query, *, sources, site, location, end_date)` -> POST /web/search/live and `fetch(ctx, urls)` -> POST /web/enrich/live, exactly the D16 / WEB_SOURCE.md section 3 signatures and return shapes. Also a public helper `end_of_day_unix('YYYY-MM-DD')` (23:59:59 UTC; 1970-01-01 -> 86399).
+- Same pattern as sources/crust.py: `limits.ensure_within` before every attempt; one ledger row per HTTP call in `finally` (Provider.CRUSTDATA, endpoints `POST /web/search/live` / `POST /web/enrich/live`); TimeoutError at `limits.per_call_timeout_s`; key from crust's `_api_key` (env, then .env), never logged.
+- Differences from crust.py, on purpose (per the T30 brief): retry once on HTTP 429 ONLY (crust also retries 5xx); credits read from `X-Credits-Used`; no account-endpoint call, rpm pacing or 60 s cache TTL (cache lives for the run).
+- tests/sources/test_web.py (17 tests) + hand-built fixtures in tests/fixtures/web/ (shapes from WEB_SOURCE.md; no live call made, 0 credits). Covers headers/body via a fake HTTPSConnection, end_date conversion, failed-URL shape, ledger rows on success/HTTP error/malformed/timeout, 429 retry and second 429, cache, 10-URL cap, limit hit. An autouse fixture makes any real HTTPS connection fail the test.
+In progress / exact next step:
+- Merger: merge lane/web-client. T32 checkers can now call `sources.web.search` / `fetch` for real.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q tests/sources/test_web.py   (17 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (338 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- Credits when there is no X-Credits-Used header: search 1; fetch 1 per URL SENT (not per success), the cautious choice for budget limits. Failed HTTP calls record 0 credits unless the header says otherwise (same as crust). A 2xx with a malformed body records the fallback credits and ok=0.
+- Fetch matches results to requested URLs ignoring a trailing "/", returns them in request order under the requested URL, and drops successes for URLs we did not send. Non-https URLs raise ValueError before any call. Duplicate URLs are sent once.
+- Fetch cache key is the run plus the order-independent SET of URLs, so the single returned call_id is always the call that really fetched those pages. Two claims fetching overlapping but different URL sets pay again for the overlap.
+- Untested against the live API: response field names come from the docs as written in WEB_SOURCE.md.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (contract unchanged)
+Open questions for a human:
+- If per-URL fetch caching is wanted (to avoid paying twice across claims), the page dicts need their own `call_id`; that is a contract change (new DECISIONS entry).
+- No pre-call budget check for a 10-URL fetch (crust's `_ensure_can_afford` is company-only); `ensure_within` only checks spend so far, so one fetch can overshoot max_credits by up to 10.
+Credits / tokens used this session (rough): 0 Crustdata credits
