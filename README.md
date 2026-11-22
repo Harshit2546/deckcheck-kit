@@ -160,6 +160,21 @@ is a failed first LLM attempt.
 
 The founder email is waiting for approval (`pending`).
 
+### Live run with web search, Deck A
+
+Run `run-20261122-102749-b58f62` on 2026-11-22 had the web source (DECISIONS D16) switched
+on. Slides 2 to 5 and 8 gave the same verdicts as the first live run. The web slides:
+
+| Slide | Claim | Verdict | What happened |
+|---|---|---|---|
+| 6 | Acme Freight Corp is a customer | HELD / timeout | The search ran, but the page fetch took longer than the 20 s `limits.per_call_timeout_s`. A slow source is held, never treated as missing. |
+| 7 | India's logistics software market is $9B | CANNOT_VERIFY / source_may_be_incomplete | 3 pages fetched; 2 had no publish date and were skipped. One dated page (Economic Times, 2024-09-18) gave a verified quote, but it is about a different market (home and household, USD 237 billion by 2030). One estimate is not enough to contradict, so the verdict stayed safe. |
+
+The ledger has 8 calls: 8 Crustdata credits, ₹9.72 and 69.7 s in calls (web: 2 searches, 2 fetches, 1 timed out).
+
+**Fix needed:** the market-size checker must make code check that the quote names the claim's
+market, and must skip forecasts for a later year. See docs/INCIDENTS.md B10.
+
 ## Known limits (what does not work yet)
 
 - **Slides 6 and 7 come out Held.**

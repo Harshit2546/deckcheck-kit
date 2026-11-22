@@ -990,3 +990,28 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - T33: read `mentions[*].independent`; there is no top-level `independent` key.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:05 · harshit · merger + claude-core · task live Deck A run with web search
+
+Status: done (run); two fixes open
+Done this session:
+- Merged T30, T31, T32 (web client, pages and quotes, checkers) and T33 (verdict rules) into main. Offline eval now blocks web calls (af13f8c). docs/INCIDENTS.md started.
+- Live run run-20261122-102749-b58f62 with web search, approved by harshit:
+  - slides 2 to 5 and 8: same verdicts as the first live run;
+  - slide 6 (customer): HELD timeout (web fetch over 20 s);
+  - slide 7 (market size): CANNOT_VERIFY source_may_be_incomplete, but its only evidence quote is about the wrong market (home and household, USD 237bn by 2030).
+  - Ledger: 8 calls, 8 credits, Rs 9.72, 69.7 s.
+- README "Live run with web search" section; INCIDENTS A5 and B10.
+In progress / exact next step:
+1. checkers/market_size.py (web-checkers lane): pass the claim's market terms as `must_contain` to quotes.pick_quote, and skip quotes that forecast a year after the reference year ("by 2030"). Add tests.
+2. sources/web.py (web-client lane): a separate, longer timeout for web fetch (new rules.yaml key, e.g. web.fetch_timeout_s), so a slow page fetch doesn't hold the customer claim.
+How to run / test:
+- set -a; . ../deckcheck-kit/.env; set +a; unset GEMINI_API_KEY; python cli.py run --request tests/decks/deck_a_request.json --out out/result_web.json
+- python -m pytest -q (429 passed)
+Known bugs or shortcuts taken:
+- GEMINI_API_KEY in .env is still invalid; runs unset it so OpenAI is used.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- Approve fixes 1 and 2 before the 18:00 freeze?
+Credits / tokens used this session (rough): 8 Crustdata credits, about 4,700 OpenAI tokens (Rs 9.72)

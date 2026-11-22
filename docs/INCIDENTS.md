@@ -8,7 +8,7 @@ repo history" check. Every row points to a commit, decision or HANDOFF entry you
 bug, a near miss or a wrong assumption. Never edit an old row; add a follow-up row instead.
 Times are IST and come from the HANDOFF/DECISIONS headers, log lines (UTC + 5:30) or commit times. Some HANDOFF headers were written on different laptops' clocks, so treat times as approximate.
 
-## Pitch highlights (the five worth telling)
+## Pitch highlights (the six worth telling)
 
 1. **A bad API key did not lose the run.** The first live Deck A run died at extraction
    (Gemini key rejected). The failed call stayed in the ledger, and `cli.py resume`
@@ -28,6 +28,12 @@ Times are IST and come from the HANDOFF/DECISIONS headers, log lines (UTC + 5:30
    source at runtime, a test-only `example.com` branch in runtime code, and swallowed
    import errors that would have turned a missing source into "cannot verify". (#C1 to #C3)
 
+6. **The safety margin caught the LLM picking the wrong market.** In the first live web
+   run, the quote picker matched "logistics software market, $9B" to a news line about
+   the *home and household* market (USD 237 billion by 2030). Because a Contradicted needs
+   two agreeing sources, the verdict stayed Cannot verify, and the gap (relevance was left
+   to the LLM, not checked by code) went into the fix list. (#B10)
+
 ## A. Live runs and external services
 
 | # | When | What happened | How it was caught | Impact | Fix / outcome | Where |
@@ -36,6 +42,7 @@ Times are IST and come from the HANDOFF/DECISIONS headers, log lines (UTC + 5:30
 | A2 | 14:53 | The documented demo command failed with "deck not found": `cli.py` joined the repo-relative `deck_path` onto the request file's folder (`tests/decks/tests/decks/deck_a.pdf`). | First live run | Demo command never worked | `cli.py` now looks beside the request first, then from the current folder; test added | commit 895f767 |
 | A3 | all day | Crustdata returns no per-call billing receipt on some calls. | codex-a probe | Ledger credits are estimates where the header is missing | Credits recorded from published rates and said so; the web client reads `X-Credits-Used` when present | HANDOFF 13:51 (codex-a), D16 |
 | A4 | 15:30 | Crustdata web search results carry **no publish date**. | Reading the API docs before building | A web fact would have had no record date (breaks D3) | Code reads the date from the fetched page's HTML (JSON-LD, meta tags, `<time>`); pages without one are skipped | docs/WEB_SOURCE.md, D16 |
+| A5 | 15:58 | First live run with web search: the customer page fetch (`POST /web/enrich/live`) took longer than `limits.per_call_timeout_s` (20 s); the other fetch took 13 s. | Live run `run-20261122-102749-b58f62` | Slide 6 HELD (timeout), no verdict; the timed-out call is in the ledger with no credits | Correct handling. Open: a separate, longer timeout for web fetch (config key, web-client lane) | README "Live run with web search" |
 
 ## B. Data, dates and verdict correctness
 
@@ -50,6 +57,7 @@ Times are IST and come from the HANDOFF/DECISIONS headers, log lines (UTC + 5:30
 | B7 | 15:11 | The team_growth checker measures from the oldest history point (years), not the period the claim states. | Same review | Wrong period means wrong SUPPORTED or CONTRADICTED | Rule returns NOT_COMPARABLE `period_mismatch` until the checker reports `baseline_date` | DECISIONS D15 |
 | B8 | 15:11 | The engine read `tolerances.<type>.tolerance_pct` for every ruled type; competition has none. | Design review | Every competition claim would crash with KeyError | Competition excluded from the lookup; always CANNOT_VERIFY `competition_not_judged` | DECISIONS D15 |
 | B9 | 14:35 | A real run raised ValueError at its first verdict: the engine needs a `verdict:` block in rules.yaml that didn't exist yet. | claude-verdict | No run could finish | D8: `verdict:` block added to rules.yaml | DECISIONS D8 |
+| B10 | 15:58 | Live web run: the market-size checker accepted the quote "India's home and household market is projected to reach USD 237 billion by 2030" as evidence for "India's logistics software market is worth $9B". The checker passed no `must_contain` terms, so only the LLM judged relevance, and it also took a 2030 forecast for today's size. | Reading the live result's sources | Verdict stayed safe (CANNOT_VERIFY), only because CONTRADICTED needs 2 agreeing sources (D16). Two such pages would have produced a wrong CONTRADICTED. | Open: code must require the claim's market terms in the quote and skip forecasts dated after the reference year (checkers/market_size.py) | README "Live run with web search" |
 
 ## C. Hard-rule violations caught in review (before main)
 
@@ -82,6 +90,8 @@ Times are IST and come from the HANDOFF/DECISIONS headers, log lines (UTC + 5:30
 | E4 | all day | Every merge conflict was in HANDOFF.md / TASKS.md (never in code), because lanes own separate folders. | merger | Keep both HANDOFF entries; keep the more advanced TASKS status | docs/MERGER_HANDOFF.md |
 
 ## Still open
+
+- The market-size quote relevance and forecast checks (B10), and a longer web fetch timeout (A5).
 
 - `GEMINI_API_KEY` in `.env` is invalid (A1). Fix or remove it before the next live run.
 - No live web call has run yet, so the Crustdata web response shapes are unverified (A4).
