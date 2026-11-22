@@ -101,6 +101,5 @@ Where it ended up: the last live Deck A run scores **6 of 6 against the answer k
 
 - `GEMINI_API_KEY` in `.env` is invalid (A1). Fix or remove it before the next live run.
 - The hiring checker has no dated field (B4); the prior_exit and team_growth checkers need the fixes in B6 and B7.
-- Founder title claims end `title_unmapped` until the finance partner sets real `title_levels` (Deck F slide 3).
 - B12: founder claims for a job missing from the profile carry a date reason code instead of `employer_not_in_profile`.
-- Deck F's company resolved `unclear` (1 signal) in the live run; founder claims are unaffected.
+- LLM extraction varies between runs: Deck F's second run added a company claim from the title slide, and company identity was `unclear` (1 signal) in the first run and `confirmed` (2) in the second. Founder claims were unaffected.

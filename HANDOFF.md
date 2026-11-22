@@ -1229,3 +1229,15 @@ Open questions for a human:
 - Finance partner: real title_levels (add developer/engineer variants) so Deck F slide 3 can be decided.
 Credits / tokens used this session (rough): 3 Crustdata credits (live Deck F)
 
+### 16:55 · claude-core (merger) · lane claude-core · title_levels, Deck F rerun
+
+Status: done
+Done this session:
+- config/rules.yaml title_levels (on the user's word): ic adds developer, programmer, sde, scientist, designer, architect; vp adds svp, evp, avp; c_level adds cofounder and spelled-out chief ... officer titles (not bare "chief"). Test rows added in tests/verdict/test_metrics.py. Deck F key slide 3 = SUPPORTED title_level_met. Merged to main 0857498 (493 tests, eval unchanged).
+- Live Deck F run-20261122-111231-e7bd42: slides 2 and 3 SUPPORTED (2 PASS); 3 credits, ₹3.40.
+Known bugs or shortcuts taken:
+- LLM extraction is not deterministic (extra slide-1 company claim this run; ends CANNOT_VERIFY).
+Open questions for a human:
+- Finance partner: confirm the title_levels additions (all PLACEHOLDER).
+Credits / tokens used this session (rough): 3 Crustdata credits
+
