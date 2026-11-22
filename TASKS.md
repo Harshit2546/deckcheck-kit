@@ -19,7 +19,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T10 | codex-a | resolve/entities.py: company by domain, founders, two-signal rule, confidence | namesake fixture returns identity_unclear | todo |
 | T11 | ag-b | checkers: team_size, funding | tests pass | todo |
 | T12 | codex-a | checkers: founder_background | tests pass | todo |
-| T13 | claude-verdict | verdict/engine.py for founder, team_size, funding | Deck A matches answer key for those claims | in-progress (claude-verdict-1, 0%, DESIGN.md first) |
+| T13 | claude-verdict | verdict/engine.py for founder, team_size, funding | Deck A matches answer key for those claims | in-progress (claude-verdict-1, 20%, verdict/DESIGN.md pushed; next: verdict/engine.py + tests/verdict/ once core/ is on main) |
 | T14 | human | MILESTONE 1 at 12:45: Deck A end to end | report generated | todo |
 | T15 | claude-verdict | report/: red flags by materiality, table, questions, evidence requests, kit-format JSON | output validates against kit format | todo |
 | T16 | codex-a | checkers: prior_exit, company_fact, customer (web quote verify) | tests pass | todo |
