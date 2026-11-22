@@ -11,7 +11,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | blocked (yash, Locus company probe recorded. Founder enrichment paused by the human.) |
 | T03 | ag-b | extract/pdf.py: text per slide | test on Deck A passes | done |
 | T04 | ag | ui/app.py shell: upload form, run list from DB | shows a run row | done (harshit) |
-| T05 | teammate | Partner: Deck A (8 claims) + answer key; rules.yaml values | files in tests/decks/ | in-progress (teammate, 50%, rules.yaml & templates) |
+| T05 | teammate | Partner: Deck A (8 claims) + answer key; rules.yaml values | files in tests/decks/ | done |
 | T06 | human | Read kickoff kit; record Investing request input/output format in DECISIONS.md | D3 written | todo |
 | T07 | claude-core | core/runner.py: state machine, per-claim checkpoints, resume, cost and time limits | kill mid-run then resume finishes with no duplicate calls | done (harshit) |
 | T08 | codex-a | sources/crust.py: rate limit, backoff on 429/5xx, per-call timeout to HELD, ledger row per call, TTL cache | unit tests for 429, timeout, ledger | done (yash) |
