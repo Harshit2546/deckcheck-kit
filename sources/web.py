@@ -90,10 +90,20 @@ def _wait(ctx: RunContext, seconds: float) -> None:
     sleep(seconds)
 
 
+def _timeout_s(ctx: RunContext, path: str) -> float:
+    """Fetch uses web.fetch_timeout_s (pages are slow); search and old configs use the per-call limit."""
+    if path == FETCH_PATH:
+        web_rules = ctx.rules.get("web")
+        seconds = web_rules.get("fetch_timeout_s") if isinstance(web_rules, dict) else None
+        if seconds is not None:
+            return float(seconds)
+    return float(rule(ctx.rules, "limits.per_call_timeout_s"))
+
+
 def _attempt(ctx: RunContext, key: str, path: str, body: dict[str, Any],
              default_credits: float, parse: Any) -> tuple[Any, str]:
     """One HTTP call and its one ledger row (written in `finally`, so failures count too)."""
-    timeout = float(rule(ctx.rules, "limits.per_call_timeout_s"))
+    timeout = _timeout_s(ctx, path)
     call_id = ledger.new_call_id()
     endpoint = f"POST {path}"
     credits = 0.0

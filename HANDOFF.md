@@ -1015,3 +1015,23 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - Approve fixes 1 and 2 before the 18:00 freeze?
 Credits / tokens used this session (rough): 8 Crustdata credits, about 4,700 OpenAI tokens (Rs 9.72)
+
+### 16:06 · web-client (claude, side session of the merger) · lane web-client · task T30 follow-up (INCIDENTS A5)
+
+Status: done
+Done this session:
+- sources/web.py: fetch() now uses `web.fetch_timeout_s`; search() keeps `limits.per_call_timeout_s`. If the key is missing, fetch falls back to `limits.per_call_timeout_s`. A slow fetch still raises TimeoutError (HELD timeout) and still writes its ledger row.
+- config/rules.yaml: `web.fetch_timeout_s: 45` (PLACEHOLDER). docs/LIVE_FIX_MAP.md: one line.
+- tests/sources/test_web.py: 4 new tests (fetch uses the key, fallback, search unchanged, slow fetch times out and is ledgered).
+In progress / exact next step:
+- Merger: merge lane/web-client.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (433 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- A run with 3 claims each fetching can now spend up to about 3 x 45 s on fetches; `limits.max_seconds` still caps the run.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (config key only; contract unchanged)
+Open questions for a human:
+- Finance partner: real value for web.fetch_timeout_s.
+Credits / tokens used this session (rough): 0 Crustdata credits
