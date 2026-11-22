@@ -72,7 +72,8 @@ the last 3 entries of `HANDOFF.md` (where the previous account stopped),
 
 - Message format: `[lane] module: what changed` — e.g. `[codex] crust: add 429 backoff`.
 - Commit after every working step (roughly every 15–30 minutes).
-- Work on your lane branch (`lane/claude`, `lane/codex-a`, `lane/codex-b`, `lane/ag`).
+- Work on your lane branch (`lane/claude-core`, `lane/claude-verdict`, `lane/codex-a`,
+  `lane/ag-b`, `lane/ag`), each in its own git worktree.
   Only a human merges into `main`, after `pytest -q` passes.
 - `git pull --rebase` only on commits that are NOT pushed yet. Otherwise plain merge.
 

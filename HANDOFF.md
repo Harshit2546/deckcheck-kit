@@ -6,7 +6,7 @@ fill every field, commit with `[lane] handoff: <task id> <one line>`.
 ## Template
 
 ```
-### <HH:MM> · <account label, e.g. codex-2> · lane <claude|codex-a|codex-b|ag|human> · task <T-id>
+### <HH:MM> · <account label, e.g. codex-2> · lane <claude-core|claude-verdict|codex-a|ag-b|ag|human> · task <T-id>
 
 Status: done | in-progress (~__%) | blocked
 Done this session:

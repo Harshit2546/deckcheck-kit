@@ -75,16 +75,16 @@ because of the UNIQUE key.
 
 | Folder | What | Lane |
 |---|---|---|
-| core/ (models, store, runner, log, ledger) | contracts, SQLite, state machine, resume, limits | claude |
+| core/ (models, store, runner, log, ledger) | contracts, SQLite, state machine, resume, limits | claude-core |
 | config/rules.yaml | tolerances, title levels, materiality, limits, output fields | human (finance partner) |
-| io/adapter.py | kickoff-kit format to and from internal models | claude |
+| io/adapter.py | kickoff-kit format to and from internal models | claude-core |
 | sources/crust.py, sources/web.py | Crustdata client: rate limit, backoff, timeout to HELD, ledger, short TTL entity cache with retrieved_at; web search/fetch + quote verification | codex-a |
-| extract/ (pdf.py, claims.py) | PDF to slide text; LLM structured claims; code confirms each quote is on its slide | codex-b |
+| extract/ (pdf.py, claims.py) | PDF to slide text; LLM structured claims; code confirms each quote is on its slide | ag-b |
 | resolve/entities.py | company by domain; founders via profile URL or name+company; two-signal rule; confidence | codex-a |
-| checkers/*.py | one file per claim type | codex-a (founder, exit, company, customer), codex-b (team_size, team_growth, funding, hiring, traction, market, competition) |
-| verdict/engine.py | labels from CheckResult + rules.yaml | claude |
-| report/ | red flags by materiality, claim table, questions, evidence requests, JSON + Markdown in kit format | claude |
-| actions/ | email draft, approval, exactly-once send to test inbox | claude |
+| checkers/*.py | one file per claim type | codex-a (founder, exit, company, customer), ag-b (team_size, team_growth, funding, hiring, traction, market, competition) |
+| verdict/engine.py | labels from CheckResult + rules.yaml | claude-verdict |
+| report/ | red flags by materiality, claim table, questions, evidence requests, JSON + Markdown in kit format | claude-verdict |
+| actions/ | email draft, approval, exactly-once send to test inbox | claude-core |
 | ui/app.py | Streamlit: upload, live claim list, click verdict to see source, approvals page, inbox, ledger | ag |
 | tests/ | fixtures, checker tests, eval runner against answer key | ag (runner), each lane (own tests) |
 | docs/ | ARCHITECTURE.md + diagram, LIVE_FIX_MAP.md, ETHICS.md, BUSINESS.md | ag + humans |
@@ -94,32 +94,44 @@ because of the UNIQUE key.
 
 - Lanes belong to modules, not to accounts. When an account hits its limit, it writes
   the HANDOFF entry; the next account of the SAME tool continues the SAME lane.
-- **Claude Pro (1 account): lane claude.** Skeleton, contracts, runner/resume,
-  verdict engine, report, actions, merge reviews, hour-3 change. Scarcest: no UI, no
-  boilerplate.
-- **Codex accounts: lanes codex-a and codex-b**, run in parallel in separate git
-  worktrees. Rotate accounts inside a lane.
-- **Antigravity accounts: lane ag.** UI, eval runner, diagram, README drafts.
-- **Humans:** you merge to main, run the end-to-end check after each merge, and own
-  the live fix. Finance partner owns rules.yaml, test decks, answer key, founder
-  question templates, ethics and business write-ups, and the demo script.
+- Team budget: 2 Claude Pro, 1 ChatGPT Plus (Codex), 3 Gemini Pro (Antigravity).
+  Every lane runs in its own git worktree.
+- **Claude Pro A (merger's machine): lane claude-core.** Skeleton, contracts,
+  runner/resume/limits, adapter, actions + exactly-once send, kill drills.
+- **Claude Pro B (finance partner's machine): lane claude-verdict.** Verdict engine,
+  report, hour-3 change, merge reviews (it did not write core/, so it reviews fresh).
+  Before T01 lands it drafts verdict rules for founder/team_size/funding from this plan.
+- The two Claude lanes back each other up: if one account hits its limit, the other
+  continues that lane from its HANDOFF entry. Neither does UI or boilerplate.
+- **Codex (ChatGPT Plus, finance partner's machine): lane codex-a.** Crustdata client,
+  resolve, founder/exit/company/customer checkers. No second Codex account: if it runs
+  out, the Gemini spare takes over codex-a.
+- **Gemini 1 (merger's machine): lane ag.** UI, eval runner, diagram, README drafts.
+- **Gemini 2 (finance partner's machine): lane ag-b.** Extraction and the remaining
+  checkers.
+- **Gemini 3 (finance partner's machine): spare.** Continues ag-b or codex-a when that
+  account hits its limit.
+- **Humans:** the merger merges to main, reads the kickoff kit, runs the end-to-end check
+  after each merge, and owns the live fix. The finance partner owns rules.yaml, test
+  decks, answer key (do T05 first, before agents need attention), founder question
+  templates, ethics and business write-ups, and the demo script.
 - Only the two registered team members type prompts and run the service.
 
 ## 6. Timeline
 
-| Time | Claude | Codex-a | Codex-b | Antigravity | Humans |
-|---|---|---|---|---|---|
-| 11:00–11:30 | T01 skeleton: models, store, rules.yaml schema, runner stub, cli, adapter stub. Push. | probe Crustdata (MCP or curl) on Deck A company; note fields | PDF text per slide | Streamlit shell reading the DB | Partner: Deck A + answer key, rules values. You: read kickoff kit, fill adapter mapping in DECISIONS |
-| 11:30–12:45 | runner + resume + limits; verdict engine for 3 types | crust.py + ledger + backoff + HELD; resolve | claim extraction + quote check; team_size, funding checkers | claim list, verdict detail with source link | merge at 12:15 and 12:45 |
-| **12:45** | **Milestone 1: Deck A runs end to end with founder, team_size, funding.** | | | | check verdicts vs answer key |
-| 12:45–13:15 | report + founder questions | founder, company, exit checkers | team_growth, hiring checkers | approvals page + inbox | Partner: Decks B, C |
-| **13:15** | **Hour-3 requirement change: read it, write DECISIONS entry, assign it.** | | | | |
-| 13:15–15:00 | actions exactly-once; requirement change; kill test | customer checker (web quote verify); namesake two-signal | traction, market, competition | eval runner: accuracy vs answer key; ledger view | kill-and-restart drill every merge |
-| **15:00** | **Milestone 2: all 3 decks run; kill at random step, resume, email sent once.** | | | | |
-| 15:00–16:15 | fix failures from evals | robustness: 429s, timeouts | edge cases | ARCHITECTURE diagram, README draft | ETHICS.md, BUSINESS.md with measured cost/deck |
-| 16:15 | **Feature freeze. Bug fixes only.** | | | | |
-| 16:15–17:00 | review LIVE_FIX_MAP | — | — | final README | rehearse: 3-min demo with kill, live fix drills, design question |
-| 17:00–17:15 | final commit and push | | | | check deliverables list |
+| Time | Claude-core | Claude-verdict | Codex-a | Ag-b | Ag | Humans |
+|---|---|---|---|---|---|---|
+| 11:00–11:30 | T01 skeleton: models, store, rules.yaml schema, runner stub, cli, adapter stub. Push. | draft verdict rules for founder, team_size, funding from PLAN (no code until T01) | probe Crustdata (MCP or curl) on Deck A company; note fields | PDF text per slide | Streamlit shell reading the DB | Finance: Deck A + answer key, rules values. Merger: read kickoff kit, fill adapter mapping in DECISIONS |
+| 11:30–12:45 | runner + resume + limits | verdict engine for 3 types | crust.py + ledger + backoff + HELD; resolve | claim extraction + quote check; team_size, funding checkers | claim list, verdict detail with source link | merge at 12:15 and 12:45 (claude-verdict reviews) |
+| **12:45** | **Milestone 1: Deck A runs end to end with founder, team_size, funding.** | | | | | check verdicts vs answer key |
+| 12:45–13:15 | actions: draft + approval | report + founder questions | founder, company, exit checkers | team_growth, hiring checkers | approvals page + inbox | Finance: Decks B, C |
+| **13:15** | **Hour-3 requirement change: claude-verdict reads it, writes DECISIONS entry, assigns it.** | | | | | |
+| 13:15–15:00 | exactly-once send; kill test | requirement change | customer checker (web quote verify); namesake two-signal | traction, market, competition | eval runner: accuracy vs answer key; ledger view | kill-and-restart drill every merge |
+| **15:00** | **Milestone 2: all 3 decks run; kill at random step, resume, email sent once.** | | | | | |
+| 15:00–16:15 | fix runner/action failures | fix verdict failures from evals | robustness: 429s, timeouts | edge cases | ARCHITECTURE diagram, README draft | ETHICS.md, BUSINESS.md with measured cost/deck |
+| 16:15 | **Feature freeze. Bug fixes only.** | | | | | |
+| 16:15–17:00 | review LIVE_FIX_MAP | final merge review | — | — | final README | rehearse: 3-min demo with kill, live fix drills, design question |
+| 17:00–17:15 | final commit and push | | | | | check deliverables list |
 
 **Cut order if late:** competition, then market size, then hiring. Never cut founder,
 team size, funding, customers, approvals, resume.
