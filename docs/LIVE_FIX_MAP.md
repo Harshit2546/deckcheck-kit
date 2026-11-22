@@ -12,3 +12,5 @@ One line per thing a judge might ask to change. Format: To change X -> edit Y in
 - To change when a record is too old to compare -> `tolerances.max_record_age_days` in config/rules.yaml
 - To change which titles count as senior -> `title_levels` (order = seniority) and `tolerances.founder_background.min_title_level` in config/rules.yaml
 - To add a verdict rule for a new claim type -> new file verdict/<type>.py with `judge(...)`, one branch in `_route` in verdict/engine.py, its keys in rules.yaml
+- To add or remove a column in the report claim table -> `output.fields` in config/rules.yaml (names allowed: `ROW_FIELDS` in report/builder.py; add a new name there and in `_fields`)
+- To reword founder questions, evidence requests or held notes -> report/question_templates.yaml (per claim type, `default` is the fallback)

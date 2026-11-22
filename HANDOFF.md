@@ -172,3 +172,27 @@ Open questions for a human:
 - Finance partner: min_title_level meaning, max_record_age_days global, cautious funding rule (see DESIGN.md section 6), and real values for the three verdict keys.
 - PLAN.md, TASKS.md, docs/AGENT_PROMPTS.md still say io/adapter.py in places (D6 restored io/adapter.py, so check which doc is right).
 Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
+
+### 13:20 · claude-verdict-1 · lane claude-verdict · task T15
+
+Status: in-progress (~80%; code and tests done, kit-format JSON waits for D3)
+Done this session:
+- report/builder.py: `build(conn, rules, run_id) -> (dict, str)` (D7 signature), read-only on the DB. JSON has run, generated_at, summary (counts by label + run-level flags), red_flags (CONTRADICTED only, ordered by rules.yaml materiality, then confidence, then slide), claims (columns = rules.yaml `output.fields`), founder_questions, evidence_requests (CANNOT_VERIFY and NOT_COMPARABLE), held (internal notes), ledger (calls, failed, credits, INR, per provider).
+- report/render.py: Markdown version of the same dict (pipes escaped, sources show locator, field, record date and retrieved_at).
+- report/question_templates.yaml: wording of questions and requests per claim type. PLACEHOLDER wording; the finance partner owns it.
+- tests/report/test_builder.py: 11 tests. Full suite: 100 passed.
+- An unknown name in `output.fields` raises ValueError before any row is built (even for a run with no claims).
+In progress / exact next step:
+- Kit-format JSON: not done. It needs D3 (merger records the kit's output format) and then claude-core's `io/adapter.py to_kit()` maps this report dict; I will not guess the format.
+- T20 (hour-3 change) waits for the organisers' requirement; T27 merge reviews start at the first merge request.
+How to run / test:
+- cd dc-claude-verdict && python -m pytest tests/report -q   (all: python -m pytest -q)
+Known bugs or shortcuts taken:
+- Report rows for claims with no verdict show label PENDING (not a contract label; report only) and the summary flags the report as incomplete.
+- `held` and `founder_questions` use placeholder wording. Questions are only produced for CONTRADICTED claims.
+- Nothing here calls an LLM; explanations are the engine's fixed sentences.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- Question templates live in report/question_templates.yaml (my lane) because rules.yaml has no section for them and the finance partner owns the wording.
+Open questions for a human:
+- Merger: D3 (kit output format) so to_kit() can be written; finance partner: rewrite report/question_templates.yaml.
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
