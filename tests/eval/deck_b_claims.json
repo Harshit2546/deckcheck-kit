@@ -1,0 +1,16 @@
+[
+  {"slide": 2, "quote": "Shadowfax employs a core team of 1500 professionals.", "type": "team_size", "subject": "Shadowfax",
+   "metric": "headcount", "value": 1500, "unit": "people", "as_of": null},
+  {"slide": 3, "quote": "We closed a $60M Series D funding round in December 2019.", "type": "funding", "subject": "Shadowfax",
+   "metric": "round_amount", "value": 60000000, "unit": "USD", "as_of": null},
+  {"slide": 4, "quote": "Total funding across all institutional rounds exceeds $120M.", "type": "funding", "subject": "Shadowfax",
+   "metric": "total_raised", "value": 120000000, "unit": "USD", "as_of": null},
+  {"slide": 5, "quote": "Over 5000 full-time corporate staff in Bengaluru HQ.", "type": "team_size", "subject": "Shadowfax",
+   "metric": "headcount", "value": 5000, "unit": "people", "as_of": null},
+  {"slide": 6, "quote": "Partnered with Flipkart to power pan-India express logistics.", "type": "customer", "subject": "Shadowfax",
+   "metric": "customer", "value": "Flipkart", "unit": null, "as_of": null},
+  {"slide": 7, "quote": "India's hyperlocal delivery market is projected at $12B by 2027.", "type": "market_size",
+   "subject": "India hyperlocal delivery", "metric": "market_size", "value": 12000000000, "unit": "USD", "as_of": null},
+  {"slide": 8, "quote": "Headcount has doubled with 100% year-on-year team growth.", "type": "team_growth", "subject": "Shadowfax",
+   "metric": "growth_rate", "value": 100, "unit": "%", "as_of": null}
+]

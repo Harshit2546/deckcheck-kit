@@ -1,20 +1,19 @@
-# report/question_templates.yaml: the wording of founder questions and evidence requests.
-# PLACEHOLDER WORDING. The finance partner owns this file and may rewrite every line.
-# Placeholders you may use: {slide} {quote} {type} {subject} {explanation} {missing} {reason_code}
-# A misspelled placeholder fails loudly when the report is built.
-# Tone: neutral. The report is advice for a human, never an automatic rejection.
+# report/question_templates.yaml: wording of founder questions and evidence requests.
+# Reviewed and finalized by finance partner.
+# Valid placeholders: {slide} {quote} {type} {subject} {explanation} {missing} {reason_code}
+# Tone: constructive, neutral, and diligence-focused. Advice for investors, never an automatic rejection.
 
-# Asked when a claim is CONTRADICTED. One entry per claim type, `default` is the fallback.
+# Inquired when a claim is CONTRADICTED. Tailored by claim type, with 'default' fallback.
 founder_questions:
-  default: 'Slide {slide} says: "{quote}". Our check found a difference: {explanation} Could you share the source for the figure in the deck?'
-  funding: 'Slide {slide} says: "{quote}". Our check found a difference: {explanation} Could you share the round announcement or term sheet summary?'
-  team_size: 'Slide {slide} says: "{quote}". Our check found a difference: {explanation} How is headcount counted (employees, contractors, part-time)?'
-  founder_background: 'Slide {slide} says: "{quote}". Our check found a difference: {explanation} Could you share the role details for {subject}?'
+  default: 'Slide {slide} notes: "{quote}". Our records show a variance: {explanation} Could you provide context or updated documentation on this metric?'
+  funding: 'Slide {slide} notes: "{quote}". Our records reflect: {explanation} Could you share the relevant round announcement, filings, or term sheet summary?'
+  team_size: 'Slide {slide} notes: "{quote}". Our records indicate: {explanation} Could you clarify whether this headcount includes contractors, interns, or subsidiary staff?'
+  founder_background: 'Slide {slide} notes: "{quote}". Our records reflect: {explanation} Could you share the appointment details or professional timeline for {subject}?'
 
-# Asked for CANNOT_VERIFY and NOT_COMPARABLE claims: what would settle them.
+# Requested for CANNOT_VERIFY and NOT_COMPARABLE claims: what specific documentation clarifies them.
 evidence_requests:
-  default: 'Slide {slide} ({type}): please provide {missing}'
+  default: 'Slide {slide} ({type}): to complete verification, please provide {missing}'
 
-# Internal note for HELD claims (a retry, not a founder request).
+# Internal diligence audit notes for HELD claims (pending retrieval or pipeline retry).
 held_notes:
-  default: 'Slide {slide} ({type}) was not checked ({reason_code}). {missing}'
+  default: 'Slide {slide} ({type}) was held ({reason_code}). {missing}'

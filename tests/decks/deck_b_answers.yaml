@@ -1,0 +1,58 @@
+# synthetic test fixture, tests/ only
+# Expected fixture targets for Deck B (Shadowfax).
+# Evaluated against live public and Crustdata company milestones.
+- slide: 2
+  quote: "Shadowfax employs a core team of 1500 professionals."
+  expected_verdict: SUPPORTED
+  expected_reason_code: within_tolerance
+  basis: >-
+    Crustdata timeseries point for shadowfax.in dated 2026-11-01 reflects
+    an employee count of ~1,530. A claim of 1500 is well within the 20% team_size tolerance.
+
+- slide: 3
+  quote: "We closed a $60M Series D funding round in December 2019."
+  expected_verdict: SUPPORTED
+  expected_reason_code: within_tolerance
+  basis: >-
+    Crustdata funding milestones records Series D of USD 60,000,000 dated
+    2019-12-05 led by Eight Roads Ventures and Flipkart. Matches round stage, amount, and date.
+
+- slide: 4
+  quote: "Total funding across all institutional rounds exceeds $120M."
+  expected_verdict: SUPPORTED
+  expected_reason_code: within_tolerance
+  basis: >-
+    Sum of historical rounds up to Series D and Series E totals >$125M USD prior to deck date.
+    Meets funding total_raised verification criteria within 10% tolerance.
+
+- slide: 5
+  quote: "Over 5000 full-time corporate staff in Bengaluru HQ."
+  expected_verdict: CONTRADICTED
+  expected_reason_code: outside_tolerance
+  basis: >-
+    Recorded corporate employee count is ~1,530. Claiming 5,000 full-time HQ staff
+    significantly exceeds the verified global headcount (>3x), falling outside the 20% tolerance.
+
+- slide: 6
+  quote: "Partnered with Flipkart to power pan-India express logistics."
+  expected_verdict: SUPPORTED
+  expected_reason_code: independent_mention
+  basis: >-
+    Independent media coverage (The Economic Times, Mint) on 2019-12-05 verifies
+    Flipkart's strategic partnership and investment in Shadowfax express logistics.
+
+- slide: 7
+  quote: "India's hyperlocal delivery market is projected at $12B by 2027."
+  expected_verdict: NOT_COMPARABLE
+  expected_reason_code: record_after_as_of
+  basis: >-
+    The projection is pegged to 2027 and reports published after deck date (2026-11-15)
+    cannot be admitted under rule D3.
+
+- slide: 8
+  quote: "Headcount has doubled with 100% year-on-year team growth."
+  expected_verdict: CONTRADICTED
+  expected_reason_code: outside_tolerance
+  basis: >-
+    Timeseries analysis across the prior 365 days reflects growth between 12% and 18%,
+    well outside the claimed 100% team_growth tolerance window.

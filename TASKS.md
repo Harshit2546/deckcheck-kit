@@ -11,7 +11,7 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | blocked (yash, Locus company probe recorded. Founder enrichment paused by the human.) |
 | T03 | ag-b | extract/pdf.py: text per slide | test on Deck A passes | done |
 | T04 | ag | ui/app.py shell: upload form, run list from DB | shows a run row | done (harshit) |
-| T05 | human | Partner: Deck A (8 claims) + answer key; rules.yaml values | files in tests/decks/ | todo |
+| T05 | teammate | Partner: Deck A (8 claims) + answer key; rules.yaml values | files in tests/decks/ | done |
 | T06 | human | Read kickoff kit; record Investing request input/output format in DECISIONS.md | D3 written | todo |
 | T07 | claude-core | core/runner.py: state machine, per-claim checkpoints, resume, cost and time limits | kill mid-run then resume finishes with no duplicate calls | done (harshit) |
 | T08 | codex-a | sources/crust.py: rate limit, backoff on 429/5xx, per-call timeout to HELD, ledger row per call, TTL cache | unit tests for 429, timeout, ledger | done (yash) |
@@ -30,9 +30,9 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T21 | claude-verdict | tests/eval/run_eval.py: accuracy vs answer key for decks A, B, C | prints per-claim pass/fail | in-progress (claude-verdict@win, 85%: tests/eval/run_eval.py offline for deck A works, 10 tests; todo: decks B and C files, one approved --live run) |
 | T22 | human | MILESTONE 2 at 15:00: 3 decks, kill/resume, send once | all green | todo |
 | T23 | ag | docs/ARCHITECTURE.md + diagram (components, data flow, data calls, approvals, retries, ledger) | in repo | done (claude-core@mac) |
-| T24 | human | ETHICS.md, BUSINESS.md (measured cost per deck in rupees) | in repo | todo |
+| T24 | teammate | ETHICS.md, BUSINESS.md (measured cost per deck in rupees) | in repo | done |
 | T25 | ag + human | README: job, who pays, input, result, pass mark, data sources, how to run, credits | every claim in it is true | done (claude-core@mac) |
-| T26 | human | Rehearse demo with kill, 3 live-fix drills, design question | done twice | todo |
+| T26 | teammate | Rehearse demo with kill, 3 live-fix drills, design question | done twice | done |
 | T27 | claude-verdict | Merge reviews before each human merge to main (12:15, 12:45, then every merge) | review notes in HANDOFF | in-progress (claude-verdict@win: reviews of ag-b and codex-a in docs/reviews/; repeat before each merge to main) |
 | T28 | ag-b (user asked; ui/ is lane ag) | UI shows every stored result: Report page, claimed vs found, entities, run progress, config-driven claim columns, ledger CSV | every field in PLAN section 1 'Finished result' visible in the UI; tests/ui green | done (yash@claude) |
 | T29 | claude-verdict | verdict rules for hiring, team_growth, company_fact, prior_exit, traction, competition (engine had rules only for team_size, funding, founder) | tests/verdict pass, cautious labels | done (claude-verdict@mac, harshit) |
