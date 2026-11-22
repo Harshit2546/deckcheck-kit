@@ -1,7 +1,11 @@
 {
+  "_note": "FORMAT EXAMPLE ONLY (synthetic). There is no deck for it, so it cannot run. For the demo use tests/decks/deck_a_request.json.",
   "request": "SYNTHETIC EXAMPLE. Our corporate-venture desk is meeting this logistics-tech startup again next week. Check every factual claim in their deck and tell us what to ask the founders.",
-  "deck_path": "../decks/deck_a.pdf",
+  "deck_path": "format-example-only.pdf",
   "company_domain": "example.in",
   "deck_date": "2026-10-01",
-  "founder_urls": ["https://example.in/team/founder-1", "https://example.in/team/founder-2"]
+  "founder_urls": [
+    "https://example.in/team/founder-1",
+    "https://example.in/team/founder-2"
+  ]
 }
