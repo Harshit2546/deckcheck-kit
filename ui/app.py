@@ -19,6 +19,8 @@ import streamlit as st  # noqa: E402
 
 from core import store  # noqa: E402
 from core.config import load_rules  # noqa: E402
+from actions import email  # noqa: E402
+from core.models import ActionStatus  # noqa: E402
 from ui import data  # noqa: E402
 
 st.set_page_config(page_title="DeckCheck", layout="wide")
@@ -26,7 +28,7 @@ st.set_page_config(page_title="DeckCheck", layout="wide")
 db_path = st.sidebar.text_input("Database file", str(ROOT / store.DEFAULT_DB))
 conn = store.connect(db_path)
 rules = load_rules()
-PAGES = ["Run", "Claims"]
+PAGES = ["Run", "Claims", "Approvals"]
 page = st.sidebar.radio("Page", PAGES)
 
 
@@ -139,5 +141,58 @@ def page_claims() -> None:
                 st.caption("No sources stored for this claim.")
 
 
-PAGE_FUNCS = {"Run": page_run, "Claims": page_claims}
+def page_approvals() -> None:
+    st.header("Approvals")
+    st.caption("The founder email is sent only after a human approves it here, and only to the "
+               "local test inbox. Sending happens exactly once, even after a crash.")
+    reviewer = st.text_input("Your name (recorded with the decision)")
+    for msg in st.session_state.pop("approval_msgs", []):
+        st.success(msg)
+
+    pending = data.emails(conn, ActionStatus.PENDING)
+    st.subheader(f"Waiting for approval ({len(pending)})")
+    if not pending:
+        st.info("No founder email is waiting.")
+    for a in pending:
+        with st.container(border=True):
+            st.write(f"**Run:** {a.run_id} · **To:** {a.recipient}")
+            st.write(f"**Subject:** {a.subject}")
+            st.text(a.body)
+            left, right = st.columns(2)
+            if left.button("Approve and send", key=f"approve-{a.id}", type="primary"):
+                try:
+                    email.approve(conn, rules, a.id, reviewer)
+                    sent = email.send_approved(conn, rules)
+                    st.session_state["approval_msgs"] = [
+                        f"Approved by {reviewer}; sent {len(sent)} email(s) to the test inbox."]
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
+            if right.button("Reject", key=f"reject-{a.id}"):
+                try:
+                    email.reject(conn, a.id, reviewer)
+                    st.session_state["approval_msgs"] = [f"Rejected by {reviewer}; it will not be sent."]
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
+
+    stuck = data.emails(conn, ActionStatus.APPROVED) + data.emails(conn, ActionStatus.SENDING)
+    if stuck:
+        st.subheader("Approved but not sent yet (for example after a crash)")
+        st.dataframe([{"action_id": a.id, "run_id": a.run_id, "status": a.status.value,
+                       "approved_by": a.decided_by} for a in stuck], hide_index=True)
+        if st.button("Send now (exactly once)"):
+            sent = email.send_approved(conn, rules)
+            st.session_state["approval_msgs"] = [f"Sent {len(sent)} email(s) to the test inbox."]
+            st.rerun()
+
+    decided = [a for s in (ActionStatus.SENT, ActionStatus.REJECTED) for a in data.emails(conn, s)]
+    if decided:
+        st.subheader("Decided")
+        st.dataframe([{"run_id": a.run_id, "status": a.status.value, "by": a.decided_by,
+                       "decided_at": a.decided_at, "sent_at": a.sent_at} for a in decided],
+                     hide_index=True)
+
+
+PAGE_FUNCS = {"Run": page_run, "Claims": page_claims, "Approvals": page_approvals}
 PAGE_FUNCS[page]()
