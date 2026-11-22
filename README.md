@@ -23,6 +23,9 @@ founder profile URLs. These come as a request JSON
 request) or as command-line flags. `io/adapter.py` maps the kickoff-kit format to the
 internal one.
 
+The test decks are synthetic: the team wrote them about real companies, and they are
+checked against live data.
+
 **Result:**
 - a claim table: quote, slide, claimed value, verdict, reason code, confidence,
   explanation and sources
@@ -74,8 +77,8 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
 Put the keys in `.env` at the repo root. The file is gitignored. It needs
-`CRUSTDATA_API_KEY`, plus `GEMINI_API_KEY` or `OPENAI_API_KEY` for claim extraction.
-If both LLM keys are set, Gemini is used.
+`CRUSTDATA_API_KEY` and `OPENAI_API_KEY`. The OpenAI key (`gpt-4o-mini`) is required for
+claim extraction and web quote picking; Gemini support is disabled in code.
 Load it into the shell before a run, because the extraction step reads the keys from
 the environment:
 
@@ -257,8 +260,17 @@ The ledger has 6 calls: 7 credits, ₹7.79, 47.6 s. Web search times across the 
 - **The eval claims are hand-written.** `tests/eval/deck_a_claims.json` is our version
   of what extraction should produce; it is not LLM output. The eval has only one deck
   (Deck A).
+- **Hiring claims end CANNOT_VERIFY.** Crustdata's hiring count has no dated field, so the
+  claim cannot pass the deck-date rule ([docs/INCIDENTS.md](docs/INCIDENTS.md) B4).
+- **Competition claims are never judged, by design.** `verdict/engine.py` always returns
+  CANNOT_VERIFY `competition_not_judged`.
+- **A founder job missing from the profile gets a date reason code** (`missing_record_date`
+  or `_undated`) instead of `employer_not_in_profile`. The label is still CANNOT_VERIFY
+  (INCIDENTS B12).
+- **Decks B and C have no recorded evidence**, so every row of their answer keys is TBD
+  and the eval skips them.
 - **Every value in `config/rules.yaml` is a PLACEHOLDER** until the finance partner
-  confirms it. This covers tolerances, limits, rupee rates and materiality weights.
+  confirms it (43 lines are marked PLACEHOLDER). This covers tolerances, limits, rupee rates and materiality weights.
   Changing one is a config edit; see [docs/LIVE_FIX_MAP.md](docs/LIVE_FIX_MAP.md).
 
 ## Repo map
@@ -269,7 +281,7 @@ The ledger has 6 calls: 7 credits, ₹7.79, 47.6 s. Web search times across the 
 | `io/` | kickoff-kit request to internal format |
 | `extract/` | PDF slide text, LLM claim extraction, quote check |
 | `resolve/` | company and founder identity (two-signal rule) |
-| `sources/` | Crustdata client |
+| `sources/` | Crustdata company, person and web search/fetch clients; page publish dates |
 | `checkers/` | one checker per claim type, returning evidence |
 | `verdict/` | the rule engine that picks every label |
 | `report/` | result JSON, Markdown report, founder questions |
@@ -283,8 +295,8 @@ Planning and process docs: [AGENTS.md](AGENTS.md), [PLAN.md](PLAN.md),
 ## Written before the start
 
 The planning docs (AGENTS.md, PLAN.md, TASKS.md and the agent prompts in
-docs/AGENT_PROMPTS.md) were written before 10:15 AM. No code was written before the
-start.
+docs/AGENT_PROMPTS.md) were written before 10:15 AM. Nothing else was, and no code was
+written before 10:15.
 
 ## Credits
 
@@ -297,5 +309,6 @@ start.
 | [ReportLab](https://www.reportlab.com/) | BSD | building test PDFs |
 | [Streamlit](https://streamlit.io/) | Apache-2.0 | the UI |
 
-Data: [Crustdata](https://crustdata.com/) company API. Claim extraction: Gemini or
-OpenAI API (whichever key is set).
+Data: [Crustdata](https://crustdata.com/) company, person and web search/fetch APIs.
+Claim extraction and web quote picking: OpenAI API (`gpt-4o-mini`); Gemini support is
+disabled in code.

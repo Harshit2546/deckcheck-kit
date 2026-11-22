@@ -17,9 +17,17 @@ flowchart LR
   RP --> AC[actions/email.py<br/>draft: pending]
   AC -->|person approves in UI| SEND[send once<br/>to local inbox table]
 
-  EX -. LLM call .-> LLM[(Gemini / OpenAI)]
+  EX -. LLM call .-> LLM[(OpenAI gpt-4o-mini)]
   RS -. company call .-> CD[(Crustdata API)]
   CK -. company call .-> CD
+  RS -. person lookup .-> CP[(Crustdata people<br/>get_people, search_people)]
+  CK -. person lookup .-> CP
+  CK -. search + fetch .-> WEB[(Crustdata web<br/>search, fetch)]
+  WEB -. page HTML .-> PG[sources/pages.py<br/>publish date]
+  CK -. quote pick .-> QT[extract/quotes.py<br/>LLM picks, code checks verbatim]
+  QT -. LLM call .-> LLM
+  CP -. one row per call .-> LG
+  WEB -. one row per call .-> LG
   LLM -. one row per call .-> LG[(ledger)]
   CD -. one row per call .-> LG
   CFG[config/rules.yaml] --> VE
@@ -43,14 +51,19 @@ finished claims. No external call happens outside a checkpointed step.
 
 | Call | Where | When |
 |---|---|---|
-| LLM (Gemini or OpenAI) | `extract/claims.py` | once per run, to extract claims and quotes |
+| LLM (OpenAI `gpt-4o-mini`; Gemini code is disabled) | `extract/claims.py`, `extract/quotes.py` | once per run to extract claims and quotes; once per fetched page to pick a quote |
 | Crustdata company | `sources/crust.py` `get_company` | resolve and the company checkers |
-| Web search/fetch | not built (`sources/web.py` missing) | market_size claims are Held |
-| Crustdata people (D12) | not built yet | founder claims cannot run |
+| Crustdata web search/fetch (D16) | `sources/web.py` `search`, `fetch` | web checkers (for example market_size); `sources/pages.py` reads the page publish date from its HTML, `extract/quotes.py` picks a quote and code checks it is verbatim on the page |
+| Crustdata people (D18) | `sources/crust.py` `get_people`, `search_people` | founder resolve and founder checkers (profile URL enrich, or search by name and company) |
 
 Each Evidence row stores the source, the URL or endpoint, the exact field or quote, the
 record's own date and `retrieved_at`. Only records dated on or before the deck date
 count (D3, D13, D14).
+
+- Undated-record guard (D17): a record with no date counts only through the guarded undated
+  fallback, which gives low confidence and a `_undated` reason code, never a confident verdict.
+- Founder job date (D19): a founder's role dates on the profile are the record date for
+  founder_background claims; `retrieved_at` is never used as a record date.
 
 ## Limits, retries and failures
 
@@ -61,7 +74,7 @@ count (D3, D13, D14).
   never Cannot verify: a slow source is not a missing source.
 - `sources/crust.py` makes at most 2 attempts. It retries only on HTTP 429 and waits
   for `Retry-After` first. There are no other retries.
-- A missing checker or source also gives **Held** (`no_checker`, `error`).
+- A missing checker, or a source call that fails, also gives **Held** (`no_checker`, `error`).
 
 ## Ledger
 
