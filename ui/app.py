@@ -82,10 +82,19 @@ def html(markup: str) -> None:
     st.markdown(markup, unsafe_allow_html=True)
 
 
+def plain(value: object) -> str:
+    """Readable text for a stored value: 'employer: Amazon; title: Software Developer' instead of raw JSON."""
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        return "; ".join(f"{k}: {plain(v)}" for k, v in value.items() if v not in (None, "", [], {}))
+    if isinstance(value, (list, tuple)):
+        return " | ".join(plain(v) for v in value)
+    return str(value)
+
+
 def _cell(value: object) -> str:
-    if isinstance(value, (dict, list)):
-        value = json.dumps(value, ensure_ascii=False)
-    return str(value if value is not None else "").replace("|", "\\|").replace("\n", " ")
+    return plain(value).replace("|", "\\|").replace("\n", " ")
 
 
 def _short_time(ts: object) -> str:
@@ -182,35 +191,42 @@ def page_run() -> None:
     st.title("Check a deck")
     st.caption("Give DeckCheck a deck and the company's domain. The check runs in the background and this "
                "page follows it until the report is ready.")
-    mode = st.radio("Start from", ["Request file in repo", "Upload D3 request", "Deck + domain + date"],
-                    horizontal=True, label_visibility="collapsed")
+    modes = ["Upload a deck PDF", "Request file in repo", "Upload D3 request (JSON)"]
+    mode = st.radio("Start from", modes, horizontal=True, label_visibility="collapsed")
     run_input = None
     try:
         with st.container(border=True):
-            if mode == "Request file in repo":
+            if mode == "Upload a deck PDF":
+                deck = st.file_uploader("Deck PDF (text-based)", type=["pdf"])
+                left, right = st.columns(2)
+                domain = left.text_input("Company domain", placeholder="locus.sh")
+                deck_date = right.text_input("Deck date (YYYY-MM-DD, blank = read from the PDF)")
+                urls = st.text_area("Founder profile URLs (one per line, optional)")
+                # The button is always shown; missing inputs are reported when it is pressed.
+                if st.button("Check this deck", type="primary", key="check_pdf"):
+                    if deck is None:
+                        raise ValueError("Add the deck PDF first.")
+                    if not domain.strip():
+                        raise ValueError("Add the company domain (for example locus.sh).")
+                    run_input = data.input_from_form(data.save_upload(deck.name, deck.getvalue()),
+                                                     domain.strip().lower(), deck_date.strip() or None,
+                                                     [u.strip() for u in urls.splitlines() if u.strip()])
+            elif mode == "Request file in repo":
                 files = data.request_files()
                 if not files:
                     st.warning("No request files found in tests/decks or tests/requests.")
                 else:
                     chosen = st.selectbox("Request", files, format_func=lambda p: str(p.relative_to(ROOT)))
-                    if st.button("Check this deck", type="primary"):
+                    if st.button("Check this deck", type="primary", key="check_repo"):
                         run_input = data.input_from_request_file(chosen)
-            elif mode == "Upload D3 request":
+            else:
                 req = st.file_uploader("Request JSON (DECISIONS.md D3)", type=["json"])
                 deck = st.file_uploader("Deck PDF (optional; otherwise deck_path in the request)", type=["pdf"])
-                if req and st.button("Check this deck", type="primary"):
+                if st.button("Check this deck", type="primary", key="check_json"):
+                    if req is None:
+                        raise ValueError("Add the request JSON first.")
                     override = data.save_upload(deck.name, deck.getvalue()) if deck else None
                     run_input = data.input_from_request(json.loads(req.getvalue()), ROOT, override)
-            else:
-                deck = st.file_uploader("Deck PDF", type=["pdf"])
-                left, right = st.columns(2)
-                domain = left.text_input("Company domain", placeholder="locus.sh")
-                deck_date = right.text_input("Deck date (YYYY-MM-DD, blank = read from the PDF)")
-                urls = st.text_area("Founder profile URLs (one per line, optional)")
-                if deck and domain and st.button("Check this deck", type="primary"):
-                    run_input = data.input_from_form(data.save_upload(deck.name, deck.getvalue()), domain,
-                                                     deck_date.strip() or None,
-                                                     [u.strip() for u in urls.splitlines() if u.strip()])
         if run_input is not None:
             run_id = data.create_run(conn, run_input)
             data.launch(db_path, run_id)
@@ -230,7 +246,7 @@ def page_run() -> None:
         try:
             fresh = data.run_rows(db)
             if not fresh:
-                st.info("No deck has been checked yet. Pick a request above and press Check this deck.")
+                st.info("No deck has been checked yet. Add a deck PDF and its domain above, then press Check this deck.")
                 return
             st.subheader("Progress")
             _progress_block(db)

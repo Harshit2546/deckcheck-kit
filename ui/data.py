@@ -296,7 +296,7 @@ def table_cell(value: Any) -> Any:
         return "; ".join(f"{v.get('source_type', '')} {v.get('field_or_quote', '')}".strip()
                          if isinstance(v, dict) else str(v) for v in value)
     if isinstance(value, dict):
-        return json.dumps(value, ensure_ascii=False)
+        return "; ".join(f"{k}: {v}" for k, v in value.items() if v not in (None, "", [], {}))
     return value
 
 
