@@ -7,4 +7,3 @@ __pycache__/
 *.sqlite
 .DS_Store
 .claude/settings.local.json
-.pytest_cache/
