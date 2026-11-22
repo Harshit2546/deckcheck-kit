@@ -894,16 +894,17 @@ Credits / tokens used this session (rough): 0 Crustdata credits
 
 ### 16:05 · web-checkers (Claude session started by the merger session) · task T32
 
-Status: in-progress (95%)
+Status: done
 Done this session:
 - checkers/market_size.py rewritten on the D16 flow: web.search (query "<subject> market size", end_date = reference date) -> top `web.results_to_fetch` distinct URLs -> one web.fetch -> pages.published_date / page_text -> skip undated pages and pages dated after the reference date (counted) -> quotes.pick_quote (must_contain []) -> quotes.parse_amount. `observed` keys exactly as WEB_SOURCE.md section 3: identity "not_applicable", identity_signals 0, record_date, reference_date(_source), estimates, pages_without_date, pages_after_reference.
 - checkers/customer.py (new): query `"<claim.value>" "<claim.subject>"`, must_contain [customer, company]. `observed`: company_identity(ctx), record_date, reference_date(_source), customer_name, mentions. `independent` is set PER MENTION (no top-level key): False when the page host (lower-case, "www." stripped) equals the deck domain or is a subdomain of it. Skip counts are logged only, not in observed.
 - Evidence per accepted page: web_page, locator=url, field_or_quote=quote, value=amount (market_size) or customer name (customer), record_date=published date, retrieved_at=page fetched_at, call_id=fetch call id.
 - tests/checkers/test_market_size.py (9) and test_customer.py (7): fakes patched onto the checker modules; bare stand-in modules are registered only when the real ones are missing, so they keep working after T30/T31 merge.
+- tests/checkers/test_remaining_checkers.py: deleted test_market_size_check and its import (old `search_market_data` contract; the merger session approved this, as a separate commit). The new test_market_size.py replaces that coverage.
 In progress / exact next step:
-- tests/checkers/test_remaining_checkers.py::test_market_size_check tests the old `search_market_data` contract and now fails. Delete that test and its import (asked the merger session; that file is outside the T32 file list). Then pytest is green.
+- none. Merger: merge lane/web-checkers after or alongside T30/T31; then slides 6 and 7 go through the new checkers.
 How to run / test:
-- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (335 passed, 1 failed: the old test above)
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (335 passed, with sources.web absent on this branch)
 - /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged; slides 6 and 7 are HELD error until T30/T31 merge)
 Known bugs or shortcuts taken:
 - `ctx.rules["web"]["results_to_fetch"]` has no code default: a rules file without `web:` raises KeyError, which becomes HELD error.
