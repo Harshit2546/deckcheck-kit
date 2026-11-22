@@ -798,3 +798,9 @@ Open questions for a human:
 - ui/ is lane ag's folder; this work was done on lane/ag-b because the user asked. Please confirm lane ag
   accepts it.
 Credits / tokens used this session (rough): 0 Crustdata credits
+- Follow-up (same session): visual redesign of the UI. New ui/theme.py (CSS, verdict colours, slide strip,
+  verdict mark, serif deck quotes; every outside text is html.escape'd). Report opens with the company, a
+  strip with one block per claim in slide order coloured by verdict, then red flags as deck quote vs what
+  the records say. Pages renamed in the sidebar (values unchanged, tests still set "Run", "Claims", ...).
+  Fonts: Public Sans + Source Serif 4 from Google Fonts, system fallback when offline. 237 tests pass.
+

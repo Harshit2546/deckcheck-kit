@@ -27,9 +27,10 @@ def test_report_page_shows_red_flags_questions_and_downloads(conn, db_path):
     rules = load_rules()
     _with_report(conn, rules)
     at = open_app(db_path, "Report")
-    metrics = {m.label: m.value for m in at.metric}
-    assert metrics["Contradicted"] == "1" and metrics["Claims"] == "1"
     text = " ".join(m.value for m in at.markdown)
+    assert 'class="dc-strip"' in text and "Slide 4: Contradicted, team_size" in text   # one strip segment
+    assert "Contradicted</span> <b>1</b>" in text                                      # legend count
+    assert "We are 300 people" in text                    # the deck quote sits next to the red flag
     assert "Records show about 210 people." in text      # verdict explanation of the red flag
     assert "locus.sh/about" in text                     # source of the red flag is shown
     assert any(h.value.startswith("Questions for the founders (1)") for h in at.subheader)
@@ -40,7 +41,7 @@ def test_report_page_shows_red_flags_questions_and_downloads(conn, db_path):
 def test_report_page_says_when_not_built(conn, db_path):
     make_decided_run(conn, load_rules())
     at = open_app(db_path, "Report")
-    assert any("not built yet" in i.value for i in at.info)
+    assert any("not ready yet" in i.value for i in at.info)
 
 
 def test_report_view_fills_missing_sections(conn):
