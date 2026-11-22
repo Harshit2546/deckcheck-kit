@@ -107,3 +107,42 @@ def test_company_fact_year_gap_comes_from_rules(rules):
 @pytest.mark.parametrize("hq", ["Mumbai", "Delhi", "London, UK", "", 42])
 def test_company_fact_hq_never_contradicted(rules, hq):
     assert verdict(rules, CF, "headquarters", "Bengaluru", None, {"headquarters": hq})[0] is not L.CONTRADICTED
+
+
+# ----------------------------------------------------------------- prior_exit (guarded; tolerance 10%)
+
+PE = ClaimType.PRIOR_EXIT
+CHECKED = {"prior_company_checked": True}
+
+
+def test_prior_exit_stops_on_the_deck_company_record(rules):
+    # Locus shape: the deck's OWN company shows an acquisition; it must not support a founder's prior exit.
+    own = {"exit_found": True, "acquired_by": "Ingka Investments", "exit_amount": None, "exit_date": "2025-03-01"}
+    assert verdict(rules, PE, "acquired_by", "Ingka Investments", None, own) == \
+        (L.CANNOT_VERIFY, "prior_company_not_checked", C.LOW)
+
+
+@pytest.mark.parametrize("flag", [None, False, "yes", 1, "true"])
+def test_prior_exit_guard_needs_explicit_true(rules, flag):
+    obs = {"acquired_by": "Flipkart", "prior_company_checked": flag}
+    assert verdict(rules, PE, "acquired_by", "Flipkart", None, obs)[1] == "prior_company_not_checked"
+
+
+@pytest.mark.parametrize("metric,value,unit,observed,expected", [
+    ("acquired_by", "Flipkart", None, {"acquired_by": "Flipkart Pvt Ltd"}, (L.SUPPORTED, "acquirer_matches", C.MEDIUM)),
+    ("acquired_by", "Flipkart", None, {"acquired_by": "Amazon"}, (L.CANNOT_VERIFY, "acquirer_differs", C.LOW)),
+    ("acquired_by", "Flipkart", None, {"acquired_by": None, "x": 1}, (L.CANNOT_VERIFY, "source_may_be_incomplete", C.LOW)),
+    ("exit_amount", 10_000_000, "USD", {"exit_amount": 10_500_000}, (L.SUPPORTED, "within_tolerance", C.MEDIUM)),
+    ("exit_amount", 10_000_000, "USD", {"exit_amount": 3_000_000}, (L.CANNOT_VERIFY, "estimate_gap_unclear", C.LOW)),
+    ("exit_amount", 10_000_000, "USD", {"exit_amount": None, "x": 1}, (L.CANNOT_VERIFY, "source_may_be_incomplete", C.LOW)),
+    ("exit_amount", 800_000_000, "INR", {"exit_amount": 10_000_000}, (L.NOT_COMPARABLE, "currency_mismatch", C.MEDIUM)),
+    ("founders", "x", None, {"acquired_by": "y"}, (L.CANNOT_VERIFY, "unsupported_metric", C.LOW)),
+])
+def test_prior_exit_when_prior_company_was_checked(rules, metric, value, unit, observed, expected):
+    assert verdict(rules, PE, metric, value, unit, {**CHECKED, **observed}) == expected
+
+
+@pytest.mark.parametrize("observed", [{"acquired_by": "Other Co"}, {"exit_amount": 1}, {"exit_amount": 10**12}])
+def test_prior_exit_never_contradicted(rules, observed):
+    for metric, value, unit in (("acquired_by", "Flipkart", None), ("exit_amount", 10_000_000, "USD")):
+        assert verdict(rules, PE, metric, value, unit, {**CHECKED, **observed})[0] is not L.CONTRADICTED
