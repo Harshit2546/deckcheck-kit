@@ -1,8 +1,9 @@
-"""Checker for team_size claims against live Crustdata company data.
+"""Checker for team_size claims against live Crustdata company timeseries data.
 
 Who calls it: core/runner.py (STAGES["check"]).
-What it calls: sources.crust (get_company), core/models.py, core/log.py.
-Extracts headcount and headcount_range [low, high] and returns CheckResult.
+What it calls: checkers._common (get_company, company_identity), core/models.py, core/log.py.
+Extracts headcount from the latest timeseries point on or before reference date (DECISIONS D13).
+Never uses snapshot headcount.total or updated_at.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ import re
 import uuid
 from typing import Any
 
+from checkers import _common
 from core.log import log_step
 from core.models import (
     CheckResult,
@@ -20,8 +22,6 @@ from core.models import (
     SourceType,
     now_iso,
 )
-
-from checkers import _common
 
 CRUSTDATA_ENDPOINT = "https://api.crustdata.com/company/enrich"
 
@@ -37,12 +37,8 @@ def _parse_range(range_str: str) -> list[float] | None:
     return None
 
 
-def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | None, str | None, str]:
-    """Extract (record_date, reference_date, reference_date_source)."""
-    rec_date = None
-    if updated_at:
-        rec_date = str(updated_at).split("T")[0]
-
+def _get_reference_date(claim: Claim, ctx: RunContext) -> tuple[str | None, str]:
+    """Extract (reference_date, reference_date_source). Never reads updated_at."""
     ref_date = None
     if claim.as_of and re.match(r"^\d{4}-\d{2}-\d{2}$", claim.as_of.strip()):
         ref_date = claim.as_of.strip()
@@ -50,20 +46,61 @@ def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | No
         ref_date = ctx.run.input.deck_date.strip()[:10]
 
     ref_source = ctx.run.input.deck_date_source or "input"
-    return rec_date, ref_date, ref_source
+    return ref_date, ref_source
+
+
+def _get_timeseries_points(data: dict[str, Any], ref_date: str | None) -> list[tuple[str, float]]:
+    """Extract valid (date, employee_count) points dated on or before ref_date, sorted ascending."""
+    headcount_obj = data.get("headcount") or {}
+    raw_series = []
+    if isinstance(headcount_obj, dict):
+        raw_series = (
+            headcount_obj.get("timeseries")
+            or headcount_obj.get("headcount_timeseries")
+            or []
+        )
+    if not raw_series:
+        raw_series = data.get("headcount_timeseries") or data.get("timeseries") or []
+
+    valid_points: list[tuple[str, float]] = []
+    if isinstance(raw_series, list):
+        for pt in raw_series:
+            if not isinstance(pt, dict):
+                continue
+            pt_date_raw = pt.get("date") or pt.get("month") or pt.get("timestamp")
+            if not pt_date_raw:
+                continue
+            pt_date = str(pt_date_raw).split("T")[0]
+            cnt = pt.get("employee_count") if pt.get("employee_count") is not None else pt.get("count")
+            if cnt is None and "headcount" in pt:
+                cnt = pt.get("headcount")
+            if cnt is not None:
+                try:
+                    cnt_val = float(cnt)
+                except (ValueError, TypeError):
+                    continue
+                if ref_date is None or pt_date <= ref_date:
+                    valid_points.append((pt_date, cnt_val))
+
+    valid_points.sort(key=lambda x: x[0])
+    return valid_points
 
 
 def check(claim: Claim, ctx: RunContext) -> CheckResult:
-    """Check a team_size claim against Crustdata company data.
+    """Check a team_size claim against Crustdata company timeseries data.
 
-    Populates observed with exact keys expected by verdict/engine:
-    'identity', 'identity_signals', 'record_date', 'reference_date',
-    'reference_date_source', 'headcount', and 'headcount_range'.
+    Per DECISIONS D13:
+    - Never uses snapshot headcount.total or updated_at.
+    - Picks the latest headcount.timeseries[] point on or before reference date.
+    - Observed headcount = that point's employee_count.
+    - Record_date = that point's date.
+    - Evidence field_or_quote = 'headcount.timeseries[<date>].employee_count'.
+    - If no such point exists, adds no headcount evidence.
     """
     domain = ctx.run.input.domain
     payload, call_id = _common.get_company(ctx, domain)
 
-    rec_date, ref_date, ref_source = _get_dates(claim, ctx, payload.get("updated_at") if payload else None)
+    ref_date, ref_source = _get_reference_date(claim, ctx)
 
     if not payload:
         log_step(ctx.run.id, claim.id, "check.team_size", "cannot_verify", reason="no_payload")
@@ -83,72 +120,40 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     if "matches" in data and isinstance(data["matches"], list) and data["matches"]:
         data = data["matches"][0].get("company_data", data["matches"][0])
 
-    if not rec_date and data.get("updated_at"):
-        rec_date = str(data["updated_at"]).split("T")[0]
-
-    headcount_obj = data.get("headcount") or {}
-    basic_info = data.get("basic_info") or {}
-
-    total_headcount: float | None = None
-    if isinstance(headcount_obj, dict) and "total" in headcount_obj:
-        val = headcount_obj["total"]
-        if val is not None:
-            try:
-                total_headcount = float(val)
-            except (ValueError, TypeError):
-                total_headcount = None
-    elif "headcount_total" in data:
-        val = data["headcount_total"]
-        if val is not None:
-            try:
-                total_headcount = float(val)
-            except (ValueError, TypeError):
-                total_headcount = None
-
-    headcount_range: list[float] | None = None
-    raw_range = basic_info.get("employee_count_range") or data.get("employee_count_range")
-    if raw_range:
-        headcount_range = _parse_range(str(raw_range))
+    valid_points = _get_timeseries_points(data, ref_date)
 
     evidence: list[Evidence] = []
     observed: dict[str, Any] = {
         **_common.company_identity(ctx),
-        "record_date": rec_date,
+        "record_date": None,
         "reference_date": ref_date,
         "reference_date_source": ref_source,
     }
 
-    if total_headcount is not None:
+    if valid_points:
+        latest_date, employee_count = valid_points[-1]
+        observed["record_date"] = latest_date
+        observed["headcount"] = employee_count
         evidence.append(
             Evidence(
                 id=uuid.uuid4().hex,
                 claim_id=claim.id,
                 source_type=SourceType.CRUSTDATA_COMPANY,
                 locator=CRUSTDATA_ENDPOINT,
-                field_or_quote="headcount.total",
-                value=total_headcount,
-                record_date=rec_date,
+                field_or_quote=f"headcount.timeseries[{latest_date}].employee_count",
+                value=employee_count,
+                record_date=latest_date,
                 retrieved_at=now_iso(),
                 call_id=call_id,
             )
         )
-        observed["headcount"] = total_headcount
 
-    if headcount_range is not None:
-        evidence.append(
-            Evidence(
-                id=uuid.uuid4().hex,
-                claim_id=claim.id,
-                source_type=SourceType.CRUSTDATA_COMPANY,
-                locator=CRUSTDATA_ENDPOINT,
-                field_or_quote="basic_info.employee_count_range",
-                value=headcount_range,
-                record_date=rec_date,
-                retrieved_at=now_iso(),
-                call_id=call_id,
-            )
-        )
-        observed["headcount_range"] = headcount_range
+    basic_info = data.get("basic_info") or {}
+    raw_range = basic_info.get("employee_count_range") or data.get("employee_count_range")
+    if raw_range:
+        parsed_range = _parse_range(str(raw_range))
+        if parsed_range is not None:
+            observed["headcount_range"] = parsed_range
 
     log_step(
         ctx.run.id,

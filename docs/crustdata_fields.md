@@ -2,15 +2,36 @@
 
 This is the T02 field reference for the company and founder probe.
 It lists the documented REST contract and the fields to inspect in Deck A responses.
-The account rates are verified. Field availability still needs a live Deck A probe.
+The account rates and the Deck A company response were checked live. Founder enrichment is pending.
 
 ## Probe status
 
 Reviewed the official API reference on 2026-11-22 for version `2025-11-01` at
 `https://api.crustdata.com`. The authenticated account preflight succeeded.
-Deck A's company and founder identifiers are pending, so the enrichment
-field maps below are still based on the reference. Live entity fields,
-enrichment charges, and sanitized entity fixtures are pending.
+Deck A is Locus (`locus.sh`). The live company response is summarized below.
+The general field maps remain based on the reference. Founder enrichment
+is paused at the user's request.
+
+### Live Deck A company probe
+
+One exact-domain `POST https://api.crustdata.com/company/enrich` requested
+`basic_info`, `headcount`, and `funding`. Retrieved `2026-11-22T08:19:31+00:00`.
+It returned one match: `basic_info.name` **Locus**, `basic_info.primary_domain`
+`locus.sh`, and `crustdata_company_id` **7403**. The match's
+`confidence_score` was `1.0`. The record did not include `updated_at` or
+`indexed_at`.
+
+| Field | Value in the live response | Date |
+| --- | --- | --- |
+| `headcount.total` | 349 | The total has no date. The latest `headcount.timeseries[]` point also reports `employee_count: 349`, dated 2026-11-02. |
+| `funding.total_investment_usd` | 78,750,000 | No as-of date on the total. `funding.last_fundraise_date` is 2021-06-02. The last-round summary reports `last_round_type: series_c` and `last_round_amount_usd: 50000000`. |
+| `funding.funding_rounds` | Key absent. `funding.num_funding_rounds` is 7. | Individual round dates were unavailable. The reason the array was absent is unverified. |
+
+Ledger run `t02-deck-a-locus-company`, call `call-c1500cda7977` (2,969 ms).
+The response contained no recognized charge receipt. The ledger records
+**2.0 credits estimated** from one returned record at the verified account
+rate. The sanitized fixture preserves the response shape and fields used
+above. [Recorded company fixture](../tests/fixtures/crustdata/deck_a_locus_company.json)
 
 ### Live account metadata
 
@@ -27,6 +48,14 @@ Each relevant endpoint was enabled. These rates came from the response.
 The account metadata response reported no per-request credit charge. Its
 ledger row (`t02-account-fa48ec8c7d`, `call-d7de68ed98cd`, 2,094 ms) records
 0 credits as an estimate. Actual billing for that call is unverified.
+
+The T08 client reads current company endpoint quota and pricing from
+`GET /account/endpoints`. It records one ledger row for that request and
+for each individual company attempt. Without a charge receipt, company
+credits are estimated from the account rate and number of returned records.
+Failed attempts with no returned receipt or records use a zero estimate.
+Checkers can reuse the original `retrieved_at` and ledger call ID on hits
+in the one-minute, run-scoped company cache.
 
 ## Endpoints and credits
 

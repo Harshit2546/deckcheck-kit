@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from core.models import CheckResult, Claim, Confidence, Verdict, VerdictLabel
-from verdict.common import make, num, pick, rel_diff, source_text
+from verdict.common import headcount_missing, make, num, pick, rel_diff, source_text
 
 
 def judge(claim: Claim, result: CheckResult, st: dict[str, Any]) -> Verdict:
@@ -26,7 +26,7 @@ def judge(claim: Claim, result: CheckResult, st: dict[str, Any]) -> Verdict:
     if isinstance(band, (list, tuple)) and len(band) == 2 and num(band[0]) is not None and num(band[1]) is not None:
         return _band(claim, result, st, claimed, num(band[0]), num(band[1]))
     return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "no_evidence", Confidence.LOW,
-                "The source gave no headcount figure for this company.")
+                "The source gave no headcount figure for this company.", missing=headcount_missing(claim, result))
 
 
 def _exact(claim: Claim, result: CheckResult, st: dict[str, Any], claimed: float, observed: float) -> Verdict:
