@@ -425,3 +425,24 @@ Open questions for a human:
 - ui lane (ag): the approvals page should call actions.email.approve/reject and then send_approved; the inbox page reads store.list_inbox().
 - Finance partner: the real actions.test_inbox address.
 Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:30 · harshit · lane claude-core · task D3 adapter
+
+Status: done
+Done this session:
+- DECISIONS.md D3 written on the merger's word (request/result format, after-as_of rule).
+- io/adapter.py: from_kit(request) -> RunInput (requires deck_path and company_domain; deck_date YYYY-MM-DD or null -> PDF-metadata fallback; founder_urls list). to_kit(report, company=None, founder_email=None) -> D3 result JSON (label -> verdict, value -> claimed_value, source locator -> url_or_endpoint, ledger seconds from call durations).
+- config/rules.yaml output.fields: added `value` (shown as claimed_value).
+- Note: the D8 and T19 commits (b4c983d..6237c64) were made and pushed while this folder was checked out on `main`, not lane/claude-core, so they reached main without a human merge. Code and tests are fine (132 passed then). lane/claude-core was fast-forwarded to match; all work since is on the lane branch.
+In progress / exact next step:
+- Wire the adapter into an entry point if the merger wants one (e.g. `cli.py run --request request.json` and `cli.py export <run_id>` writing the D3 JSON + Markdown). Not started; ask first.
+How to run / test:
+- .venv/bin/python -m pytest -q tests/core/test_adapter.py   (full suite: 138 passed)
+Known bugs or shortcuts taken:
+- The customer's `request` text is checked but not stored (would need a runs column, a schema change).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D3 implementation notes (field renames, ledger seconds, company/email passed by the caller).
+Open questions for a human:
+- claude-verdict: verdict/engine.py `_prepare` uses abs(record_date - reference_date), so a record dated AFTER as_of can still support or contradict. D3 says it must be excluded or NOT_COMPARABLE.
+- Should cli.py accept a D3 request file and export the D3 result? (claude-core can add it.)
+Credits / tokens used this session (rough): 0 Crustdata credits
