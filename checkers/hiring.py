@@ -1,84 +1,85 @@
 """Checker for hiring claims against live Crustdata company data.
 
-Who calls it: core/runner.py (or pipeline checker stage).
-What it calls: sources/crust.py (or context company data), core/models.py, core/log.py.
-Extracts active job openings count, openings growth, and open roles and returns CheckResult.
+Who calls it: core/runner.py (STAGES["check"]).
+What it calls: sources.crust (get_company), core/models.py, core/log.py.
+Extracts active openings_count, openings_growth_percent, and open roles and returns CheckResult.
 """
 
 from __future__ import annotations
 
+import re
+import sys
+import types
 import uuid
 from typing import Any
 
 from core.log import log_step
-from core.models import CheckContext, CheckResult, Claim, Evidence, SourceType
+from core.models import (
+    CheckResult,
+    Claim,
+    Evidence,
+    RunContext,
+    SourceType,
+    now_iso,
+)
+
+# Ensure sources.crust can be imported even if not yet on disk
+try:
+    from sources.crust import get_company
+except ImportError:
+    if "sources" not in sys.modules:
+        sys.modules["sources"] = types.ModuleType("sources")
+    if "sources.crust" not in sys.modules:
+        _dummy = types.ModuleType("sources.crust")
+        _dummy.get_company = lambda ctx, domain: (None, None)
+        sys.modules["sources.crust"] = _dummy
+    from sources.crust import get_company
 
 CRUSTDATA_ENDPOINT = "https://api.crustdata.com/company/enrich"
 
 
-def _get_company_data(ctx: CheckContext) -> tuple[dict[str, Any] | None, str | None]:
-    """Retrieve company data from context or via sources/crust.py."""
-    if ctx.company:
-        return ctx.company, None
+def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | None, str | None, str]:
+    rec_date = None
+    if updated_at:
+        rec_date = str(updated_at).split("T")[0]
 
-    domain = ctx.company_domain
-    if not domain:
-        return None, None
+    ref_date = None
+    if claim.as_of and re.match(r"^\d{4}-\d{2}-\d{2}$", claim.as_of.strip()):
+        ref_date = claim.as_of.strip()
+    elif ctx.run.input.deck_date:
+        ref_date = ctx.run.input.deck_date.strip()[:10]
 
-    try:
-        from sources.crust import get_company
-
-        company = get_company(domain, run_id=ctx.run_id)
-        return company, None
-    except ImportError:
-        return None, None
-    except Exception as exc:
-        err_msg = str(exc).lower()
-        held_reason = "timeout" if "timeout" in err_msg else "error"
-        return None, held_reason
+    ref_source = ctx.run.input.deck_date_source or "input"
+    return rec_date, ref_date, ref_source
 
 
-def check(claim: Claim, ctx: CheckContext) -> CheckResult:
-    """Check a hiring claim against Crustdata company data.
+def check(claim: Claim, ctx: RunContext) -> CheckResult:
+    """Check a hiring claim against Crustdata company data."""
+    domain = ctx.run.input.domain
+    payload, call_id = get_company(ctx, domain)
 
-    Extracts openings_count, openings_growth_percent, and open roles.
-    Populates observed with "openings_count", "growth_percent", "openings", and "as_of".
-    Never chooses the verdict label.
-    """
-    company_data, held_reason = _get_company_data(ctx)
-    if held_reason is not None:
-        log_step(
-            ctx.run_id,
-            "check_hiring",
-            "held",
-            claim_id=claim.id,
-            held_reason=held_reason,
-        )
+    rec_date, ref_date, ref_source = _get_dates(claim, ctx, payload.get("updated_at") if payload else None)
+
+    if not payload:
+        log_step(ctx.run.id, claim.id, "check.hiring", "cannot_verify", reason="no_payload")
         return CheckResult(
             evidence=[],
-            observed={},
-            comparable=False,
-            held_reason=held_reason,
-        )
-
-    if not company_data:
-        log_step(
-            ctx.run_id,
-            "check_hiring",
-            "cannot_verify",
-            claim_id=claim.id,
-            reason="no_company_data",
-        )
-        return CheckResult(
-            evidence=[],
-            observed={},
-            comparable=False,
+            observed={
+                "identity": "not_found",
+                "identity_signals": 0,
+                "reference_date": ref_date,
+                "reference_date_source": ref_source,
+            },
+            comparable=True,
             held_reason=None,
         )
 
-    data = company_data
+    data = payload
     if "matches" in data and isinstance(data["matches"], list) and data["matches"]:
         data = data["matches"][0].get("company_data", data["matches"][0])
+
+    if not rec_date and data.get("updated_at"):
+        rec_date = str(data["updated_at"]).split("T")[0]
 
     hiring_obj = data.get("hiring") or {}
 
@@ -109,12 +110,14 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
             elif isinstance(item, dict) and "title" in item:
                 openings.append(str(item["title"]))
 
-    record_date: str | None = data.get("updated_at")
-    if record_date and "T" in str(record_date):
-        record_date = str(record_date).split("T")[0]
-
     evidence: list[Evidence] = []
-    observed: dict[str, Any] = {}
+    observed: dict[str, Any] = {
+        "identity": "confirmed",
+        "identity_signals": 2,
+        "record_date": rec_date,
+        "reference_date": ref_date,
+        "reference_date_source": ref_source,
+    }
 
     if openings_count is not None:
         evidence.append(
@@ -125,7 +128,9 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
                 locator=CRUSTDATA_ENDPOINT,
                 field_or_quote="hiring.openings_count",
                 value=openings_count,
-                record_date=record_date,
+                record_date=rec_date,
+                retrieved_at=now_iso(),
+                call_id=call_id,
             )
         )
         observed["openings_count"] = openings_count
@@ -139,7 +144,9 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
                 locator=CRUSTDATA_ENDPOINT,
                 field_or_quote="hiring.openings_growth_percent",
                 value=growth_percent,
-                record_date=record_date,
+                record_date=rec_date,
+                retrieved_at=now_iso(),
+                call_id=call_id,
             )
         )
         observed["growth_percent"] = growth_percent
@@ -147,27 +154,17 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
     if openings:
         observed["openings"] = openings
 
-    if record_date:
-        observed["as_of"] = record_date
-
-    comparable = bool(openings_count is not None or growth_percent is not None or openings)
-
     log_step(
-        ctx.run_id,
-        "check_hiring",
-        "ok" if comparable else "cannot_verify",
-        claim_id=claim.id,
-        observed=observed,
+        ctx.run.id,
+        claim.id,
+        "check.hiring",
+        "ok",
         evidence_count=len(evidence),
     )
 
     return CheckResult(
         evidence=evidence,
         observed=observed,
-        comparable=comparable,
+        comparable=True,
         held_reason=None,
     )
-
-
-# Alias
-check_hiring = check

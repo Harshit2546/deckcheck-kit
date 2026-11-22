@@ -1,35 +1,70 @@
 """Checker for competition claims against competitor registries and web sources.
 
-Who calls it: core/runner.py (or pipeline checker stage).
-What it calls: sources/crust.py, sources/web.py (or context competitor data), core/models.py, core/log.py.
+Who calls it: core/runner.py (STAGES["check"]).
+What it calls: sources.crust (get_company), core/models.py, core/log.py.
 Extracts competitor registries, peer lists, and market uniqueness facts and returns CheckResult.
 """
 
 from __future__ import annotations
 
+import re
+import sys
+import types
 import uuid
 from typing import Any
 
 from core.log import log_step
-from core.models import CheckContext, CheckResult, Claim, Evidence, SourceType
+from core.models import (
+    CheckResult,
+    Claim,
+    Evidence,
+    RunContext,
+    SourceType,
+    now_iso,
+)
+
+# Ensure sources.crust can be imported even if not yet on disk
+try:
+    from sources.crust import get_company
+except ImportError:
+    if "sources" not in sys.modules:
+        sys.modules["sources"] = types.ModuleType("sources")
+    if "sources.crust" not in sys.modules:
+        _dummy = types.ModuleType("sources.crust")
+        _dummy.get_company = lambda ctx, domain: (None, None)
+        sys.modules["sources.crust"] = _dummy
+    from sources.crust import get_company
 
 CRUSTDATA_ENDPOINT = "https://api.crustdata.com/company/enrich"
 
 
-def check(claim: Claim, ctx: CheckContext) -> CheckResult:
-    """Check a competition claim against company competitor data or web sources.
+def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | None, str | None, str]:
+    rec_date = None
+    if updated_at:
+        rec_date = str(updated_at).split("T")[0]
 
-    Extracts competitor lists and uniqueness assertions. Populates observed with
-    "competitors", "is_unique", and "as_of".
-    Never chooses the verdict label.
-    """
-    company_data = ctx.company
+    ref_date = None
+    if claim.as_of and re.match(r"^\d{4}-\d{2}-\d{2}$", claim.as_of.strip()):
+        ref_date = claim.as_of.strip()
+    elif ctx.run.input.deck_date:
+        ref_date = ctx.run.input.deck_date.strip()[:10]
+
+    ref_source = ctx.run.input.deck_date_source or "input"
+    return rec_date, ref_date, ref_source
+
+
+def check(claim: Claim, ctx: RunContext) -> CheckResult:
+    """Check a competition claim against company competitor data or web sources."""
+    domain = ctx.run.input.domain
+    payload, call_id = get_company(ctx, domain)
+
+    rec_date, ref_date, ref_source = _get_dates(claim, ctx, payload.get("updated_at") if payload else None)
+
     competitors: list[str] = []
-    record_date: str | None = None
     locator = CRUSTDATA_ENDPOINT
 
-    if company_data:
-        data = company_data
+    if payload:
+        data = payload
         if "matches" in data and isinstance(data["matches"], list) and data["matches"]:
             data = data["matches"][0].get("company_data", data["matches"][0])
 
@@ -41,29 +76,20 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
                 elif isinstance(c, dict) and "name" in c:
                     competitors.append(str(c["name"]))
 
-        record_date = data.get("updated_at")
-        if record_date and "T" in str(record_date):
-            record_date = str(record_date).split("T")[0]
-
-    # Check extras for competitor data if not in Crustdata
-    if not competitors and ctx.extras and "competitors" in ctx.extras:
-        extra_comp = ctx.extras["competitors"]
-        if isinstance(extra_comp, list):
-            competitors = [str(c) for c in extra_comp]
-        locator = "https://market-intelligence.internal/competitors"
+        if not rec_date and data.get("updated_at"):
+            rec_date = str(data["updated_at"]).split("T")[0]
 
     if not competitors:
-        log_step(
-            ctx.run_id,
-            "check_competition",
-            "cannot_verify",
-            claim_id=claim.id,
-            reason="no_competitor_data_found",
-        )
+        log_step(ctx.run.id, claim.id, "check.competition", "cannot_verify", reason="no_competitors_found")
         return CheckResult(
             evidence=[],
-            observed={},
-            comparable=False,
+            observed={
+                "identity": "not_found" if not payload else "confirmed",
+                "identity_signals": 0 if not payload else 2,
+                "reference_date": ref_date,
+                "reference_date_source": ref_source,
+            },
+            comparable=True,
             held_reason=None,
         )
 
@@ -75,21 +101,26 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
             locator=locator,
             field_or_quote="competitors",
             value=competitors,
-            record_date=record_date,
+            record_date=rec_date,
+            retrieved_at=now_iso(),
+            call_id=call_id,
         )
     ]
 
     observed: dict[str, Any] = {
+        "identity": "confirmed",
+        "identity_signals": 2,
+        "record_date": rec_date,
+        "reference_date": ref_date,
+        "reference_date_source": ref_source,
         "competitors": competitors,
     }
-    if record_date:
-        observed["as_of"] = record_date
 
     log_step(
-        ctx.run_id,
-        "check_competition",
+        ctx.run.id,
+        claim.id,
+        "check.competition",
         "ok",
-        claim_id=claim.id,
         competitor_count=len(competitors),
         evidence_count=len(evidence),
     )
@@ -100,7 +131,3 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
         comparable=True,
         held_reason=None,
     )
-
-
-# Alias
-check_competition = check

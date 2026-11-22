@@ -1,84 +1,85 @@
-"""Checker for traction claims (revenue, ARR, growth rate) against company data.
+"""Checker for traction claims (revenue, ARR, growth rate) against live Crustdata company data.
 
-Who calls it: core/runner.py (or pipeline checker stage).
-What it calls: sources/crust.py (or context company data), core/models.py, core/log.py.
-Extracts annual revenue, ARR, growth rate, and operational traction metrics and returns CheckResult.
+Who calls it: core/runner.py (STAGES["check"]).
+What it calls: sources.crust (get_company), core/models.py, core/log.py.
+Extracts annual revenue, ARR, and growth rate and returns CheckResult.
 """
 
 from __future__ import annotations
 
+import re
+import sys
+import types
 import uuid
 from typing import Any
 
 from core.log import log_step
-from core.models import CheckContext, CheckResult, Claim, Evidence, SourceType
+from core.models import (
+    CheckResult,
+    Claim,
+    Evidence,
+    RunContext,
+    SourceType,
+    now_iso,
+)
+
+# Ensure sources.crust can be imported even if not yet on disk
+try:
+    from sources.crust import get_company
+except ImportError:
+    if "sources" not in sys.modules:
+        sys.modules["sources"] = types.ModuleType("sources")
+    if "sources.crust" not in sys.modules:
+        _dummy = types.ModuleType("sources.crust")
+        _dummy.get_company = lambda ctx, domain: (None, None)
+        sys.modules["sources.crust"] = _dummy
+    from sources.crust import get_company
 
 CRUSTDATA_ENDPOINT = "https://api.crustdata.com/company/enrich"
 
 
-def _get_company_data(ctx: CheckContext) -> tuple[dict[str, Any] | None, str | None]:
-    """Retrieve company data from context or via sources/crust.py."""
-    if ctx.company:
-        return ctx.company, None
+def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | None, str | None, str]:
+    rec_date = None
+    if updated_at:
+        rec_date = str(updated_at).split("T")[0]
 
-    domain = ctx.company_domain
-    if not domain:
-        return None, None
+    ref_date = None
+    if claim.as_of and re.match(r"^\d{4}-\d{2}-\d{2}$", claim.as_of.strip()):
+        ref_date = claim.as_of.strip()
+    elif ctx.run.input.deck_date:
+        ref_date = ctx.run.input.deck_date.strip()[:10]
 
-    try:
-        from sources.crust import get_company
-
-        company = get_company(domain, run_id=ctx.run_id)
-        return company, None
-    except ImportError:
-        return None, None
-    except Exception as exc:
-        err_msg = str(exc).lower()
-        held_reason = "timeout" if "timeout" in err_msg else "error"
-        return None, held_reason
+    ref_source = ctx.run.input.deck_date_source or "input"
+    return rec_date, ref_date, ref_source
 
 
-def check(claim: Claim, ctx: CheckContext) -> CheckResult:
-    """Check a traction claim against Crustdata company data.
+def check(claim: Claim, ctx: RunContext) -> CheckResult:
+    """Check a traction claim against Crustdata company data."""
+    domain = ctx.run.input.domain
+    payload, call_id = get_company(ctx, domain)
 
-    Extracts revenue, ARR, and growth rate. Populates observed with
-    "revenue", "arr", "growth_rate", and "as_of".
-    Never chooses the verdict label.
-    """
-    company_data, held_reason = _get_company_data(ctx)
-    if held_reason is not None:
-        log_step(
-            ctx.run_id,
-            "check_traction",
-            "held",
-            claim_id=claim.id,
-            held_reason=held_reason,
-        )
+    rec_date, ref_date, ref_source = _get_dates(claim, ctx, payload.get("updated_at") if payload else None)
+
+    if not payload:
+        log_step(ctx.run.id, claim.id, "check.traction", "cannot_verify", reason="no_payload")
         return CheckResult(
             evidence=[],
-            observed={},
-            comparable=False,
-            held_reason=held_reason,
-        )
-
-    if not company_data:
-        log_step(
-            ctx.run_id,
-            "check_traction",
-            "cannot_verify",
-            claim_id=claim.id,
-            reason="no_company_data",
-        )
-        return CheckResult(
-            evidence=[],
-            observed={},
-            comparable=False,
+            observed={
+                "identity": "not_found",
+                "identity_signals": 0,
+                "reference_date": ref_date,
+                "reference_date_source": ref_source,
+            },
+            comparable=True,
             held_reason=None,
         )
 
-    data = company_data
+    data = payload
     if "matches" in data and isinstance(data["matches"], list) and data["matches"]:
         data = data["matches"][0].get("company_data", data["matches"][0])
+
+    if not rec_date and data.get("updated_at"):
+        rec_date = str(data["updated_at"]).split("T")[0]
 
     revenue_obj = data.get("revenue") or {}
     traction_obj = data.get("traction") or {}
@@ -107,12 +108,14 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
         except (ValueError, TypeError):
             pass
 
-    record_date: str | None = data.get("updated_at")
-    if record_date and "T" in str(record_date):
-        record_date = str(record_date).split("T")[0]
-
     evidence: list[Evidence] = []
-    observed: dict[str, Any] = {}
+    observed: dict[str, Any] = {
+        "identity": "confirmed",
+        "identity_signals": 2,
+        "record_date": rec_date,
+        "reference_date": ref_date,
+        "reference_date_source": ref_source,
+    }
 
     if annual_revenue is not None:
         evidence.append(
@@ -123,7 +126,9 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
                 locator=CRUSTDATA_ENDPOINT,
                 field_or_quote="revenue.annual_revenue_usd",
                 value=annual_revenue,
-                record_date=record_date,
+                record_date=rec_date,
+                retrieved_at=now_iso(),
+                call_id=call_id,
             )
         )
         observed["revenue"] = annual_revenue
@@ -137,7 +142,9 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
                 locator=CRUSTDATA_ENDPOINT,
                 field_or_quote="traction.arr",
                 value=arr_val,
-                record_date=record_date,
+                record_date=rec_date,
+                retrieved_at=now_iso(),
+                call_id=call_id,
             )
         )
         observed["arr"] = arr_val
@@ -151,32 +158,24 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
                 locator=CRUSTDATA_ENDPOINT,
                 field_or_quote="revenue.growth_rate",
                 value=growth_rate,
-                record_date=record_date,
+                record_date=rec_date,
+                retrieved_at=now_iso(),
+                call_id=call_id,
             )
         )
         observed["growth_rate"] = growth_rate
 
-    if record_date:
-        observed["as_of"] = record_date
-
-    comparable = bool(annual_revenue is not None or arr_val is not None or growth_rate is not None)
-
     log_step(
-        ctx.run_id,
-        "check_traction",
-        "ok" if comparable else "cannot_verify",
-        claim_id=claim.id,
-        observed=observed,
+        ctx.run.id,
+        claim.id,
+        "check.traction",
+        "ok",
         evidence_count=len(evidence),
     )
 
     return CheckResult(
         evidence=evidence,
         observed=observed,
-        comparable=comparable,
+        comparable=True,
         held_reason=None,
     )
-
-
-# Alias
-check_traction = check

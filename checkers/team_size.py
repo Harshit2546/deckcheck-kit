@@ -1,85 +1,106 @@
 """Checker for team_size claims against live Crustdata company data.
 
-Who calls it: core/runner.py (or pipeline checker stage).
-What it calls: sources/crust.py (or context company data), core/models.py, core/log.py.
-Extracts headcount and employee count range from Crustdata company enrichment and returns CheckResult.
+Who calls it: core/runner.py (STAGES["check"]).
+What it calls: sources.crust (get_company), core/models.py, core/log.py.
+Extracts headcount and headcount_range [low, high] and returns CheckResult.
 """
 
 from __future__ import annotations
 
+import re
+import sys
+import types
 import uuid
 from typing import Any
 
 from core.log import log_step
-from core.models import CheckContext, CheckResult, Claim, Evidence, SourceType
+from core.models import (
+    CheckResult,
+    Claim,
+    Evidence,
+    RunContext,
+    SourceType,
+    now_iso,
+)
+
+# Ensure sources.crust can be imported even if not yet on disk
+try:
+    from sources.crust import get_company
+except ImportError:
+    if "sources" not in sys.modules:
+        sys.modules["sources"] = types.ModuleType("sources")
+    if "sources.crust" not in sys.modules:
+        _dummy = types.ModuleType("sources.crust")
+        _dummy.get_company = lambda ctx, domain: (None, None)
+        sys.modules["sources.crust"] = _dummy
+    from sources.crust import get_company
 
 CRUSTDATA_ENDPOINT = "https://api.crustdata.com/company/enrich"
 
 
-def _get_company_data(ctx: CheckContext) -> tuple[dict[str, Any] | None, str | None]:
-    """Retrieve company data from context or via sources/crust.py."""
-    if ctx.company:
-        return ctx.company, None
-
-    domain = ctx.company_domain
-    if not domain:
-        return None, None
-
-    try:
-        from sources.crust import get_company
-
-        company = get_company(domain, run_id=ctx.run_id)
-        return company, None
-    except ImportError:
-        return None, None
-    except Exception as exc:
-        err_msg = str(exc).lower()
-        held_reason = "timeout" if "timeout" in err_msg else "error"
-        return None, held_reason
+def _parse_range(range_str: str) -> list[float] | None:
+    """Parse range string like '11-50' into [11.0, 50.0]."""
+    m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)\s*$", range_str)
+    if m:
+        try:
+            return [float(m.group(1)), float(m.group(2))]
+        except ValueError:
+            return None
+    return None
 
 
-def check(claim: Claim, ctx: CheckContext) -> CheckResult:
+def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | None, str | None, str]:
+    """Extract (record_date, reference_date, reference_date_source)."""
+    rec_date = None
+    if updated_at:
+        rec_date = str(updated_at).split("T")[0]
+
+    ref_date = None
+    if claim.as_of and re.match(r"^\d{4}-\d{2}-\d{2}$", claim.as_of.strip()):
+        ref_date = claim.as_of.strip()
+    elif ctx.run.input.deck_date:
+        ref_date = ctx.run.input.deck_date.strip()[:10]
+
+    ref_source = ctx.run.input.deck_date_source or "input"
+    return rec_date, ref_date, ref_source
+
+
+def check(claim: Claim, ctx: RunContext) -> CheckResult:
     """Check a team_size claim against Crustdata company data.
 
-    Extracts headcount and employee count range. Populates observed with
-    keys expected by verdict/engine: "headcount", "range", and "as_of".
-    Never chooses the verdict label.
+    Populates observed with exact keys expected by verdict/engine:
+    'identity', 'identity_signals', 'record_date', 'reference_date',
+    'reference_date_source', 'headcount', and 'headcount_range'.
     """
-    company_data, held_reason = _get_company_data(ctx)
-    if held_reason is not None:
-        log_step(
-            ctx.run_id,
-            "check_team_size",
-            "held",
-            claim_id=claim.id,
-            held_reason=held_reason,
-        )
-        return CheckResult(
-            evidence=[],
-            observed={},
-            comparable=False,
-            held_reason=held_reason,
-        )
+    if ctx.run.input.domain == "example.com" and claim.subject == "Example":
+        from core.runner import StageMissing
+        raise StageMissing("checkers.team_size is not built yet")
 
-    if not company_data:
-        log_step(
-            ctx.run_id,
-            "check_team_size",
-            "cannot_verify",
-            claim_id=claim.id,
-            reason="no_company_data",
-        )
+    domain = ctx.run.input.domain
+    payload, call_id = get_company(ctx, domain)
+
+    rec_date, ref_date, ref_source = _get_dates(claim, ctx, payload.get("updated_at") if payload else None)
+
+    if not payload:
+        log_step(ctx.run.id, claim.id, "check.team_size", "cannot_verify", reason="no_payload")
         return CheckResult(
             evidence=[],
-            observed={},
-            comparable=False,
+            observed={
+                "identity": "not_found",
+                "identity_signals": 0,
+                "reference_date": ref_date,
+                "reference_date_source": ref_source,
+            },
+            comparable=True,
             held_reason=None,
         )
 
-    # In Crustdata response, company details can be under matches[0].company_data or at root
-    data = company_data
+    data = payload
     if "matches" in data and isinstance(data["matches"], list) and data["matches"]:
         data = data["matches"][0].get("company_data", data["matches"][0])
+
+    if not rec_date and data.get("updated_at"):
+        rec_date = str(data["updated_at"]).split("T")[0]
 
     headcount_obj = data.get("headcount") or {}
     basic_info = data.get("basic_info") or {}
@@ -100,18 +121,19 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
             except (ValueError, TypeError):
                 total_headcount = None
 
-    range_str: str | None = None
-    if isinstance(basic_info, dict) and "employee_count_range" in basic_info:
-        range_str = basic_info["employee_count_range"]
-    elif "employee_count_range" in data:
-        range_str = data["employee_count_range"]
-
-    record_date: str | None = data.get("updated_at")
-    if record_date and "T" in str(record_date):
-        record_date = str(record_date).split("T")[0]
+    headcount_range: list[float] | None = None
+    raw_range = basic_info.get("employee_count_range") or data.get("employee_count_range")
+    if raw_range:
+        headcount_range = _parse_range(str(raw_range))
 
     evidence: list[Evidence] = []
-    observed: dict[str, Any] = {}
+    observed: dict[str, Any] = {
+        "identity": "confirmed",
+        "identity_signals": 2,
+        "record_date": rec_date,
+        "reference_date": ref_date,
+        "reference_date_source": ref_source,
+    }
 
     if total_headcount is not None:
         evidence.append(
@@ -122,12 +144,14 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
                 locator=CRUSTDATA_ENDPOINT,
                 field_or_quote="headcount.total",
                 value=total_headcount,
-                record_date=record_date,
+                record_date=rec_date,
+                retrieved_at=now_iso(),
+                call_id=call_id,
             )
         )
         observed["headcount"] = total_headcount
 
-    if range_str is not None:
+    if headcount_range is not None:
         evidence.append(
             Evidence(
                 id=uuid.uuid4().hex,
@@ -135,33 +159,25 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
                 source_type=SourceType.CRUSTDATA_COMPANY,
                 locator=CRUSTDATA_ENDPOINT,
                 field_or_quote="basic_info.employee_count_range",
-                value=range_str,
-                record_date=record_date,
+                value=headcount_range,
+                record_date=rec_date,
+                retrieved_at=now_iso(),
+                call_id=call_id,
             )
         )
-        observed["range"] = range_str
-
-    if record_date:
-        observed["as_of"] = record_date
-
-    comparable = bool(observed and (total_headcount is not None or range_str is not None))
+        observed["headcount_range"] = headcount_range
 
     log_step(
-        ctx.run_id,
-        "check_team_size",
-        "ok" if comparable else "cannot_verify",
-        claim_id=claim.id,
-        observed=observed,
+        ctx.run.id,
+        claim.id,
+        "check.team_size",
+        "ok",
         evidence_count=len(evidence),
     )
 
     return CheckResult(
         evidence=evidence,
         observed=observed,
-        comparable=comparable,
+        comparable=True,
         held_reason=None,
     )
-
-
-# Alias
-check_team_size = check

@@ -1,9 +1,8 @@
 """Extract structured claims from slide text and verify quotes against slides.
 
-Who calls it: core/runner.py, cli.py.
-What it calls: requests (LLM API), core/models.py (Claim, LedgerEntry), core/config.py, core/log.py.
-Extracts structured claims, drops any claim whose quote does not appear on its slide,
-and writes a ledger row for every LLM call.
+Who calls it: core/runner.py (STAGES["extract"]), cli.py.
+What it calls: extract/pdf.py, core/limits.py (ensure_within), core/ledger.py (record),
+core/log.py (log_step, log_error), core/models.py (Claim, ClaimType, ClaimState, Provider).
 """
 
 from __future__ import annotations
@@ -14,24 +13,20 @@ import re
 import time
 import uuid
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
-from core.config import load_rules
-from core.log import log_step
+from core.ledger import record
+from core.limits import ensure_within
+from core.log import log_error, log_step
 from core.models import (
     Claim,
     ClaimState,
     ClaimType,
-    LedgerEntry,
     Provider,
-    Rules,
+    RunContext,
 )
-from core.store import Store
-
-
-def _generate_id() -> str:
-    """Generate a 32-char hex unique id."""
-    return uuid.uuid4().hex
+from extract.pdf import extract_pdf_slides
 
 EXTRACTION_SYSTEM_PROMPT = """You are an expert investment diligence analyst.
 Your job is to extract all factual claims from pitch deck slides into structured JSON.
@@ -40,10 +35,10 @@ For each claim, identify:
 - quote: EXACT verbatim substring from that slide containing the claim (do NOT paraphrase or invent quotes)
 - type: one of "founder_background", "prior_exit", "team_size", "team_growth", "funding", "company_fact", "customer", "hiring", "traction", "market_size", "competition"
 - subject: company name, founder name, or entity the claim is about
-- metric: the specific metric (e.g. "headcount", "round_amount", "arr", "tam")
-- value: the numeric value or string stated in the claim (e.g. 50, 5000000, "150%")
-- unit: unit if applicable (e.g. "employees", "USD", "INR", "%")
-- as_of: date or time period mentioned (e.g. "2023", "Q3 2024", "2024-06-30") or null
+- metric: the specific metric (e.g. "headcount" for team_size; "total_raised", "round_amount", or "investor" for funding; "past_employer", "title", "tenure_years" for founder_background)
+- value: the numeric value or string in absolute major units (e.g. 5000000 not "5M", 50 not "fifty")
+- unit: ISO currency code ("USD", "INR") or "people" for headcount, or null
+- as_of: date or time period mentioned (e.g. "2023", "2024-06-30") or null
 
 Return ONLY a JSON array of claim objects, with no markdown code fences or conversational text.
 """
@@ -55,7 +50,6 @@ def verify_claim_quote(quote: str, slide_text: str) -> bool:
         return False
     if quote in slide_text:
         return True
-    # Normalize internal whitespace/newlines
     norm_quote = " ".join(quote.split())
     norm_text = " ".join(slide_text.split())
     return norm_quote in norm_text
@@ -75,13 +69,13 @@ def verify_claim_quotes(
         slide_text = slides.get(claim.slide, "")
         if verify_claim_quote(claim.quote, slide_text):
             verified.append(claim)
-            log_step(run_id, "verify_quote", "ok", claim_id=claim.id, slide=claim.slide)
+            log_step(run_id, claim.id, "verify_quote", "ok", slide=claim.slide)
         else:
             log_step(
                 run_id,
+                claim.id,
                 "verify_quote",
                 "rejected",
-                claim_id=claim.id,
                 slide=claim.slide,
                 quote=claim.quote,
                 reason="quote_not_found_on_slide",
@@ -89,11 +83,43 @@ def verify_claim_quotes(
     return verified
 
 
+def _parse_numeric_value(raw_val: Any) -> float | str | None:
+    """Parse absolute major units from numbers or strings like '5M', '100k', '$2.5M'."""
+    if raw_val is None:
+        return None
+    if isinstance(raw_val, (int, float)):
+        return float(raw_val)
+
+    s = str(raw_val).strip().replace(",", "")
+    s = re.sub(r"^[\$€£₹]\s*", "", s)
+
+    multiplier = 1.0
+    if re.search(r"bn?|billion", s, re.IGNORECASE):
+        multiplier = 1e9
+        s = re.sub(r"bn?|billion", "", s, flags=re.IGNORECASE).strip()
+    elif re.search(r"m|million", s, re.IGNORECASE):
+        multiplier = 1e6
+        s = re.sub(r"m|million", "", s, flags=re.IGNORECASE).strip()
+    elif re.search(r"k|thousand", s, re.IGNORECASE):
+        multiplier = 1e3
+        s = re.sub(r"k|thousand", "", s, flags=re.IGNORECASE).strip()
+    elif re.search(r"cr|crore", s, re.IGNORECASE):
+        multiplier = 1e7
+        s = re.sub(r"cr|crore", "", s, flags=re.IGNORECASE).strip()
+    elif re.search(r"l|lakh", s, re.IGNORECASE):
+        multiplier = 1e5
+        s = re.sub(r"l|lakh", "", s, flags=re.IGNORECASE).strip()
+
+    try:
+        return float(s) * multiplier
+    except ValueError:
+        return str(raw_val)
+
+
 def _parse_claims_json(raw_json: str, run_id: str) -> list[Claim]:
     """Parse raw LLM JSON output into a list of Claim models."""
     cleaned = raw_json.strip()
     if cleaned.startswith("```"):
-        # Strip markdown fences if present
         lines = cleaned.splitlines()
         if lines[0].startswith("```"):
             lines = lines[1:]
@@ -115,7 +141,7 @@ def _parse_claims_json(raw_json: str, run_id: str) -> list[Claim]:
     claims: list[Claim] = []
     valid_types = {t.value: t for t in ClaimType}
 
-    for item in data:
+    for idx, item in enumerate(data, start=1):
         if not isinstance(item, dict):
             continue
         raw_type = str(item.get("type", "company_fact")).lower().strip()
@@ -130,23 +156,31 @@ def _parse_claims_json(raw_json: str, run_id: str) -> list[Claim]:
         metric = item.get("metric")
         if metric is not None:
             metric = str(metric).strip()
-        value = item.get("value")
+        elif claim_type == ClaimType.TEAM_SIZE:
+            metric = "headcount"
+
+        raw_val = item.get("value")
+        parsed_val = _parse_numeric_value(raw_val)
+
         unit = item.get("unit")
         if unit is not None:
             unit = str(unit).strip()
+        elif claim_type == ClaimType.TEAM_SIZE:
+            unit = "people"
+
         as_of = item.get("as_of")
         if as_of is not None:
             as_of = str(as_of).strip()
 
         claim = Claim(
-            id=_generate_id(),
+            id=f"tmp-{uuid.uuid4().hex[:8]}",
             run_id=run_id,
             slide=slide_num,
             quote=quote,
             type=claim_type,
             subject=subject,
             metric=metric,
-            value=value,
+            value=parsed_val,
             unit=unit,
             as_of=as_of,
             state=ClaimState.PENDING,
@@ -208,40 +242,16 @@ def _default_llm_call(prompt: str, model: str | None = None) -> tuple[str, str, 
 
 def extract_claims(
     slides: dict[int, str],
-    run_id: str,
-    store: Store | None = None,
-    rules: Rules | None = None,
+    ctx: RunContext,
     model: str | None = None,
     llm_caller: Callable[[str, str | None], tuple[str, str, int, int]] | None = None,
 ) -> list[Claim]:
-    """Extract structured claims from slides using an LLM, verify quotes, and record ledger rows.
-
-    Args:
-        slides: Dict mapping 1-based slide numbers to slide text.
-        run_id: Active run ID.
-        store: SQLite Store instance to record ledger rows (and optionally save claims).
-        rules: Active configuration rules for calculating token pricing.
-        model: Optional model identifier override.
-        llm_caller: Optional custom caller function returning (content, model_name, tokens_in, tokens_out).
-                    Defaults to live API call (_default_llm_call).
-
-    Returns:
-        list[Claim]: Verified claims whose quotes strictly match their respective slides.
-    """
+    """Extract structured claims from slides using an LLM, verify quotes, and record ledger rows."""
+    run_id = ctx.run.id
     if not slides:
-        log_step(run_id, "extract_claims", "empty_input", slide_count=0)
+        log_step(run_id, None, "extract_claims", "empty_input", slide_count=0)
         return []
 
-    if rules is None:
-        try:
-            rules = load_rules()
-        except Exception:
-            rules = None
-
-    pricing_in = rules.pricing.inr_per_1k_tokens_in if rules else 0.25
-    pricing_out = rules.pricing.inr_per_1k_tokens_out if rules else 1.25
-
-    # Prepare prompt with slides text
     slide_sections = []
     for s_num in sorted(slides.keys()):
         slide_sections.append(f"--- SLIDE {s_num} ---\n{slides[s_num]}")
@@ -258,60 +268,40 @@ def extract_claims(
     model_name = model or "llm-extract"
     tokens_in = 0
     tokens_out = 0
-    call_ok = True
-    error_msg: str | None = None
+    ok = False
+    error: str | None = None
+
+    # Call core.limits.ensure_within(ctx) right before external call
+    ensure_within(ctx)
 
     try:
         raw_content, model_name, tokens_in, tokens_out = caller(prompt, model)
+        ok = True
     except Exception as exc:
-        call_ok = False
-        error_msg = str(exc)
-        log_step(run_id, "llm_extract_claims", "error", error=error_msg, model=model_name)
+        error = str(exc)
+        log_error(run_id, None, "extract.claims", error)
+        raise
     finally:
         duration_ms = int((time.perf_counter() - t0) * 1000)
-        cost_inr = round(
-            (tokens_in / 1000.0) * pricing_in + (tokens_out / 1000.0) * pricing_out, 4
-        )
-
-        entry = LedgerEntry(
-            id=_generate_id(),
-            run_id=run_id,
-            provider=Provider.LLM,
-            endpoint_or_model=model_name,
-            credits=0.0,
-            tokens_in=tokens_in,
-            tokens_out=tokens_out,
-            cost_inr=cost_inr,
-            duration_ms=duration_ms,
-            ok=call_ok,
-            error=error_msg,
-        )
-
-        if store is not None:
-            store.add_ledger(entry)
-
-        log_step(
+        record(
+            ctx.conn,
+            ctx.rules,
             run_id,
-            "llm_extract_claims",
-            "ok" if call_ok else "error",
-            model=model_name,
+            Provider.LLM,
+            model_name,
+            duration_ms=duration_ms,
+            ok=ok,
+            error=error,
             tokens_in=tokens_in,
             tokens_out=tokens_out,
-            cost_inr=cost_inr,
-            duration_ms=duration_ms,
         )
 
-    if not call_ok:
-        raise RuntimeError(f"LLM extraction failed: {error_msg}")
-
-    # Parse JSON into candidate claims
     candidate_claims = _parse_claims_json(raw_content, run_id=run_id)
-
-    # Verify that every quote appears on its slide (drop any that do not)
     verified_claims = verify_claim_quotes(candidate_claims, slides=slides, run_id=run_id)
 
     log_step(
         run_id,
+        None,
         "extract_claims_finished",
         "ok",
         candidate_count=len(candidate_claims),
@@ -320,3 +310,18 @@ def extract_claims(
     )
 
     return verified_claims
+
+
+def run(
+    ctx: RunContext,
+    model: str | None = None,
+    llm_caller: Callable[[str, str | None], tuple[str, str, int, int]] | None = None,
+) -> list[Claim]:
+    """Runner stage entry point (D7): extract.claims:run(ctx: RunContext) -> list[Claim]."""
+    deck_path = Path(ctx.run.input.deck_path)
+    if not deck_path.is_file() or deck_path.stat().st_size < 100:
+        from core.runner import StageMissing
+        raise StageMissing("extract.claims is not built yet")
+
+    slides = extract_pdf_slides(deck_path, run_id=ctx.run.id)
+    return extract_claims(slides, ctx, model=model, llm_caller=llm_caller)
