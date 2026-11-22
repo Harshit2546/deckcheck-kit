@@ -213,34 +213,34 @@ def _default_llm_call(prompt: str, model: str | None = None, timeout_s: float = 
     """
     import requests
 
-    gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    # gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
 
-    if gemini_key:
-        model_name = model or "gemini-2.5-flash"
-        # Key sent in header only, never in URL
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-        headers = {"x-goog-api-key": gemini_key, "Content-Type": "application/json"}
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"response_mime_type": "application/json"},
-        }
-        try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
-            resp.raise_for_status()
-        except requests.exceptions.Timeout as exc:
-            raise TimeoutError(f"Gemini API call timed out after {timeout_s}s") from exc
-        except Exception as exc:
-            # Strip any potential sensitive details from exception string
-            clean_msg = re.sub(r"key=[^\s&]+", "key=REDACTED", str(exc))
-            raise RuntimeError(f"Gemini API call failed: {clean_msg}") from exc
+    # if gemini_key:
+    #     model_name = model or "gemini-2.5-flash"
+    #     # Key sent in header only, never in URL
+    #     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+    #     headers = {"x-goog-api-key": gemini_key, "Content-Type": "application/json"}
+    #     payload = {
+    #         "contents": [{"parts": [{"text": prompt}]}],
+    #         "generationConfig": {"response_mime_type": "application/json"},
+    #     }
+    #     try:
+    #         resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
+    #         resp.raise_for_status()
+    #     except requests.exceptions.Timeout as exc:
+    #         raise TimeoutError(f"Gemini API call timed out after {timeout_s}s") from exc
+    #     except Exception as exc:
+    #         # Strip any potential sensitive details from exception string
+    #         clean_msg = re.sub(r"key=[^\s&]+", "key=REDACTED", str(exc))
+    #         raise RuntimeError(f"Gemini API call failed: {clean_msg}") from exc
 
-        res_data = resp.json()
-        content = res_data["candidates"][0]["content"]["parts"][0]["text"]
-        usage = res_data.get("usageMetadata", {})
-        tokens_in = usage.get("promptTokenCount", len(prompt) // 4)
-        tokens_out = usage.get("candidatesTokenCount", len(content) // 4)
-        return content, model_name, tokens_in, tokens_out
+    #     res_data = resp.json()
+    #     content = res_data["candidates"][0]["content"]["parts"][0]["text"]
+    #     usage = res_data.get("usageMetadata", {})
+    #     tokens_in = usage.get("promptTokenCount", len(prompt) // 4)
+    #     tokens_out = usage.get("candidatesTokenCount", len(content) // 4)
+    #     return content, model_name, tokens_in, tokens_out
 
     if openai_key:
         model_name = model or "gpt-4o-mini"

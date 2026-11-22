@@ -28,6 +28,7 @@ _HOST = "api.crustdata.com"
 _VERSION = "2025-11-01"
 _COMPANY_PATH = "/company/enrich"
 _ACCOUNT_PATH = "/account/endpoints"
+_WEB_PATH = "/web/search/live"
 _COMPANY_FIELDS = ("basic_info", "locations", "headcount", "funding", "revenue",
                    "hiring", "competitors")
 _ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
