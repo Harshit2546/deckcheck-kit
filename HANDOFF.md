@@ -258,3 +258,43 @@ Open questions for a human:
 - Correction: an earlier entry of mine says the adapter moved to kit_io/adapter.py (D4). D6 withdrew D4: the adapter is io/adapter.py, loaded with core.adapter_loader. origin/main has io/adapter.py and no kit_io/. The coordinating session asked me to rename mentions to kit_io; I did not, because that would be wrong on main today. Please confirm D6 is current.
 - Still open from before: D8 keys in rules.yaml (claude-core), finance partner's answers to the three DESIGN.md questions, D3 kit output format.
 Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate
+
+### 14:12 · claude-verdict@win · lane claude-verdict · task T27
+
+Status: in-progress (waiting for the hour-3 requirement, T20)
+Done this session:
+- DECISIONS D9: the Windows laptop owns lane claude-verdict (user's decision); labels are `<lane>@<laptop>`.
+In progress / exact next step:
+- Mac laptop: do not run claude-verdict. Other lanes: the user still has to say which laptop owns each.
+- Suggested for the merger (human, on main): add a `.gitattributes` with `* text=auto eol=lf`; Windows and Mac currently disagree on line endings (git warns "LF will be replaced by CRLF" here).
+How to run / test:
+- n/a (decision only)
+Known bugs or shortcuts taken:
+- none
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D9.
+Open questions for a human:
+- Which laptop owns claude-core, ag, ag-b and codex-a (add a line under D9).
+Credits / tokens used this session (rough): none
+
+### 14:35 · claude-verdict@win · lane claude-verdict · task T13, T15, T27 (stopped on request)
+
+Status: in-progress, paused (nothing running; no uncommitted work)
+Done this session:
+- verdict/engine.py + common.py, team_size.py, funding.py, founder.py (T13); report/builder.py, render.py, question_templates.yaml (T15); 101 tests pass (`python -m pytest -q` in dc-claude-verdict).
+- docs/reviews/T27_ag-b.md and T27_codex-a.md (merge reviews against the real core).
+- DECISIONS D8 (verdict: keys for rules.yaml), D9 and D10 (this Windows laptop owns claude-verdict; two Claude accounts, one per laptop).
+In progress / exact next step:
+- Wait. Resume only when the user says so. Then: (1) T20, read the hour-3 requirement, write the DECISIONS entry, change rules.yaml or code with tests; (2) re-run the T27 review once ag-b and codex-a have merged origin/main; (3) when claude-core has added the verdict: keys, drop the `rules` injection in tests/verdict/conftest.py and run a real run end to end.
+How to run / test:
+- cd dc-claude-verdict && git branch --show-current && python -m pytest -q
+Known bugs or shortcuts taken:
+- A real run raises ValueError at its first verdict until the D8 keys exist in config/rules.yaml (claude-core's file).
+- Kit-format JSON (T15) not written: needs D3.
+- Explanations are fixed templates, no LLM wording.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- None new beyond D8, D9, D10.
+Open questions for a human:
+- Finance partner: min_title_level meaning, global max_record_age_days, cautious funding rule, real values for the verdict: keys.
+- Merger: D3 (kit format); add `.gitattributes` (`* text=auto eol=lf`) on main; say which laptop owns claude-core, ag, ag-b, codex-a (add a line under D9/D10).
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens moderate

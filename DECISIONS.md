@@ -67,3 +67,15 @@ Also: `decide(claim, result, rules)` has no access to the run (D7), so checkers 
 Why: wrong SUPPORTED/CONTRADICTED costs more than CANNOT_VERIFY, so confidence needs margins; those margins are judgement values a human must be able to change live.
 Files affected: config/rules.yaml, core/config.py (claude-core); verdict/engine.py (reads the keys); checkers/* (set the observed keys).
 Who must know (lanes): claude-core (until the keys exist `decide()` raises ValueError, so a real run stops at its first verdict), finance partner, codex-a, ag-b
+
+### 14:10 · claude-verdict-1 (on the user's word) · D9: the Windows laptop owns lane claude-verdict
+Change: lane claude-verdict (verdict/, report/, docs/reviews/, T13, T15, T20, T27) is worked only from the Windows laptop, in its worktree folder `dc-claude-verdict` on branch `lane/claude-verdict`. The Mac laptop must not start a claude-verdict session; if it needs something from this lane it writes a line in HANDOFF.md or TASKS.md. Both laptops use the same Claude account but different OneDrive accounts, so they share nothing except origin: coordinate through git files only, not through session messages (those stay on one machine). Labels in TASKS.md and HANDOFF.md are `<lane>@<laptop>` (this lane: `claude-verdict@win`). Which laptop owns the other lanes is not decided here; the user decides and adds a line below.
+Why: two sessions on one lane would edit the same files from two clones; the shared account gives no way to tell sessions apart.
+Files affected: none in code. TASKS.md and HANDOFF.md labels from now on.
+Who must know (lanes): all lanes, both humans
+
+### 14:25 · claude-verdict@win · D10: correction to D9, the two laptops use two different Claude accounts
+Change: D9 said both laptops use the same Claude account. That is wrong: there are two Claude accounts, one per laptop (as in PLAN.md section 5), and different OneDrive accounts. Everything else in D9 stands: this Windows laptop owns lane claude-verdict; the laptops share only origin; coordinate through TASKS.md, HANDOFF.md and DECISIONS.md; labels are `<lane>@<laptop>`. Consequence: each laptop has its own usage limit, so each account writes its own HANDOFF entry before its own limit.
+Why: the user clarified after D9 was pushed. DECISIONS is append-only, so this is a new entry instead of an edit.
+Files affected: none in code.
+Who must know (lanes): all lanes, both humans
