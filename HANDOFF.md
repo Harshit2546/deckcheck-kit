@@ -749,3 +749,35 @@ Decisions made (also in DECISIONS.md if they change behaviour):
 Open questions for a human:
 - Slides 6 and 7: should the key's CANNOT_VERIFY be reached by a customer checker and a web source, or should a missing checker/source be allowed to give HELD (current behaviour, per D7)?
 Credits / tokens used this session (rough): 0 Crustdata credits (offline only); Claude tokens moderate
+
+### 17:05 · claude-verdict@win · lane claude-verdict · task T10, T13, T15, T21, T27 (end of session; lane moves to the Mac)
+
+Status: T10, T13, T15 done; T21 in-progress (~85%); T27 repeats before every merge
+Done this session:
+- T13 verdict/engine.py (+ common, team_size, funding, founder): code decides labels from rules.yaml; D3 record_after_as_of, D13 dated headcount point wording, D14 per-claim-type max_record_age_days. Tests in tests/verdict/.
+- T15 report/builder.py, render.py, question_templates.yaml; tests/report/.
+- T10 resolve/entities.py, names.py, payloads.py (D12); tests/resolve/ (29). Company resolution confirmed on the real recorded Locus response.
+- T21 tests/eval/run_eval.py + deck_a_claims.json + 10 tests. Offline Deck A today: slides 2 and 5 PASS, 3 and 4 FAIL (funding checker ignores funding.milestones, ag-b), 6 FAIL (HELD no_checker: no checkers/customer.py), 7 FAIL (HELD error: sources.web missing), 8 SKIP.
+- T27 docs/reviews/T27_ag-b.md and T27_codex-a.md (first round).
+- Decisions: D8, D9, D10, D12, D14 (mine); D3, D13 came from the merger.
+In progress / exact next step:
+1. Mac (new claude-verdict owner): `git fetch`, check `git branch --show-current`, merge origin/main, read DECISIONS D3, D8, D12, D13, D14, then `python -m pytest -q`.
+2. Put `max_record_age_days: 3650` under `tolerances.funding` in config/rules.yaml (merger or claude-core; D14) so Locus funding claims from 2021 are not stale_record.
+3. T21: add decks B and C (tests/decks/deck_b_*.yaml/json, tests/eval/deck_b_claims.json, tests/fixtures/crustdata/deck_b_*_company.json); then `python tests/eval/run_eval.py --deck b`. One person with credits approval runs `python tests/eval/run_eval.py --live`.
+4. T10: codex-a adds get_people(ctx, urls) and search_people(ctx, name, company_id) to sources/crust.py (D12); then test a deck with founders.
+5. T20 (hour-3 requirement change): not received; read it, write a DECISIONS entry, change rules.yaml or code with tests.
+6. T27: review each lane branch before the next human merge (git show / git diff / throwaway worktree only; never checkout in the lane folder).
+How to run / test:
+- python -m pytest -q   (220 pass without tests/ui; tests/ui fails 6 only on the Windows laptop: NumPy 2.5 vs old pyarrow in Anaconda, unrelated to the repo)
+- python tests/eval/run_eval.py
+Known bugs or shortcuts taken:
+- tests/eval/deck_a_claims.json is hand-written, not LLM output. --live was never run (credits).
+- Payload shapes in resolve/payloads.py are verified for the company record only; person payloads are from docs, not live.
+- Untracked logs/ is created by test runs; not committed; add `logs/` to .gitignore (merger).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none new today beyond those listed.
+Open questions for a human:
+- Slides 6, 7: a missing checker or source gives HELD (D7), but the Deck A key expects CANNOT_VERIFY no_evidence. Which is right, or do we add checkers/customer.py and a web source that returns no evidence?
+- Finance partner: min_title_level meaning, funding age limit 10 years, real values for verdict: keys and templates in report/question_templates.yaml.
+- D9/D10 say the Windows laptop owns claude-verdict; the lane now moves to the Mac. Please add a line under D10.
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens high
