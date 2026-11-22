@@ -31,12 +31,27 @@ Every threshold is read with `core.config.rule()`; there are no code defaults, a
 | 3 | `observed.identity` is `unclear` | CANNOT_VERIFY | `identity_unclear` | low |
 | 4 | `observed.identity` is `not_found` | CANNOT_VERIFY | `entity_not_found` | low |
 | 5 | `result.comparable` is False | NOT_COMPARABLE | `observed.not_comparable_reason` (default `not_comparable`) | medium |
-| 5b | `identity` is not `confirmed`, or `identity_signals` < `identity.min_signals` (a missing key counts as not confirmed) | CANNOT_VERIFY | `identity_unclear` | low |
-| 6 | no `observed.record_date` (or not a date) | CANNOT_VERIFY | `missing_record_date` | low |
+| 5b | `identity` is not `confirmed`, or `identity_signals` < `identity.min_signals` (a missing key counts as not confirmed). T33: for claim.type `market_size` only, `identity == "not_applicable"` passes this row (a market is not an entity, D16) | CANNOT_VERIFY | `identity_unclear` | low |
+| 6 | no `observed.record_date` (or not a date) and the D17 undated fallback does not apply (section 2.1) | CANNOT_VERIFY | `missing_record_date`; `missing` says why (fallback off, deck older than the limit, deck after retrieval) | low |
 | 7 | no reference date | CANNOT_VERIFY | `no_reference_date` | low |
 | 7b | `record_date` is AFTER the reference date (D3: no fact from after the as-of date may support or contradict a claim; one day after is enough) | NOT_COMPARABLE | `record_after_as_of`; `missing` = "A record dated on or before <reference date>." | high |
 | 8 | record date more than `tolerances.<claim type>.max_record_age_days` (if that key exists, else the global `tolerances.max_record_age_days`) BEFORE the reference date | NOT_COMPARABLE | `stale_record` | medium |
 | 9 | metric rules in section 3 (they also return `claim_value_unusable` when the claim's value is not a usable number) | any | see section 3 | see section 3 |
+
+### 2.1 Undated fallback (D17, T34)
+
+When `observed.record_date` is missing, the engine still decides if ALL hold: `verdict.undated_fallback` is true (a
+missing key counts as off); the evidence has a `retrieved_at` (the latest one is used); and the reference date is 0 to
+`verdict.undated_max_deck_age_days` days BEFORE that retrieval date. Then rows 7b and 8 are skipped (there is no record
+date), `st` gets `undated=True`, `rec=None`, `gap=None`, `fresh=False`, ceiling `low`, and the per-type rule runs as usual.
+`make()` then appends `_undated` to the reason code (e.g. `within_tolerance_undated`, `metric_mismatch_undated`), forces
+confidence `low`, prefixes the explanation with "No dated record was found; this uses an undated source retrieved on
+<YYYY-MM-DD>. " and appends MISSING_TEXT `undated` ("A record with its own date on or before <ref>...") to `missing`.
+`no_evidence` never gets the suffix (nothing was used). A dated record always wins: the fallback never runs when
+`record_date` is a date. Rules that need the record date handle `rec=None`: founder tenure ends an open role at the
+reference date; team_growth returns `period_mismatch_undated` (the window end is unknown).
+Web items (market_size, customer; `verdict/web_common.select`): dated items that pass the date filter always win; only
+when none pass, and the guard holds, items with `published_date: None` are used, and that verdict is `_undated` too.
 
 Reference date = `observed.reference_date` (the checker sets it to `claim.as_of` when that is an ISO date, else the run's
 `deck_date`; `decide()` has no access to the run, D7), and if that is absent, `claim.as_of` when it is an ISO date.
@@ -149,15 +164,106 @@ lowercased title. Seniority order = the order of the keys in `title_levels` in r
 Observed tenure months = months from `start_date` to `end_date` (or `record_date` when current).
 Never CONTRADICTED because an employer is missing from a profile.
 
+### 3.4 hiring (claim.type `hiring`; T29)
+
+Observed: `openings_count`, `growth_percent`. Tolerance `tolerances.hiring.tolerance_pct`.
+- A count claim whose unit names a subset (anything other than empty, people, roles, openings, jobs, positions, hires;
+  e.g. Deck A slide 8 "engineers") -> NOT_COMPARABLE `metric_mismatch`: total openings can never support it.
+- Metric containing "growth" needs unit `%` and compares with `growth_percent`; otherwise `metric_mismatch`.
+- Within tolerance -> SUPPORTED `within_tolerance`, medium when close and fresh, else low (never high).
+- Fewer openings than claimed -> CANNOT_VERIFY `source_may_be_incomplete` (job indexes undercount); more than claimed ->
+  CANNOT_VERIFY `observed_more_than_claimed`. **Never CONTRADICTED.**
+
+### 3.5 traction (claim.type `traction`; T29)
+
+Observed: `revenue`, `arr` (USD estimates), `growth_rate`. Tolerance `tolerances.traction.tolerance_pct`.
+- Like with like only: revenue/annual_revenue/turnover -> `revenue`, arr -> `arr`. GMV, bookings, run rate, MRR, monthly,
+  orders, profit and any other metric -> NOT_COMPARABLE `metric_mismatch`.
+- Growth claims -> CANNOT_VERIFY `growth_scale_unclear` (the checker does not say whether growth_rate is a fraction or a
+  percent, or its period).
+- Unit not `USD` (including none) -> NOT_COMPARABLE `currency_mismatch`.
+- diff <= tol -> SUPPORTED (medium when close and fresh, else low); tol < diff < strong_margin x tol -> CANNOT_VERIFY
+  `estimate_gap_unclear`; diff >= strong_margin x tol -> CONTRADICTED `outside_tolerance`, medium if fresh else low. Never high.
+
+### 3.6 company_fact (claim.type `company_fact`; T29)
+
+Observed: `year_founded`, `headquarters` (string or dict with city/name).
+- Founded year (metric contains "year" or "found"): exact -> SUPPORTED high (capped by the date ceiling); gap up to
+  `tolerances.company_fact.year_gap_cannot_verify` -> CANNOT_VERIFY `founding_year_close` (incorporation vs launch);
+  larger -> CONTRADICTED `outside_tolerance` medium.
+- Headquarters (metric contains "headquarter", "hq" or "location"): first comma part, lower-cased, aliases
+  (Bangalore=Bengaluru, Gurgaon=Gurugram, Bombay=Mumbai, New Delhi=Delhi, Madras=Chennai, Calcutta=Kolkata, Poona=Pune);
+  equal -> SUPPORTED medium, anything else -> CANNOT_VERIFY `location_unclear`. **Never CONTRADICTED.**
+- Other metrics -> `unsupported_metric`. Note: while the company record is a snapshot dated today, most of these stop
+  earlier at `record_after_as_of` (section 2).
+
+### 3.7 prior_exit (claim.type `prior_exit`; T29)
+
+Guard, right after the identity check: unless `observed.prior_company_checked is True` -> CANNOT_VERIFY
+`prior_company_not_checked`. Today's checker fetches the deck's OWN company (Locus shows acquired_by Ingka), so every
+prior_exit claim stops here. Once the flag is set: acquirer (metric with "acquir", "buyer", "exit", "sold") matched with
+`resolve.names.company_names_match` -> SUPPORTED `acquirer_matches` medium, different -> CANNOT_VERIFY `acquirer_differs`,
+none -> `source_may_be_incomplete`; amount (metric with "amount", "value", "price") in USD within
+`tolerances.prior_exit.tolerance_pct` -> SUPPORTED medium, outside -> CANNOT_VERIFY `estimate_gap_unclear`, missing ->
+`source_may_be_incomplete`, other currency -> `currency_mismatch`. **Never CONTRADICTED.**
+
+### 3.8 team_growth (claim.type `team_growth`; T29)
+
+Needs `observed.baseline_date` and a yearly metric (yoy, year, annual, 12m); the window record_date - baseline_date must be
+365 +- `tolerances.team_growth.window_tolerance_days`. Otherwise NOT_COMPARABLE `period_mismatch` (today's checker: always).
+Then unit `%` required (else `metric_mismatch`); within `tolerances.team_growth.tolerance_pct` -> SUPPORTED medium,
+outside -> CANNOT_VERIFY `estimate_gap_unclear`. **Never CONTRADICTED.**
+
+### 3.9 competition (claim.type `competition`; T29)
+
+Always CANNOT_VERIFY `competition_not_judged`; the competitors the source names stay in the evidence. Not in
+`_TYPES_WITH_RULES` (it has no `tolerance_pct`).
+
+### 3.10 market_size (claim.type `market_size`; T33, D16 web source)
+
+Observed: `estimates: [{value, currency, url, domain, quote, published_date, evidence_id}]`, `identity: "not_applicable"`.
+Rows 6-8 use `record_date` (newest estimate); then each estimate is kept only if its own `published_date` is on or before
+the reference date and within `tolerances.market_size.max_record_age_days` (D3, D14), and its value is a positive number.
+Tolerance = `tolerances.market_size.tolerance_pct`, diff = |estimate - claim| / claim.
+
+| Condition (in order) | Label | reason_code | confidence |
+|---|---|---|---|
+| claim value not a positive number | CANNOT_VERIFY | `claim_value_unusable` | low |
+| no kept estimate | CANNOT_VERIFY | `no_evidence` | low |
+| no kept estimate in `claim.unit`'s currency (other currencies are ignored, never converted) | NOT_COMPARABLE | `currency_mismatch` | medium |
+| any same-currency estimate within tolerance | SUPPORTED | `within_tolerance` | medium if diff <= supported_margin x tol, else low |
+| all same-currency estimates outside tolerance, from >= `min_agreeing_sources` distinct domains, and every pair within tolerance of each other | CONTRADICTED | `sources_agree_otherwise` | medium if fresh, else low |
+| anything else (one disagreeing source, same domain twice, sources that disagree with each other) | CANNOT_VERIFY | `source_may_be_incomplete` (market-specific `missing`) | low |
+
+Never high: published estimates differ by method, so one rule cannot be sure.
+
+### 3.11 customer (claim.type `customer`; T33, D16 web source)
+
+Observed: company identity as usual (two-signal rule), `customer_name`, `mentions: [{url, domain, quote,
+published_date, independent, evidence_id}]`. Mentions are kept by the same date rule as 3.10
+(`tolerances.customer.max_record_age_days`). Route-only: not in `_TYPES_WITH_RULES` (no `tolerance_pct`).
+
+| Condition | Label | reason_code | confidence |
+|---|---|---|---|
+| no kept mention | CANNOT_VERIFY | `no_evidence` | low |
+| a kept mention with `independent is True` (the boolean, not a truthy string) | SUPPORTED | `independent_mention` | medium |
+| only self-published mentions | CANNOT_VERIFY | `self_reported_only`; `missing` = "A page from the customer or a news outlet naming the customer." | low |
+
+Never CONTRADICTED: not finding a customer on the web is not evidence that they are not a customer.
+
 ## 4. Reason codes the report lane can rely on
 
 HELD: `timeout`, `error`, `budget`, `time`, `no_checker` (core `HeldReason`). CANNOT_VERIFY: `no_evidence`, `identity_unclear`, `entity_not_found`,
 `claim_value_unusable`, `missing_record_date`, `no_reference_date`, `unsupported_metric`, `source_may_be_incomplete`,
-`round_not_found`, `investor_not_listed`, `employer_not_in_profile`, `title_unmapped`, `missing_dates`.
-NOT_COMPARABLE: `record_after_as_of`, `stale_record`, `currency_mismatch`, `informal_title`, plus any checker-given `not_comparable_reason`.
+`round_not_found`, `investor_not_listed`, `employer_not_in_profile`, `title_unmapped`, `missing_dates`,
+T29: `observed_more_than_claimed`, `growth_scale_unclear`, `estimate_gap_unclear`, `founding_year_close`, `location_unclear`,
+`prior_company_not_checked`, `acquirer_differs`, `competition_not_judged`, T33: `self_reported_only`.
+T34 (D17): any rule reason above except `no_evidence` may carry the suffix `_undated` (low confidence) when it was decided from an undated source; the report lane should match on the base code with `reason_code.removesuffix("_undated")`.
+NOT_COMPARABLE: `record_after_as_of`, `stale_record`, `currency_mismatch`, `informal_title`, T29: `metric_mismatch`, `period_mismatch`,
+plus any checker-given `not_comparable_reason`.
 SUPPORTED: `within_tolerance`, `within_tolerance_undated_rounds`, `within_band`, `investor_listed`, `employer_listed`,
-`title_level_met`, `tenure_within_tolerance`. CONTRADICTED: `outside_tolerance`, `outside_band`, `observed_higher`,
-`title_level_lower`, `tenure_outside_tolerance`.
+`title_level_met`, `tenure_within_tolerance`, T29: `acquirer_matches`, T33: `independent_mention`. CONTRADICTED: `outside_tolerance`, `outside_band`, `observed_higher`,
+`title_level_lower`, `tenure_outside_tolerance`, T33: `sources_agree_otherwise` (market_size only).
 
 ## 5. Asks for other lanes
 
@@ -173,7 +279,37 @@ SUPPORTED: `within_tolerance`, `within_tolerance_undated_rounds`, `within_band`,
   a start date), use only those dated on or before the reference date and set `record_date` to the newest of them. Test decks must carry a
   deck date on or after the date of the data they are checked against.
 
+- T29, codex-a (checkers/prior_exit.py): fetch the founder's EARLIER company (from the claim subject or the founder's
+  profile), not `ctx.run.input.domain`, and set `observed["prior_company_checked"] = True` only then. Exit records are old,
+  so also add `tolerances.prior_exit.max_record_age_days` (e.g. 3650, like funding) to rules.yaml when this is enabled.
+- T29, ag-b (checkers/team_growth.py): choose the baseline point from the claim's period (one year before the newest
+  point for "YoY"/"in the last year") instead of the first history point, and expose it as `observed["baseline_date"]`
+  (do not hide it only in `field_or_quote`).
+- T29, checkers/traction.py: say whether `growth_rate` is a fraction or a percent and over which period
+  (e.g. `observed["growth_rate_pct_yoy"]`); until then traction growth claims stay `growth_scale_unclear`.
+- T29, ag-b (extract): for hiring, put the role family in `unit` ("engineers", "sales") so subset claims are caught.
+- T33, extract: for market_size put the ISO currency in `claim.unit` and the value in absolute major units; a missing
+  unit makes every estimate `currency_mismatch`. For customer put the customer's name in `claim.value`.
+- T34/T35 (D17), checkers: when a value has no date of its own, send `observed.record_date: None` and Evidence
+  `record_date=None` (not the fetch date, not `updated_at` of a live snapshot), and keep `retrieved_at` real; web items
+  keep `published_date: None`. The hiring checker today sets `record_date` from `updated_at`; Deck A's recorded fixture
+  has no `hiring` block, so offline slide 8 stays `no_evidence`.
+- T33, web checkers (D16): `independent` must be a real boolean; `domain` must be the registrable domain (sub-pages
+  of one site count as one source for CONTRADICTED); every estimate/mention needs its own `published_date`.
+
 ## 6. rules.yaml keys the engine reads
+
+T29 (read inside each rule, not in REQUIRED_KEYS): `tolerances.hiring.tolerance_pct`, `tolerances.traction.tolerance_pct`,
+`tolerances.prior_exit.tolerance_pct`, `tolerances.team_growth.tolerance_pct`, `tolerances.company_fact.tolerance_pct`
+(read by _prepare, unused), NEW `tolerances.company_fact.year_gap_cannot_verify` (PLACEHOLDER 1),
+NEW `tolerances.team_growth.window_tolerance_days` (PLACEHOLDER 45).
+
+T34 (D17, read by `_undated_guard`, optional: absent means the fallback is off): `verdict.undated_fallback`
+(PLACEHOLDER true), `verdict.undated_max_deck_age_days` (PLACEHOLDER 90).
+
+T33 (already in rules.yaml, read inside each rule): `tolerances.market_size.tolerance_pct`,
+`tolerances.market_size.min_agreeing_sources`, `tolerances.market_size.max_record_age_days`,
+`tolerances.customer.max_record_age_days`. `tolerances.customer.require_exact_quote` is for the checker, not the engine.
 
 Existing: `tolerances.team_size.tolerance_pct`, `tolerances.funding.tolerance_pct`,
 `tolerances.founder_background.min_title_level`, `tolerances.founder_background.tenure_tolerance_months`,

@@ -12,7 +12,8 @@ from typing import Any
 
 from core.config import rule
 from core.models import (CheckResult, Claim, ClaimType, Confidence, Verdict, VerdictLabel)
-from verdict import founder, funding, team_size
+from verdict import (company_fact, customer, founder, funding, hiring, market_size, prior_exit, team_growth,
+                     team_size, traction)
 from verdict.common import MISSING_TEXT, headcount_missing, make, num, parse_date
 
 REQUIRED_KEYS = [
@@ -31,6 +32,9 @@ _HELD_MISSING = {
 }
 _TYPES_WITH_RULES = {
     ClaimType.TEAM_SIZE: "team_size", ClaimType.FUNDING: "funding", ClaimType.FOUNDER_BACKGROUND: "founder_background",
+    ClaimType.HIRING: "hiring", ClaimType.TRACTION: "traction", ClaimType.COMPANY_FACT: "company_fact",
+    ClaimType.PRIOR_EXIT: "prior_exit", ClaimType.TEAM_GROWTH: "team_growth",
+    ClaimType.MARKET_SIZE: "market_size",   # customer is route-only: it has no tolerance_pct
 }
 
 
@@ -68,6 +72,10 @@ def decide(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> Verdict:
     early = _identity_and_comparable(claim, result, rules)
     if early is not None:
         return early
+    if claim.type is ClaimType.PRIOR_EXIT:   # T29: the checker fetches the deck's own company today
+        early = prior_exit.guard(claim, result)
+        if early is not None:
+            return early
     prepared = _prepare(claim, result, rules)
     if isinstance(prepared, Verdict):
         return prepared
@@ -85,6 +93,8 @@ def _identity_and_comparable(claim: Claim, result: CheckResult, rules: dict[str,
         reason = str(obs.get("not_comparable_reason") or "not_comparable")
         return make(claim, result, None, VerdictLabel.NOT_COMPARABLE, reason, Confidence.MEDIUM,
                     f"The source measures something different from the claim ({reason}).")
+    if claim.type is ClaimType.MARKET_SIZE and ident == "not_applicable":   # D16: a market is not an entity
+        return None
     signals = num(obs.get("identity_signals")) or 0
     if ident != "confirmed" or signals < rule(rules, "identity.min_signals"):
         return _cannot(claim, result, "identity_unclear",
@@ -108,9 +118,16 @@ def _prepare(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> dict[s
     """Dates, freshness, tolerance and confidence ceiling shared by all rules; or an early Verdict."""
     obs = result.observed
     rec = parse_date(obs.get("record_date"))
-    if rec is None:
-        return _cannot(claim, result, "missing_record_date", "The source gives no date for the record used.")
     ref = parse_date(obs.get("reference_date")) or parse_date(claim.as_of)
+    retrieved = _latest_retrieved(result)
+    undated_ok, why_not = _undated_guard(rules, ref, retrieved)
+    if rec is None:
+        if not undated_ok:   # D17: no dated record and the guarded fallback does not apply
+            return make(claim, result, None, VerdictLabel.CANNOT_VERIFY, "missing_record_date", Confidence.LOW,
+                        "The source gives no date for the record used.",
+                        missing=f"{MISSING_TEXT['missing_record_date']} {why_not}")
+        return {**_base_state(claim, obs, rules, ref, retrieved), "undated": True, "rec": None, "gap": None,
+                "ceiling": Confidence.LOW, "fresh": False}
     if ref is None:
         return _cannot(claim, result, "no_reference_date", "Neither the claim nor the deck gives a date to compare the record with.")
     if rec > ref:   # D3: no fact from after the as-of date may support or contradict a claim
@@ -122,14 +139,46 @@ def _prepare(claim: Claim, result: CheckResult, rules: dict[str, Any]) -> dict[s
         return make(claim, result, None, VerdictLabel.NOT_COMPARABLE, "stale_record", Confidence.MEDIUM,
                     f"The record is dated {rec}, {gap} days before the claim's date {ref}; too far apart to compare.")
     ceiling = Confidence.MEDIUM if obs.get("reference_date_source") in ("pdf_metadata", "missing") else Confidence.HIGH
+    return {**_base_state(claim, obs, rules, ref, retrieved), "undated": False, "rec": rec, "gap": gap,
+            "ceiling": ceiling, "fresh": gap <= rule(rules, "verdict.fresh_days"),
+            "undated_ok": undated_ok}
+
+
+def _base_state(claim: Claim, obs: dict[str, Any], rules: dict[str, Any], ref: Any, retrieved: Any) -> dict[str, Any]:
+    """State shared by dated and undated decisions: reference date, tolerance, margins, retrieval date."""
     tol_key = _TYPES_WITH_RULES.get(claim.type)
     tol = (rule(rules, f"tolerances.{tol_key}.tolerance_pct") / 100) if tol_key and tol_key != "founder_background" else 0.0
-    return {
-        "rec": rec, "ref": ref, "gap": gap, "ceiling": ceiling, "tol": tol,
-        "fresh": gap <= rule(rules, "verdict.fresh_days"),
-        "supported_margin": float(rule(rules, "verdict.supported_margin")),
-        "strong_margin": float(rule(rules, "verdict.strong_margin")),
-    }
+    return {"ref": ref, "tol": tol, "retrieved": retrieved, "undated_ok": True,
+            "supported_margin": float(rule(rules, "verdict.supported_margin")),
+            "strong_margin": float(rule(rules, "verdict.strong_margin"))}
+
+
+def _latest_retrieved(result: CheckResult) -> Any:
+    """Newest Evidence.retrieved_at as a date (the 'now' an undated record describes), or None."""
+    dates = [parse_date(str(e.retrieved_at)[:10]) for e in result.evidence if e.retrieved_at]
+    dates = [d for d in dates if d is not None]
+    return max(dates) if dates else None
+
+
+def _undated_guard(rules: dict[str, Any], ref: Any, retrieved: Any) -> tuple[bool, str]:
+    """D17: an undated record may be used only if the fallback is on and the reference date is 0 to
+    verdict.undated_max_deck_age_days before the retrieval date. Returns (allowed, why not)."""
+    try:
+        enabled = bool(rule(rules, "verdict.undated_fallback"))
+        max_age = float(rule(rules, "verdict.undated_max_deck_age_days"))
+    except KeyError:
+        return False, "The undated fallback is not configured (verdict.undated_fallback)."
+    if not enabled:
+        return False, "Undated sources are not used: verdict.undated_fallback is off."
+    if ref is None or retrieved is None:
+        return False, "Undated sources need both a deck date and a retrieval date."
+    age = (retrieved - ref).days
+    if age < 0:
+        return False, f"The deck date {ref} is after the data was retrieved ({retrieved})."
+    if age > max_age:
+        return False, (f"The deck date {ref} is {age} days before the data was retrieved ({retrieved}), more than "
+                       f"verdict.undated_max_deck_age_days ({max_age:g}), so today's undated data cannot stand for the deck date.")
+    return True, ""
 
 
 def _route(claim: Claim, result: CheckResult, rules: dict[str, Any], st: dict[str, Any]) -> Verdict:
@@ -139,6 +188,24 @@ def _route(claim: Claim, result: CheckResult, rules: dict[str, Any], st: dict[st
         return funding.judge(claim, result, st)
     if claim.type is ClaimType.FOUNDER_BACKGROUND:
         return founder.judge(claim, result, rules, st)
+    if claim.type is ClaimType.HIRING:
+        return hiring.judge(claim, result, st)
+    if claim.type is ClaimType.TRACTION:
+        return traction.judge(claim, result, st)
+    if claim.type is ClaimType.COMPANY_FACT:
+        return company_fact.judge(claim, result, rules, st)
+    if claim.type is ClaimType.PRIOR_EXIT:
+        return prior_exit.judge(claim, result, st)
+    if claim.type is ClaimType.TEAM_GROWTH:
+        return team_growth.judge(claim, result, rules, st)
+    if claim.type is ClaimType.MARKET_SIZE:
+        return market_size.judge(claim, result, rules, st)
+    if claim.type is ClaimType.CUSTOMER:
+        return customer.judge(claim, result, rules, st)
+    if claim.type is ClaimType.COMPETITION:   # not in _TYPES_WITH_RULES: it has no tolerance_pct
+        return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "competition_not_judged", Confidence.LOW,
+                    "Competitor lists are subjective and incomplete, so claims about competitors are not judged "
+                    "automatically; the competitors the source names are in the evidence.")
     return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "unsupported_metric", Confidence.LOW,
                 f"No verdict rule exists yet for {claim.type.value} / {claim.metric!r}.")
 

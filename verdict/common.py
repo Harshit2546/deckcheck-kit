@@ -34,6 +34,21 @@ MISSING_TEXT: dict[str, str] = {
     "record_after_as_of": "A record dated on or before the date the claim refers to.",
     "currency_mismatch": "The figure in the same currency as the deck states it.",
     "informal_title": "A formal title from a profile or article.",
+    # T29
+    "metric_mismatch": "A figure for exactly the metric the deck states (same scope, same unit).",
+    "observed_more_than_claimed": "The company's own count and date for this figure.",
+    "growth_scale_unclear": "Audited or management accounts for both periods of the growth figure.",
+    "estimate_gap_unclear": "Audited or management accounts for the period the deck refers to.",
+    "founding_year_close": "The certificate of incorporation or the company registry entry.",
+    "location_unclear": "The registered and operating addresses from the company registry or website.",
+    "prior_company_not_checked": "The name or domain of the founder's earlier company and a deal announcement for its exit.",
+    "acquirer_differs": "The deal announcement naming the acquirer.",
+    "period_mismatch": "Headcount on both dates of the period the deck names (for example a year apart).",
+    "competition_not_judged": "An analyst's review of the competitor landscape; this is not checked automatically.",
+    # T33
+    "self_reported_only": "A page from the customer or a news outlet naming the customer.",
+    # T34 (D17): appended to `missing` of every <reason>_undated verdict
+    "undated": "A record with its own date on or before {ref}, to replace the undated source.",
 }
 
 
@@ -101,5 +116,10 @@ def make(claim: Claim, result: CheckResult, st: dict[str, Any] | None, label: Ve
         conf = cap(conf, st["ceiling"])
     if missing is None and label is not VerdictLabel.SUPPORTED:
         missing = MISSING_TEXT.get(reason, "More dated evidence from a named source.")
+    if st is not None and st.get("undated") and reason != "no_evidence":   # D17: decided from an undated source
+        day = st.get("retrieved")
+        text = f"No dated record was found; this uses an undated source retrieved on {day}. " + text
+        missing = " ".join(m for m in (missing, MISSING_TEXT["undated"].format(ref=st.get("ref"))) if m)
+        reason, conf = reason + "_undated", Confidence.LOW
     return Verdict(claim_id=claim.id, label=label, reason_code=reason, explanation=text,
                    evidence_ids=[e.id for e in result.evidence], confidence=conf, missing=missing)

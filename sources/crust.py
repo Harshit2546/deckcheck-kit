@@ -1,6 +1,7 @@
-"""Fetch a company from Crustdata by exact domain.
-Called by DeckCheck's resolver and company checkers.
-Uses core run limits, the call ledger, and the provider's HTTPS API.
+"""Fetch a company (exact domain) and founders (profile URLs or name + employer id) from Crustdata.
+Called by DeckCheck's resolver (resolve/entities.py) and the company and founder checkers.
+Uses core run limits, the call ledger, and the provider's HTTPS API. Person payloads lose every
+contact field (any key with "email", "phone" or "contact" in it) at ingest, before cache or caller.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from http.client import HTTPException, HTTPSConnection
 from pathlib import Path
 from threading import Lock
 from time import monotonic, sleep
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import quote
 
@@ -39,6 +41,13 @@ _lock = Lock()
 _company_cache: dict[tuple[str, str, str, str], tuple[float, dict[str, Any], str]] = {}
 _account_cache: dict[str, tuple[float, float, float]] = {}  # expiry, rpm, credits per record
 _next_company_call: dict[str, float] = {}
+_PEOPLE_PATH = "/person/enrich"
+_PEOPLE_SEARCH_PATH = "/person/search"
+_PERSON_FIELDS = ("basic_profile", "social_handles", "experience", "education")
+_SEARCH_CREDITS_PER_RESULT = 0.23  # docs: 0.03 base + 0.1 experience filter + 0.1 experience fields
+_SEARCH_LIMIT = 10
+_CONTACT_MARKERS = ("email", "phone", "contact")
+_people_cache: dict[tuple[str, str, str, str], tuple[dict[str, Any], str]] = {}
 
 
 class _HttpError(RuntimeError):
@@ -137,7 +146,8 @@ def _company_records(payload: object, domain: str) -> list[dict[str, Any]]:
 
 
 def _attempt(ctx: RunContext, key: str, path: str, body: dict[str, Any] | None,
-             credits_per_record: float) -> tuple[Any, str]:
+             credits_per_record: float,
+             parse: Callable[[object], tuple[Any, float]] | None = None) -> tuple[Any, str]:
     timeout = float(rule(ctx.rules, "limits.per_call_timeout_s"))
     call_id = ledger.new_call_id()
     endpoint = ("POST " if body is not None else "GET ") + path.split("?")[0]
@@ -148,7 +158,11 @@ def _attempt(ctx: RunContext, key: str, path: str, body: dict[str, Any] | None,
         payload, reported_credits = _send(key, path, body, started + timeout)
         if reported_credits is not None:
             credits = reported_credits
-        if body is not None:
+        if parse is not None:
+            payload, estimate = parse(payload)
+            if reported_credits is None:
+                credits = estimate
+        elif body is not None:
             payload = _company_records(payload, body["domains"][0])
             if reported_credits is None:
                 credits = len(payload) * credits_per_record
@@ -204,7 +218,8 @@ def _ensure_can_afford(ctx: RunContext, credits: float) -> None:
 
 def _request(ctx: RunContext, key: str, key_id: str, path: str,
              body: dict[str, Any] | None = None, *, rpm: float = 0.0,
-             credits_per_record: float = 0.0) -> tuple[Any, str]:
+             credits_per_record: float = 0.0,
+             parse: Callable[[object], tuple[Any, float]] | None = None) -> tuple[Any, str]:
     for attempt in range(2):
         if rpm:
             _wait(ctx, _next_company_call.get(key_id, 0.0) - monotonic())
@@ -213,7 +228,7 @@ def _request(ctx: RunContext, key: str, key_id: str, path: str,
             _ensure_can_afford(ctx, credits_per_record)
             _next_company_call[key_id] = monotonic() + _MINUTE / rpm
         try:
-            return _attempt(ctx, key, path, body, credits_per_record)
+            return _attempt(ctx, key, path, body, credits_per_record, parse)
         except _HttpError as exc:
             if attempt or not (exc.status == 429 or 500 <= exc.status < 600):
                 raise
@@ -275,3 +290,81 @@ def get_company(ctx: RunContext, domain: str) -> tuple[dict[str, Any], str]:
         payload = {**records[0], "retrieved_at": now_iso()} if records else {}
         _company_cache[cache_key] = (monotonic() + _MINUTE, payload, call_id)
         return deepcopy(payload), call_id
+
+
+def drop_contact_fields(node: Any) -> Any:
+    """Copy of `node` without any key naming an email, phone or contact (recursive)."""
+    if isinstance(node, dict):
+        return {k: drop_contact_fields(v) for k, v in node.items()
+                if not any(marker in str(k).lower() for marker in _CONTACT_MARKERS)}
+    if isinstance(node, list):
+        return [drop_contact_fields(item) for item in node]
+    return node
+
+
+def _parse_people(sent: int) -> Callable[[object], tuple[dict[str, Any], float]]:
+    """Enrich answers a top-level array [{matched_on, match_status, matches[{person_data}]}]."""
+    def parse(payload: object) -> tuple[dict[str, Any], float]:
+        items = payload if isinstance(payload, list) else [payload]
+        matches = []
+        for item in items:
+            if not isinstance(item, dict) or not isinstance(item.get("matches", []), list):
+                raise ValueError("Unexpected Crustdata person response")
+            matches += [m for m in item.get("matches", []) if isinstance(m, dict)]
+        return drop_contact_fields({"matches": matches}), float(sent)
+    return parse
+
+
+def _parse_search(payload: object) -> tuple[dict[str, Any], float]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("profiles"), list):
+        raise ValueError("Unexpected Crustdata person search response")
+    profiles = [p for p in payload["profiles"] if isinstance(p, dict)]
+    return drop_contact_fields({"profiles": profiles}), len(profiles) * _SEARCH_CREDITS_PER_RESULT
+
+
+def _people_call(ctx: RunContext, path: str, body: dict[str, Any], cache_part: str,
+                 parse: Callable[[object], tuple[Any, float]]) -> tuple[dict[str, Any], str]:
+    limits.ensure_within(ctx)
+    key = _api_key()
+    key_id = sha256(key.encode()).hexdigest()
+    cache_key = (ctx.run.id, ctx.run.created_at, key_id, f"{path} {cache_part}")
+    with _lock:
+        cached = _people_cache.get(cache_key)
+        if cached is not None:
+            log_step(ctx.run.id, None, "source.crustdata", "cache_hit", call_id=cached[1])
+            return deepcopy(cached[0]), cached[1]
+        payload, call_id = _request(ctx, key, key_id, path, body, parse=parse)
+        _people_cache[cache_key] = (payload, call_id)
+        return deepcopy(payload), call_id
+
+
+def get_people(ctx: RunContext, profile_urls: list[str]) -> tuple[dict[str, Any] | None, str | None]:
+    """ONE batched POST /person/enrich for the founders' profile URLs (D12, D18).
+    Returns ({"matches": [{"confidence_score", "person_data"}]}, call_id), contact fields removed,
+    or (None, None) when no URL is given. Cached per run by the set of URLs."""
+    urls = list(dict.fromkeys(u.strip() for u in profile_urls if u and u.strip()))
+    if not urls:
+        return None, None
+    body = {"professional_network_profile_urls": urls, "fields": list(_PERSON_FIELDS)}
+    return _people_call(ctx, _PEOPLE_PATH, body, json.dumps(sorted(urls)), _parse_people(len(urls)))
+
+
+def search_people(ctx: RunContext, name: str, company_id: str) -> tuple[dict[str, Any] | None, str | None]:
+    """POST /person/search for people with this exact name who worked at the employer id (D12, D18).
+    Returns ({"profiles": [...]}, call_id), contact fields removed, or (None, None) without a name
+    or id. Cached per run by (name, company id)."""
+    name = " ".join((name or "").split())
+    company_id = str(company_id or "").strip()
+    if not name or not company_id:
+        return None, None
+    employer: object = int(company_id) if company_id.isdigit() else company_id
+    body = {
+        "filters": {"op": "and", "conditions": [
+            {"field": "basic_profile.name", "type": "=", "value": name},
+            {"field": "experience.employment_details.company_id", "type": "in", "value": [employer]},
+        ]},
+        "fields": ["crustdata_person_id", *_PERSON_FIELDS[:3]],
+        "limit": _SEARCH_LIMIT,
+    }
+    return _people_call(ctx, _PEOPLE_SEARCH_PATH, body, json.dumps([name.lower(), company_id]),
+                        _parse_search)

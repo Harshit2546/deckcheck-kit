@@ -1,0 +1,21 @@
+# synthetic test fixture, tests/ only (T36, D18)
+# Founder background targets for Deck F. Live get_people probe 2026-11-22 (call-457fe7a8507b,
+# fixture tests/fixtures/crustdata/person_enrich_locus.json). Record date = the matched
+# role's own dates (D19).
+- slide: 2
+  quote: "Our co-founder and CEO Nishith Rastogi previously worked at Amazon."
+  expected_verdict: SUPPORTED
+  expected_reason_code: employer_listed
+  basis: >-
+    past_employer. The founder's person record lists Amazon, Software Developer,
+    2012-07-01 to 2014-07-01. Under D19 the record date is the role's end date,
+    2014-07-01, which is before the deck date 2026-11-15.
+
+- slide: 3
+  quote: "Nishith Rastogi was a Software Development Engineer at Amazon."
+  expected_verdict: SUPPORTED
+  expected_reason_code: title_level_met
+  basis: >-
+    title. The recorded Amazon title is "Software Developer" (dated 2014-07-01 under
+    D19). title_levels.ic lists both "engineer" and "developer", so the claimed and the
+    recorded title sit at the same level (ic): the level is met.

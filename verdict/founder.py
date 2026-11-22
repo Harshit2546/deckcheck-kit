@@ -93,7 +93,7 @@ def _tenure(claim: Claim, result: CheckResult, rules: dict[str, Any], st: dict[s
     if not _employer_listed(result) or not starts:
         return make(claim, result, st, VerdictLabel.CANNOT_VERIFY, "missing_dates", Confidence.LOW,
                     f"No start date for {claim.subject}'s role in {source_text(result)}.")
-    ends = [parse_date(p.get("end_date")) or st["rec"] for p in positions]
+    ends = [parse_date(p.get("end_date")) or st["rec"] or st["ref"] for p in positions]   # undated (D17): deck date
     months = (max(ends) - min(starts)).days / _DAYS_PER_MONTH
     allowed = float(rule(rules, "tolerances.founder_background.tenure_tolerance_months"))
     gap = abs(months - claimed_years * 12)

@@ -52,6 +52,12 @@ html, body, [class*="st-"], .stMarkdown, .stText, button, input, textarea, selec
 h1, h2, h3, h4, [data-testid="stHeading"] * {
   font-family: FONT_STACK;
 }
+/* Streamlit draws its icons (sidebar arrows, expander chevrons) with the Material Symbols font; the rule above
+   would replace it and show raw words such as keyboard_double_arrow_left. Put the icon font back. */
+[data-testid="stIconMaterial"], [data-testid="stIconMaterial"] *, span[class*="material-symbols"] {
+  font-family: 'Material Symbols Rounded', 'Material Symbols Outlined' !important;
+  font-feature-settings: 'liga'; letter-spacing: normal; text-transform: none; font-style: normal;
+}
 /* fixed-width digits only where columns must line up */
 table, [data-testid="stMetricValue"], [data-testid="stDataFrame"] { font-variant-numeric: tabular-nums; }
 .stApp { background: var(--dc-canvas); color: var(--dc-ink); }

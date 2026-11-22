@@ -57,12 +57,15 @@ def _valid_date(text: str) -> str:
 
 
 def _input_from_request(path: str) -> RunInput:
-    """Read a D3 request file. A relative deck_path is taken from the request file's folder."""
+    """Read a D3 request file. A relative deck_path is looked up next to the request file
+    first, then from the current folder (repo-relative paths like tests/decks/deck_a.pdf)."""
     request_file = Path(path)
     run_input = load_adapter().from_kit(json.loads(request_file.read_text(encoding="utf-8")))
     deck = Path(run_input.deck_path)
     if not deck.is_absolute():
-        run_input.deck_path = str((request_file.parent / deck).resolve())
+        beside_request = request_file.parent / deck
+        chosen = beside_request if beside_request.is_file() or not deck.is_file() else deck
+        run_input.deck_path = str(chosen.resolve())
     return run_input
 
 

@@ -157,10 +157,11 @@ def test_deck_date_not_given_caps_confidence_at_medium(rules, source):
     assert v.label is L.SUPPORTED and v.confidence is Confidence.MEDIUM
 
 
-def test_unsupported_claim_type(rules):
+def test_customer_is_routed_since_t33(rules):
+    """T33: customer has a rule now; with no mentions it is no_evidence, never unsupported_metric."""
     c = make_claim(ClaimType.CUSTOMER, "customer", "BigCo")
     v = decide(c, make_result({"anything": 1}), rules)
-    assert (v.label, v.reason_code) == (L.CANNOT_VERIFY, "unsupported_metric")
+    assert (v.label, v.reason_code) == (L.CANNOT_VERIFY, "no_evidence")
 
 
 def test_unsupported_metric_on_supported_type(rules):
@@ -218,7 +219,7 @@ def test_funding_round_amount_from_2021_is_decided_not_stale(rules):
 
 
 def test_without_a_per_type_key_the_global_limit_applies(rules):
-    assert "max_record_age_days" not in rules["tolerances"]["funding"]
+    rules["tolerances"]["funding"].pop("max_record_age_days", None)   # test the fallback, whatever rules.yaml holds
     c, r = _funding_total_2021()
     assert decide(c, r, rules).reason_code == "stale_record"
 

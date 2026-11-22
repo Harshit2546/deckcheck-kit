@@ -11,28 +11,37 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T02 | codex-a | Probe Crustdata on Deck A company and founders; write fields we get into docs/crustdata_fields.md | doc lists endpoints, fields, credit cost per call | blocked (yash, Locus company probe recorded. Founder enrichment paused by the human.) |
 | T03 | ag-b | extract/pdf.py: text per slide | test on Deck A passes | done |
 | T04 | ag | ui/app.py shell: upload form, run list from DB | shows a run row | done (harshit) |
-| T05 | human | Partner: Deck A (8 claims) + answer key; rules.yaml values | files in tests/decks/ | todo |
+| T05 | teammate | Partner: Deck A (8 claims) + answer key; rules.yaml values | files in tests/decks/ | done |
 | T06 | human | Read kickoff kit; record Investing request input/output format in DECISIONS.md | D3 written | todo |
 | T07 | claude-core | core/runner.py: state machine, per-claim checkpoints, resume, cost and time limits | kill mid-run then resume finishes with no duplicate calls | done (harshit) |
 | T08 | codex-a | sources/crust.py: rate limit, backoff on 429/5xx, per-call timeout to HELD, ledger row per call, TTL cache | unit tests for 429, timeout, ledger | done (yash) |
 | T09 | ag-b | extract/claims.py: LLM structured claims + quote-on-slide check | invented quote is rejected in test | done |
-| T10 | claude-verdict | resolve/entities.py: company by domain, founders, two-signal rule, confidence | namesake fixture returns identity_unclear | in-progress (claude-verdict@win, 90%: resolve/entities.py + 29 tests pass against a fake sources.crust; waits for codex-a get_company/get_people/search_people, D12) |
+| T10 | claude-verdict | resolve/entities.py: company by domain, founders, two-signal rule, confidence | namesake fixture returns identity_unclear | done (claude-verdict@win: resolve/entities.py + 29 tests, namesake fixture gives unclear, company confirmed on the real Locus recording; founder lookups by URL or name still need get_people and search_people in sources/crust.py, D12) |
 | T11 | ag-b | checkers: team_size, funding | tests pass | done |
 | T12 | ag-b | checkers: founder_background | tests pass | done (yash) |
-| T13 | claude-verdict | verdict/engine.py for founder, team_size, funding | Deck A matches answer key for those claims | in-progress (claude-verdict@win, 85%: engine + 101 tests pass; waiting for claude-core to add the verdict: keys to rules.yaml (D8), without them a real run raises ValueError) |
+| T13 | claude-verdict | verdict/engine.py for founder, team_size, funding | Deck A matches answer key for those claims | done (claude-verdict@win: engine + D3, D13, D14 rules, 101+ verdict tests; waits only for tolerances.funding.max_record_age_days in rules.yaml, D14) |
 | T14 | human | MILESTONE 1 at 12:45: Deck A end to end | report generated | todo |
-| T15 | claude-verdict | report/: red flags by materiality, table, questions, evidence requests, kit-format JSON | output validates against kit format | in-progress (claude-verdict@win, 80%: report/builder.py + render + tests done; kit-format JSON waits for D3 and io/adapter to_kit) |
+| T15 | claude-verdict | report/: red flags by materiality, table, questions, evidence requests, kit-format JSON | output validates against kit format | done (claude-verdict@win: report/builder.py, render.py, question templates, 11 tests; kit-format output is io/adapter.py to_kit, claude-core, not re-checked by me) |
 | T16 | codex-a / ag-b | checkers: prior_exit, company_fact (done by ag-b), customer (web quote verify) | tests pass | in-progress |
 | T17 | ag-b | checkers: team_growth, hiring, traction, market_size, competition | tests pass | done |
 | T18 | ag | UI: verdict detail with source link and date; approvals page; inbox; ledger view | click-through works | done (harshit) |
 | T19 | claude-core | actions/: draft, approve, exactly-once send | kill between approve and send, restart, one inbox row | done (harshit) |
 | T20 | claude-verdict | Hour-3 requirement change | DECISIONS entry + tests | todo (claude-verdict@win: waiting for the hour-3 requirement text) |
-| T21 | ag | tests/eval/run_eval.py: accuracy vs answer key for decks A, B, C | prints per-claim pass/fail | todo |
+| T21 | claude-verdict | tests/eval/run_eval.py: accuracy vs answer key for decks A, B, C | prints per-claim pass/fail | in-progress (claude-verdict@win, 85%: tests/eval/run_eval.py offline for deck A works, 10 tests; todo: decks B and C files, one approved --live run) |
 | T22 | human | MILESTONE 2 at 15:00: 3 decks, kill/resume, send once | all green | todo |
-| T23 | ag | docs/ARCHITECTURE.md + diagram (components, data flow, data calls, approvals, retries, ledger) | in repo | todo |
-| T24 | human | ETHICS.md, BUSINESS.md (measured cost per deck in rupees) | in repo | todo |
-| T25 | ag + human | README: job, who pays, input, result, pass mark, data sources, how to run, credits | every claim in it is true | todo |
-| T26 | human | Rehearse demo with kill, 3 live-fix drills, design question | done twice | todo |
-| T27 | claude-verdict | Merge reviews before each human merge to main (12:15, 12:45, then every merge) | review notes in HANDOFF | in-progress (claude-verdict@win: first reviews of ag-b and codex-a in docs/reviews/; repeat before each merge to main) |
-| T28 | ag-b (user asked; ui/ is lane ag) | UI shows every stored result: Report page (red flags, questions, evidence requests, held), claimed vs found, entities, run progress, config-driven claim columns, ledger CSV | every field in PLAN section 1 'Finished result' visible in the UI; tests/ui green | done (yash@claude; needs lane ag review before merge) |
-| T29 | ag-b (user asked; ui/ is lane ag) | UI motion: route tracker, claims landing, deck scan strip, value gauge, exactly-once send stamp; dark mode, print | each moment works in the browser and stops under reduced motion; tests green | done (yash@claude; needs lane ag review before merge) |
+| T23 | ag | docs/ARCHITECTURE.md + diagram (components, data flow, data calls, approvals, retries, ledger) | in repo | done (claude-core@mac) |
+| T24 | teammate | ETHICS.md, BUSINESS.md (measured cost per deck in rupees) | in repo | done |
+| T25 | ag + human | README: job, who pays, input, result, pass mark, data sources, how to run, credits | every claim in it is true | done (claude-core@mac) |
+| T26 | teammate | Rehearse demo with kill, 3 live-fix drills, design question | done twice | done |
+| T27 | claude-verdict | Merge reviews before each human merge to main (12:15, 12:45, then every merge) | review notes in HANDOFF | in-progress (claude-verdict@win: reviews of ag-b and codex-a in docs/reviews/; repeat before each merge to main) |
+| T28 | ag-b (user asked; ui/ is lane ag) | UI shows every stored result: Report page, claimed vs found, entities, run progress, config-driven claim columns, ledger CSV | every field in PLAN section 1 'Finished result' visible in the UI; tests/ui green | done (yash@claude) |
+| T29 | claude-verdict | verdict rules for hiring, team_growth, company_fact, prior_exit, traction, competition (engine had rules only for team_size, funding, founder) | tests/verdict pass, cautious labels | done (claude-verdict@mac, harshit) |
+| T30 | web-client | sources/web.py: Crustdata web search + fetch client (docs/WEB_SOURCE.md, D16) | tests pass with recorded fixtures | done |
+| T31 | web-pages | sources/pages.py (page text, publish date) + extract/quotes.py (pick_quote, parse_amount) | tests pass | done (web-pages) |
+| T32 | web-checkers | checkers/market_size.py rewrite + checkers/customer.py (observed keys per WEB_SOURCE.md section 3) | tests pass with fakes | done |
+| T33 | claude-verdict | verdict rules market_size + customer; engine skips identity for market_size | tests/verdict pass, cautious labels | done |
+| T34 | claude-verdict | D17 undated fallback in verdict/engine.py + report flag (reason suffix _undated, low confidence, age guard) | tests pass, eval unchanged | done |
+| T35 | web-checkers | D17 checkers keep undated items: market_size, customer, team_size (use only when nothing dated) | tests pass | done |
+| T36 | web-client | D18 founder lookups: sources/crust.py get_people/search_people, resolve/payloads.py person shapes, checkers/founder_background.py on the person record; founder test deck | tests pass, one approved live probe | done |
+| T37 | web-client | D19 founder_background record_date from the matched role's dates (latest start/end on or before the reference date; else earliest start; else None) | tests pass incl. a past role, a current role, a role starting after the deck, no dates | done |
+| T38 | ag-b (user asked; ui/ is lane ag) | UI motion (ag-b called it T29; renumbered, T29 is the verdict rules): route tracker, claims landing, deck scan strip, value gauge, exactly-once send stamp; dark mode, print | each moment works in the browser, stops under reduced motion; tests green | done (yash@claude) |

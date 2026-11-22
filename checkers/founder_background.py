@@ -1,8 +1,9 @@
-"""Checker for founder_background claims (past_employer, title, tenure_years) against Crustdata.
+"""Checker for founder_background claims (past_employer, title, tenure_years) against Crustdata (D18).
 
 Who calls it: core/runner.py (STAGES["check"]).
-What it calls: checkers._common (get_company, company_identity), core/models.py, core/log.py.
-Extracts professional employment history (employer, title, start/end dates) and returns CheckResult.
+What it calls: resolve.names.find_founder (the founder resolve confirmed), sources.crust get_people /
+search_people (the same cached call resolve made), resolve.payloads.person_records, core/models.py, core/log.py.
+Reads the founder's OWN person record (employer, title, start/end dates); identity is the founder entity's.
 Strictly professional fields only: never stores or emits emails, phone numbers, or addresses.
 """
 
@@ -10,9 +11,9 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import date
 from typing import Any
 
-from checkers import _common
 from core.log import log_step
 from core.models import (
     CheckResult,
@@ -22,8 +23,12 @@ from core.models import (
     SourceType,
     now_iso,
 )
+from resolve import payloads
+from resolve.names import find_founder, normalize_url
+from sources import crust
 
 CRUSTDATA_PERSON_ENDPOINT = "https://api.crustdata.com/person/enrich"
+CRUSTDATA_PERSON_SEARCH_ENDPOINT = "https://api.crustdata.com/person/search"
 
 
 def _normalize_name(name: str | None) -> str:
@@ -38,11 +43,31 @@ def _normalize_name(name: str | None) -> str:
     return text.strip()
 
 
-def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | None, str | None, str]:
-    rec_date = None
-    if updated_at:
-        rec_date = str(updated_at).split("T")[0]
+def _iso_day(value: Any) -> date | None:
+    try:
+        return date.fromisoformat(str(value)[:10]) if value else None
+    except ValueError:
+        return None
 
+
+def role_record_date(positions: list[dict[str, Any]], ref_date: str | None) -> str | None:
+    """D19: record date from the matched roles' own dates, never retrieved_at or updated_at.
+
+    Latest start/end date on or before the reference date; if all dates are after it, the earliest
+    start date (the engine then says record_after_as_of); no dated role or no match -> None.
+    """
+    candidates = [d for p in positions for d in (_iso_day(p.get("start_date")), _iso_day(p.get("end_date"))) if d]
+    if not candidates:
+        return None
+    ref = _iso_day(ref_date)
+    on_or_before = [d for d in candidates if ref is None or d <= ref]
+    if on_or_before:
+        return max(on_or_before).isoformat()
+    starts = [d for d in (_iso_day(p.get("start_date")) for p in positions) if d]
+    return min(starts or candidates).isoformat()
+
+
+def _get_dates(claim: Claim, ctx: RunContext) -> tuple[str | None, str]:
     ref_date = None
     if claim.as_of and re.match(r"^\d{4}-\d{2}-\d{2}$", claim.as_of.strip()):
         ref_date = claim.as_of.strip()
@@ -50,68 +75,26 @@ def _get_dates(claim: Claim, ctx: RunContext, updated_at: Any) -> tuple[str | No
         ref_date = ctx.run.input.deck_date.strip()[:10]
 
     ref_source = ctx.run.input.deck_date_source or "input"
-    return rec_date, ref_date, ref_source
+    return ref_date, ref_source
 
 
-def _extract_candidates(data: dict[str, Any]) -> list[dict[str, Any]]:
-    """Find person / founder candidate dicts in the company or person payload."""
-    candidates: list[dict[str, Any]] = []
-
-    # Case 1: data has 'people.founders' or 'founders' or 'people' list
-    people_obj = data.get("people") or {}
-    if isinstance(people_obj, dict):
-        founders = people_obj.get("founders") or people_obj.get("people") or []
-        if isinstance(founders, list):
-            candidates.extend(f for f in founders if isinstance(f, dict))
-    elif isinstance(people_obj, list):
-        candidates.extend(p for p in people_obj if isinstance(p, dict))
-
-    raw_founders = data.get("founders")
-    if isinstance(raw_founders, list):
-        candidates.extend(f for f in raw_founders if isinstance(f, dict))
-
-    # Case 2: data has 'matches' with person_data or company_data
-    matches = data.get("matches")
-    if isinstance(matches, list):
-        for m in matches:
-            if isinstance(m, dict):
-                if "person_data" in m and isinstance(m["person_data"], dict):
-                    candidates.append(m["person_data"])
-                elif "company_data" in m and isinstance(m["company_data"], dict):
-                    cd = m["company_data"]
-                    cd_people = cd.get("people") or cd.get("founders") or []
-                    if isinstance(cd_people, dict):
-                        candidates.extend(f for f in cd_people.get("founders", []) if isinstance(f, dict))
-                    elif isinstance(cd_people, list):
-                        candidates.extend(f for f in cd_people if isinstance(f, dict))
-
-    # Case 3: data is itself a person record with 'experience' or 'positions'
-    if data.get("experience") or data.get("positions") or data.get("basic_profile"):
-        candidates.append(data)
-
-    return candidates
-
-
-def _find_person(candidates: list[dict[str, Any]], subject: str) -> dict[str, Any] | None:
-    """Find person matching claim subject (by name or single candidate)."""
-    if not candidates:
-        return None
-
-    subj_norm = _normalize_name(subject)
-    for c in candidates:
-        name = ""
-        bp = c.get("basic_profile") or {}
-        if isinstance(bp, dict) and bp.get("name"):
-            name = str(bp["name"])
-        elif c.get("name"):
-            name = str(c["name"])
-
-        c_norm = _normalize_name(name)
-        if subj_norm and (subj_norm in c_norm or c_norm in subj_norm):
-            return c
-
-    # Fall back to single candidate if available
-    return candidates[0] if len(candidates) == 1 else None
+def _founder_record(ctx: RunContext, founder: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None, str]:
+    """(person record whose id is the founder entity's id, call_id, endpoint). Same call as resolve, so cached."""
+    if founder.get("profile_url"):
+        urls = list(dict.fromkeys(u for u in ctx.run.input.founder_urls if normalize_url(u)))
+        if normalize_url(founder["profile_url"]) not in {normalize_url(u) for u in urls}:
+            urls.append(founder["profile_url"])
+        payload, call_id = crust.get_people(ctx, urls)
+        endpoint = CRUSTDATA_PERSON_ENDPOINT
+    else:
+        company_id = ((ctx.entities or {}).get("company") or {}).get("id")
+        payload, call_id = crust.search_people(ctx, founder.get("name") or "", company_id or "")
+        endpoint = CRUSTDATA_PERSON_SEARCH_ENDPOINT
+    wanted = str(founder.get("id") or "")
+    for rec in payloads.person_records(payload):
+        if wanted and str(rec.get("crustdata_person_id") or "") == wanted:
+            return rec, call_id, endpoint
+    return None, call_id, endpoint
 
 
 def _extract_positions(person: dict[str, Any]) -> list[dict[str, Any]]:
@@ -161,30 +144,37 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
     'identity', 'identity_signals', 'record_date', 'reference_date',
     'reference_date_source', 'employer_found', 'positions', 'title_observed'.
     """
-    domain = ctx.run.input.domain
-    payload, call_id = _common.get_company(ctx, domain)
+    founder = find_founder(ctx.entities, claim.subject)
+    identity = {
+        "identity": founder.get("identity", "unclear") if founder else "not_found",
+        "identity_signals": int(founder.get("identity_signals", 0)) if founder else 0,
+    }
+    person: dict[str, Any] | None = None
+    call_id: str | None = None
+    endpoint = CRUSTDATA_PERSON_ENDPOINT
+    if founder and founder.get("identity") == "confirmed" and founder.get("id"):
+        person, call_id, endpoint = _founder_record(ctx, founder)
 
-    rec_date, ref_date, ref_source = _get_dates(claim, ctx, payload.get("updated_at") if payload else None)
+    updated = None
+    if person:
+        updated = person.get("updated_at") or (person.get("basic_profile") or {}).get("last_updated")
+    ref_date, ref_source = _get_dates(claim, ctx)
+    rec_date: str | None = None
 
-    if not payload:
-        log_step(ctx.run.id, claim.id, "check.founder_background", "cannot_verify", reason="no_payload")
+    if not person:
+        reason = "founder_not_resolved" if not founder or founder.get("identity") != "confirmed" else "no_record"
+        log_step(ctx.run.id, claim.id, "check.founder_background", "cannot_verify", reason=reason)
         return CheckResult(
             evidence=[],
             observed={
-                "identity": "not_found",
-                "identity_signals": 0,
+                **identity,
+                "record_date": rec_date,
                 "reference_date": ref_date,
                 "reference_date_source": ref_source,
             },
             comparable=True,
             held_reason=None,
         )
-
-    candidates = _extract_candidates(payload)
-    person = _find_person(candidates, claim.subject)
-
-    if person and person.get("updated_at") and not rec_date:
-        rec_date = str(person["updated_at"]).split("T")[0]
 
     all_positions = _extract_positions(person) if person else []
 
@@ -215,6 +205,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
                 matched_positions.append(pos)
 
     employer_found = len(matched_positions) > 0
+    rec_date = role_record_date(matched_positions, ref_date)  # D19; None when nothing matched
 
     # Pick observed title from matched employer roles
     title_observed: str | None = None
@@ -239,7 +230,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
                     id=uuid.uuid4().hex,
                     claim_id=claim.id,
                     source_type=SourceType.CRUSTDATA_PERSON,
-                    locator=CRUSTDATA_PERSON_ENDPOINT,
+                    locator=endpoint,
                     field_or_quote=f"experience.employment_details[{target_employer}]",
                     value=[
                         {
@@ -261,7 +252,7 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
                     id=uuid.uuid4().hex,
                     claim_id=claim.id,
                     source_type=SourceType.CRUSTDATA_PERSON,
-                    locator=CRUSTDATA_PERSON_ENDPOINT,
+                    locator=endpoint,
                     field_or_quote="experience.employment_details",
                     value=[],
                     record_date=rec_date,
@@ -271,13 +262,14 @@ def check(claim: Claim, ctx: RunContext) -> CheckResult:
             )
 
     observed: dict[str, Any] = {
-        **_common.company_identity(ctx),
+        **identity,
         "record_date": rec_date,
         "reference_date": ref_date,
         "reference_date_source": ref_source,
         "employer_found": employer_found,
         "positions": matched_positions,
         "title_observed": title_observed,
+        "profile_updated_at": updated,  # informational only, never the record date (D19)
     }
 
     log_step(

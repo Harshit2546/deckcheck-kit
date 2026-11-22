@@ -1,0 +1,16 @@
+[
+  {"slide": 2, "quote": "Locus has a team of 350 people.", "type": "team_size", "subject": "Locus",
+   "metric": "headcount", "value": 350, "unit": "people", "as_of": null},
+  {"slide": 3, "quote": "We raised a $50M Series C in June 2021.", "type": "funding", "subject": "Locus",
+   "metric": "round_amount", "value": 50000000, "unit": "USD", "as_of": null},
+  {"slide": 4, "quote": "Total funding to date: $78.75M.", "type": "funding", "subject": "Locus",
+   "metric": "total_raised", "value": 78750000, "unit": "USD", "as_of": null},
+  {"slide": 5, "quote": "Over 700 employees across India.", "type": "team_size", "subject": "Locus",
+   "metric": "headcount", "value": 700, "unit": "people", "as_of": null},
+  {"slide": 6, "quote": "Trusted by Acme Freight Corp for all deliveries.", "type": "customer", "subject": "Locus",
+   "metric": "customer", "value": "Acme Freight Corp", "unit": null, "as_of": null},
+  {"slide": 7, "quote": "India's logistics software market is worth $9B.", "type": "market_size",
+   "subject": "India logistics software", "metric": "market_size", "value": 9000000000, "unit": "USD", "as_of": null},
+  {"slide": 8, "quote": "We are hiring 40 engineers this quarter.", "type": "hiring", "subject": "Locus",
+   "metric": "open_roles", "value": 40, "unit": "engineers", "as_of": null}
+]

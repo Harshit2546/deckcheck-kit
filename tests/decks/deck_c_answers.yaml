@@ -1,0 +1,61 @@
+# synthetic test fixture, tests/ only
+# Deck C (Apex Logistics): every row is TBD. The earlier expectations were written without recorded
+# Crustdata data or a live run, which breaks the rule that keys come from evidence (docs/TEAMMATE_BRIEF.md).
+# Known mismatches with the rules: team_growth is never CONTRADICTED (D15); the market-size checker skips forecasts
+# for a later year, so a 2027 projection ends CANNOT_VERIFY, not NOT_COMPARABLE.
+# To fill a row: run the deck live (about 11 credits), read the evidence, then write the verdict the evidence supports.
+# Expected fixture targets for Deck C (Apex Logistics - the namesake trap deck).
+# The goal is zero wrong SUPPORTED or CONTRADICTED.
+- slide: 2
+  quote: "Apex Logistics operates with 200 staff globally."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >- # HYPOTHESIS, not evidence
+    Namesake confusion: multiple entities exist worldwide with domain and registry
+    mismatches. Under the two-signal rule, identity is unclear, so headcount cannot be verified.
+
+- slide: 3
+  quote: "Founded in 2021 by veterans in Gurgaon."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >- # HYPOTHESIS, not evidence
+    Entity resolution fails two-signal threshold against the registry record;
+    cannot confirm founded year for the specific Indian jurisdiction entity.
+
+- slide: 4
+  quote: "Founders successfully completed an earlier $30M acquisition exit."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >- # HYPOTHESIS, not evidence
+    Founder lookup enrichment is not configured and the prior acquisition refers
+    to an earlier undisclosed company. Under DECISIONS D15, prior_exit yields CANNOT_VERIFY.
+
+- slide: 5
+  quote: "Prior exit was acquired by Global Express Partners."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >- # HYPOTHESIS, not evidence
+    Checker cannot confirm prior corporate transaction without verified founder profiles
+    and prior company entity identity.
+
+- slide: 6
+  quote: "Serving enterprise client Titan Manufacturing across Asia."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >- # HYPOTHESIS, not evidence
+    No independent published customer release confirms contract or commercial deployment.
+
+- slide: 7
+  quote: "Global autonomous freight dispatch TAM is valued at $45B."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >- # HYPOTHESIS, not evidence
+    No dated third-party research report validates this exact TAM taxonomy prior to deck date.
+
+- slide: 8
+  quote: "Revenue exceeded $15M ARR in fiscal year 2026."
+  expected_verdict: TBD
+  expected_reason_code: null
+  basis: >- # HYPOTHESIS, not evidence
+    Private unlisted startup; ARR and revenue figures are never publicly disclosed.
+    Absent evidence must never become an affirmative verdict.

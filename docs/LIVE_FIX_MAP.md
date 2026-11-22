@@ -23,6 +23,17 @@ One line per thing a judge might ask to change. Format: To change X -> edit Y in
 
 - To change the founder email wording -> `_body()` in actions/email.py (questions come from report/question_templates.yaml)
 - To change how old a record may be for one claim type (for example funding rounds) -> `tolerances.<claim type>.max_record_age_days` in config/rules.yaml; without it `tolerances.max_record_age_days` (global) applies (D14)
+- To run the accuracy check against the answer key -> `python tests/eval/run_eval.py` (offline, no credits); `--live` runs cli.py for real and spends credits; answer keys are tests/decks/deck_<x>_answers.yaml, recorded claims tests/eval/deck_<x>_claims.json
+- To change how far a founded year may be off before it is CONTRADICTED -> `tolerances.company_fact.year_gap_cannot_verify` in config/rules.yaml
+- To change how far a yearly headcount-growth window may be from 365 days -> `tolerances.team_growth.window_tolerance_days` in config/rules.yaml
+- To change how many web pages are fetched per claim (credits and LLM calls), edit `web.results_to_fetch` in config/rules.yaml (D16).
+- To change the web search country or sources, edit `web.location` / `web.sources` in config/rules.yaml (D16).
+- To change how long a web page fetch may take before the claim is HELD, edit `web.fetch_timeout_s` in config/rules.yaml.
+- To change how many agreeing web estimates a market-size CONTRADICTED needs, edit `tolerances.market_size.min_agreeing_sources` (D16).
+- To change how old a web page may be and still count, edit `tolerances.market_size.max_record_age_days` / `tolerances.customer.max_record_age_days` (D16).
+- To turn off using undated records (D17), or change how recent a deck must be for it, edit `verdict.undated_fallback` / `verdict.undated_max_deck_age_days` in config/rules.yaml.
+- To change how old a founder's role may be and still count (D19), edit `tolerances.founder_background.max_record_age_days` in config/rules.yaml.
+
 - To add or remove a column on the UI Claims page -> `output.fields` in config/rules.yaml (same list as the report; ui/data.py `claim_columns`). Renamed for display: `label` -> verdict, `value` -> claimed_value (`DISPLAY_NAMES` in ui/data.py)
 - To change the UI colours -> `.streamlit/config.toml` (Streamlit theme), `VERDICTS`, `CSS` and the font stacks in ui/theme.py, and the tokens at the top of ui/components/frontend/style.css
 - To change an animation's timing -> `duration` values in ui/components/frontend/<route|strip|gauge|sent>.js (deck scan length: `SCAN_MS` in strip.js)

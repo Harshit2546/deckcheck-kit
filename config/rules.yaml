@@ -7,7 +7,7 @@ limits:
   max_cost_inr: 500          # PLACEHOLDER. Run stops spending; remaining claims become HELD (budget)
   max_seconds: 900           # PLACEHOLDER. Wall time from first start; then HELD (time)
   max_credits: 200           # PLACEHOLDER. Crustdata credits per run
-  per_call_timeout_s: 20     # PLACEHOLDER. A slower call becomes HELD (timeout), never CANNOT_VERIFY
+  per_call_timeout_s: 30     # PLACEHOLDER. A slower call becomes HELD (timeout), never CANNOT_VERIFY. Raised from 20 after live web searches took up to 20+ s (INCIDENTS A6)
 
 costs:                       # rupee rates used to fill ledger.cost_inr
   crustdata:
@@ -19,6 +19,14 @@ costs:                       # rupee rates used to fill ledger.cost_inr
   web:
     inr_per_call: 0.0        # PLACEHOLDER (search/fetch cost per call)
 
+web:                         # D16, docs/WEB_SOURCE.md. Crustdata web search + fetch, billed as Crustdata credits
+  sources: [news, web]       # PLACEHOLDER. Crustdata search sources
+  location: IN               # PLACEHOLDER. ISO country for search results
+  results_to_fetch: 3        # PLACEHOLDER. Pages fetched per claim (1 credit each, plus 1 LLM call each)
+  max_page_chars: 12000      # PLACEHOLDER. Page text sent to the LLM to pick a quote
+  human_mode: false          # PLACEHOLDER. Browser-like fetch for bot-protected sites
+  fetch_timeout_s: 45        # PLACEHOLDER. Seconds one page fetch call may take before the claim is HELD timeout (search uses limits.per_call_timeout_s)
+
 identity:
   min_signals: 2             # two-signal rule: a person or company matches only on >= 2 signals
 
@@ -26,24 +34,31 @@ tolerances:                  # one entry per claim type: how close observed must
   founder_background:
     min_title_level: director      # PLACEHOLDER. Claimed title must match at or above this level (title_levels)
     tenure_tolerance_months: 6     # PLACEHOLDER. Allowed gap in claimed start/end dates
+    max_record_age_days: 18250     # PLACEHOLDER (D19). Record date = the matched role's date; career history does not go stale
   prior_exit:
     tolerance_pct: 10              # PLACEHOLDER. Exit value gap, when a value is claimed
   team_size:
     tolerance_pct: 20              # PLACEHOLDER
   team_growth:
     tolerance_pct: 25              # PLACEHOLDER
+    window_tolerance_days: 45      # PLACEHOLDER (T29). A "yearly" growth window may be 365 +- this many days
   funding:
     tolerance_pct: 10              # PLACEHOLDER
+    max_record_age_days: 3650      # PLACEHOLDER (D14). A funding round up to 10 years before the deck date still counts
   company_fact:
     tolerance_pct: 0               # PLACEHOLDER. Founded year, HQ etc. must match exactly
+    year_gap_cannot_verify: 1      # PLACEHOLDER (T29). Founded-year gap up to this many years is CANNOT_VERIFY, above it CONTRADICTED
   customer:
     require_exact_quote: true      # PLACEHOLDER. Customer named on a fetched page, verbatim
+    max_record_age_days: 1095      # PLACEHOLDER (D16). A dated web mention up to 3 years before the deck date counts
   hiring:
     tolerance_pct: 30              # PLACEHOLDER. Open roles count gap
   traction:
     tolerance_pct: 15              # PLACEHOLDER
   market_size:
     tolerance_pct: 50              # PLACEHOLDER. Third-party estimates vary widely
+    min_agreeing_sources: 2        # PLACEHOLDER (D16). CONTRADICTED needs this many agreeing estimates from different domains
+    max_record_age_days: 1095      # PLACEHOLDER (D16). Market reports up to 3 years before the deck date count
   competition:
     require_exact_quote: true      # PLACEHOLDER
   max_record_age_days: 365         # PLACEHOLDER. Older evidence than this is NOT_COMPARABLE
@@ -52,13 +67,15 @@ verdict:                     # D8: confidence margins read by verdict/engine.py
   supported_margin: 0.5      # PLACEHOLDER. diff <= 0.5 x tolerance = clearly close match (high confidence)
   strong_margin: 2.0         # PLACEHOLDER. diff >= 2.0 x tolerance = clearly wrong number (high confidence)
   fresh_days: 90             # PLACEHOLDER. record within 90 days of the claim's date = fresh
+  undated_fallback: true     # PLACEHOLDER (D17). When no dated record exists, may an undated one be used (flagged, low confidence)?
+  undated_max_deck_age_days: 90  # PLACEHOLDER (D17). Only if the deck date is at most this many days before the data was retrieved
 
 title_levels:                # PLACEHOLDER. Used by the founder_background verdict rules
-  c_level: [ceo, cto, coo, cfo, cpo, founder, co-founder]
-  vp: [vp, vice president, head]
+  c_level: [ceo, cto, coo, cfo, cpo, founder, co-founder, cofounder, chief executive officer, chief technology officer, chief operating officer, chief financial officer, chief product officer]
+  vp: [vp, svp, evp, avp, vice president, head]
   director: [director]
   manager: [manager, lead]
-  ic: [engineer, analyst, associate, consultant]
+  ic: [engineer, developer, programmer, sde, scientist, designer, architect, analyst, associate, consultant]   # "developer" also matches "Software Developer" (D19, deck F)
 
 materiality:                 # PLACEHOLDER weights for ranking red flags (higher = worse if wrong)
   founder_background: 5

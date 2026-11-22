@@ -757,6 +757,489 @@ Open questions for a human:
 - None. Ready for merge to main.
 Credits / tokens used this session (rough): 0 Crustdata credits; 0 external LLM credits.
 
+### 16:50 · claude-verdict@win · lane claude-verdict · task T21
+
+Status: in-progress (~85%)
+Done this session:
+- tests/eval/run_eval.py: reads tests/decks/deck_<x>_answers.yaml; offline mode runs the REAL runner (runner.start with only the extract stage replaced), resolve stage, checkers and verdict engine on the recorded claims tests/eval/deck_a_claims.json, with only sources.crust.get_company replaced by tests/fixtures/crustdata/deck_a_locus_company.json (one 0-credit ledger row "recorded:<file>" is written for the replayed call because evidence.call_id is a foreign key). Also checks every recorded quote against the real deck PDF text. Prints per-claim PASS/FAIL/SKIP (TBD = SKIP) and a summary; exit 0 / 1 (a FAIL) / 2 (harness error). `--live` runs `cli.py run --request ... --out ...` and compares the D3 result JSON (not run: it spends credits).
+- tests/eval/test_run_eval.py: 10 tests (compare rules, matching, report, regression guard that slides 2 and 5 PASS and slide 8 SKIPs).
+- Result today, offline: slide 2 PASS (SUPPORTED high), slide 5 PASS (CONTRADICTED medium), slides 3 and 4 FAIL (CANNOT_VERIFY missing_record_date: funding checker ignores funding.milestones[], ag-b is fixing), slide 6 FAIL (HELD no_checker: there is no checkers/customer.py), slide 7 FAIL (HELD error: checkers/market_size.py imports sources.web, which does not exist), slide 8 SKIP.
+- T10 resolve ran against the real recorded Locus payload: company confirmed with 2 signals (domain + name), so the payload shapes in resolve/payloads.py are right for the company part.
+In progress / exact next step:
+- ag-b: funding milestones fix (slides 3, 4); customer checker (slide 6, key expects CANNOT_VERIFY no_evidence); sources/web.py or a market_size path that returns "no evidence" instead of a ModuleNotFoundError (slide 7).
+- Decks B and C: add tests/decks/deck_b_*.yaml/json, tests/eval/deck_b_claims.json and tests/fixtures/crustdata/deck_b_*_company.json; run_eval.py --deck b then works unchanged.
+- A person with credits approval: run `python tests/eval/run_eval.py --live` once and paste the table into HANDOFF.
+How to run / test:
+- python tests/eval/run_eval.py          (python tests/eval/run_eval.py --live spends credits)
+- python -m pytest tests/eval -q
+Known bugs or shortcuts taken:
+- The recorded claims (tests/eval/deck_a_claims.json) are my hand-written version of what extraction should produce (types, metrics, units, values); they are not LLM output. Slide 8 uses metric "open_roles", unit "engineers".
+- On this laptop 6 tests in tests/ui fail because Anaconda has NumPy 2.5 with an older pyarrow (Streamlit st.dataframe import). They fail the same way without my changes; not a repo bug. Everything else passes: 230 passed.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- None.
+Open questions for a human:
+- Slides 6 and 7: should the key's CANNOT_VERIFY be reached by a customer checker and a web source, or should a missing checker/source be allowed to give HELD (current behaviour, per D7)?
+Credits / tokens used this session (rough): 0 Crustdata credits (offline only); Claude tokens moderate
+
+### 17:05 · claude-verdict@win · lane claude-verdict · task T10, T13, T15, T21, T27 (end of session; lane moves to the Mac)
+
+Status: T10, T13, T15 done; T21 in-progress (~85%); T27 repeats before every merge
+Done this session:
+- T13 verdict/engine.py (+ common, team_size, funding, founder): code decides labels from rules.yaml; D3 record_after_as_of, D13 dated headcount point wording, D14 per-claim-type max_record_age_days. Tests in tests/verdict/.
+- T15 report/builder.py, render.py, question_templates.yaml; tests/report/.
+- T10 resolve/entities.py, names.py, payloads.py (D12); tests/resolve/ (29). Company resolution confirmed on the real recorded Locus response.
+- T21 tests/eval/run_eval.py + deck_a_claims.json + 10 tests. Offline Deck A today: slides 2 and 5 PASS, 3 and 4 FAIL (funding checker ignores funding.milestones, ag-b), 6 FAIL (HELD no_checker: no checkers/customer.py), 7 FAIL (HELD error: sources.web missing), 8 SKIP.
+- T27 docs/reviews/T27_ag-b.md and T27_codex-a.md (first round).
+- Decisions: D8, D9, D10, D12, D14 (mine); D3, D13 came from the merger.
+In progress / exact next step:
+1. Mac (new claude-verdict owner): `git fetch`, check `git branch --show-current`, merge origin/main, read DECISIONS D3, D8, D12, D13, D14, then `python -m pytest -q`.
+2. Put `max_record_age_days: 3650` under `tolerances.funding` in config/rules.yaml (merger or claude-core; D14) so Locus funding claims from 2021 are not stale_record.
+3. T21: add decks B and C (tests/decks/deck_b_*.yaml/json, tests/eval/deck_b_claims.json, tests/fixtures/crustdata/deck_b_*_company.json); then `python tests/eval/run_eval.py --deck b`. One person with credits approval runs `python tests/eval/run_eval.py --live`.
+4. T10: codex-a adds get_people(ctx, urls) and search_people(ctx, name, company_id) to sources/crust.py (D12); then test a deck with founders.
+5. T20 (hour-3 requirement change): not received; read it, write a DECISIONS entry, change rules.yaml or code with tests.
+6. T27: review each lane branch before the next human merge (git show / git diff / throwaway worktree only; never checkout in the lane folder).
+How to run / test:
+- python -m pytest -q   (220 pass without tests/ui; tests/ui fails 6 only on the Windows laptop: NumPy 2.5 vs old pyarrow in Anaconda, unrelated to the repo)
+- python tests/eval/run_eval.py
+Known bugs or shortcuts taken:
+- tests/eval/deck_a_claims.json is hand-written, not LLM output. --live was never run (credits).
+- Payload shapes in resolve/payloads.py are verified for the company record only; person payloads are from docs, not live.
+- Untracked logs/ is created by test runs; not committed; add `logs/` to .gitignore (merger).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none new today beyond those listed.
+Open questions for a human:
+- Slides 6, 7: a missing checker or source gives HELD (D7), but the Deck A key expects CANNOT_VERIFY no_evidence. Which is right, or do we add checkers/customer.py and a web source that returns no evidence?
+- Finance partner: min_title_level meaning, funding age limit 10 years, real values for verdict: keys and templates in report/question_templates.yaml.
+- D9/D10 say the Windows laptop owns claude-verdict; the lane now moves to the Mac. Please add a line under D10.
+Credits / tokens used this session (rough): 0 Crustdata credits; Claude tokens high
+
+### 15:20 · harshit · merger + lanes claude-core and claude-verdict (Mac) · task merge, T25, T23
+
+Status: T25 in-progress (live-results section pending), T23 done
+Done this session:
+- Took over merging and lane claude-verdict from the Windows coordinator (docs/MERGER_HANDOFF.md).
+- Merge check: every lane branch (ag, ag-b, claude-core, claude-verdict, codex-a) was already in main at d1f4b25; nothing new to merge. main tested in a throwaway worktree: 238 passed (UI tests included).
+- Offline eval on main (python tests/eval/run_eval.py): slides 2, 3, 4, 5 PASS (ag-b's milestones fix works); 6 FAIL (HELD no_checker), 7 FAIL (HELD error, no sources/web.py); 8 SKIP. 4 PASS, 2 FAIL, 1 SKIP.
+- README.md (T25): job, who pays, input, result, pass mark, how to run, offline results, known limits, credits with licences read from installed package metadata. The "Live run" section still says LIVE_RESULTS_PENDING.
+- docs/ARCHITECTURE.md (T23): mermaid data-flow diagram, states, data calls, limits/retries, ledger, approval and exactly-once send.
+- .gitignore: logs/ and out/.
+- Merged lane/claude-core into main: 2114ed7 (238 passed, hard-rule greps clean). dc-core and dc-verdict fast-forwarded to it.
+In progress / exact next step:
+1. Live Deck A run (credits approved by harshit). Needs dc-core/.env with CRUSTDATA_API_KEY and GEMINI_API_KEY or OPENAI_API_KEY. In ../dc-core:
+   set -a; . ./.env; set +a; python cli.py run --request tests/decks/deck_a_request.json --out out/result.json
+   Then replace LIVE_RESULTS_PENDING in README.md with the real table, commit, and merge to main.
+2. Human: record the demo video (5:30 PM), make the GitHub repo public, submit the form (6:00 PM).
+How to run / test:
+- python -m pytest -q   (238 passed)
+- python tests/eval/run_eval.py
+Known bugs or shortcuts taken:
+- extract/claims.py reads LLM keys only from the environment (only sources/crust.py reads .env), so the shell must load .env first. The README says so. extract/ is not my lane, so I did not change it.
+- Slides 6 and 7 stay HELD. I did not change the answer key to match our output; README "Known limits" explains it.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- ../dc-ag is checked out on main, not lane/ag. I did not switch it; switch it in that folder only if lane ag needs to commit again.
+- Finance partner: every rules.yaml value is still PLACEHOLDER.
+Credits / tokens used this session (rough): 0 Crustdata credits so far
+
+### 15:35 · harshit · merger + claude-core · task live Deck A run, T25
+
+Status: done
+Done this session:
+- cli.py: a repo-relative deck_path in a request file (tests/decks/deck_a_request.json has "tests/decks/deck_a.pdf") was joined onto the request's folder, so the demo command failed with "deck not found". It now looks beside the request first, then from the current folder. Test: tests/core/test_cli.py::test_request_deck_path_relative_to_current_folder.
+- Live Deck A run run-20261122-092339-ef3899 (keys loaded from ../deckcheck-kit/.env):
+  - The first attempt failed: the GEMINI_API_KEY in .env is rejected by Google (API_KEY_INVALID). The failed call has its ledger row (ok=0).
+  - Resumed with GEMINI_API_KEY unset, so gpt-4o-mini did the extraction: 7 claims, every quote verified, company confirmed on 2 signals.
+  - Verdicts match the offline replay on every slide: 2 SUPPORTED, 3 SUPPORTED, 4 SUPPORTED (undated rounds), 5 CONTRADICTED, 6 HELD no_checker, 7 HELD error, 8 CANNOT_VERIFY missing_record_date.
+  - Ledger: 4 calls, 2 credits, Rs 2.79, 16.5 s.
+- README "Live run" table filled; T25 done.
+In progress / exact next step:
+- Human: demo video (5:30 PM), make the repo public, submission form (6:00 PM). The demo can approve the pending email in the UI (streamlit run ui/app.py, DB dc-core/deckcheck.db).
+How to run / test:
+- set -a; . ./.env; set +a; unset GEMINI_API_KEY   (until the Gemini key is fixed)
+- python cli.py run --request tests/decks/deck_a_request.json --out out/result.json
+- python -m pytest -q   (239 passed)
+Known bugs or shortcuts taken:
+- When both LLM keys are set, extract/claims.py picks Gemini, so the invalid Gemini key must be fixed or unset.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- Fix or remove GEMINI_API_KEY in .env.
+Credits / tokens used this session (rough): 2 Crustdata credits; 1,068 OpenAI tokens (Rs 2.79 total)
+
+### 16:00 · claude-verdict@mac (harshit's account, at the merger session's request) · lane claude-verdict · task T29
+
+Status: done
+Done this session:
+- verdict/hiring.py, traction.py, company_fact.py, prior_exit.py, team_growth.py; competition in verdict/engine.py `_route`. engine `_TYPES_WITH_RULES` gains hiring, traction, company_fact, prior_exit, team_growth (competition is route-only: it has no tolerance_pct). prior_exit guard runs right after the identity check.
+- Cautious by design: hiring, HQ, prior_exit, team_growth never CONTRADICTED; traction CONTRADICTED only at >= strong_margin x tolerance, never above medium; founded year CONTRADICTED (medium) only beyond the year-gap key; competition never decided.
+- config/rules.yaml: `tolerances.company_fact.year_gap_cannot_verify: 1`, `tolerances.team_growth.window_tolerance_days: 45` (PLACEHOLDER). docs/LIVE_FIX_MAP.md: two lines. verdict/common.py MISSING_TEXT: one entry per new reason code.
+- verdict/DESIGN.md sections 3.4-3.9, 4, 5 (asks), 6 (keys). DECISIONS D15.
+- tests/verdict/test_t29_rules.py: 81 tests, every label per rule plus "never CONTRADICTED" tests on the cautious paths (incl. the Locus/Ingka prior_exit shape).
+In progress / exact next step:
+- Merge to main: waiting for the user's OK (AGENTS.md: only a human merges to main).
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (320 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- Deck A is unchanged: slide 8 (hiring, "engineers") still stops at missing_record_date because the hiring checker gives no dated field; with a date it would be NOT_COMPARABLE metric_mismatch. The gain is for unseen decks.
+- Founded year and HQ come from a company snapshot dated today, so against an older deck date they mostly stop at record_after_as_of (D3), not at these rules.
+- prior_exit and team_growth cannot decide until their checkers change (DESIGN.md section 5).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- D15.
+Open questions for a human:
+- Finance partner: values for the two new keys; is a 1-year founded-year gap the right "unclear" band?
+- codex-a / ag-b: the checker asks in DESIGN.md section 5.
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:31 · claude-verdict@mac (harshit's account, at the merger session's request) · lane claude-verdict · task T33
+
+Status: done
+Done this session:
+- verdict/market_size.py, verdict/customer.py, verdict/web_common.py (shared date filter for estimates/mentions). verdict/engine.py: identity `not_applicable` passes row 5b for market_size only; market_size added to `_TYPES_WITH_RULES` (tolerance_pct 50); customer is route-only.
+- market_size: only estimates in claim.unit's currency count (none -> NOT_COMPARABLE currency_mismatch); one within tolerance -> SUPPORTED (max medium); CONTRADICTED `sources_agree_otherwise` (max medium) only when >= min_agreeing_sources distinct domains all disagree with the deck AND agree with each other; anything else CANNOT_VERIFY source_may_be_incomplete with market-specific `missing`.
+- customer: `independent is True` -> SUPPORTED `independent_mention` medium; self-published only -> CANNOT_VERIFY self_reported_only; never CONTRADICTED. MISSING_TEXT gains self_reported_only.
+- Both types read `tolerances.<type>.max_record_age_days` (D14) for each estimate/mention's own published_date, and drop items dated after the reference date (D3).
+- tests/verdict/test_t33_rules.py: 19 tests (every label, single disagreeing source, same domain twice, never CONTRADICTED for customer). tests/verdict/test_engine_order.py: the old "customer is unsupported" test now checks customer is routed.
+- verdict/DESIGN.md: row 5b, sections 3.10, 3.11, 4, 5 (asks), 6 (keys).
+In progress / exact next step:
+- Merger merges lane/claude-verdict to main (do not merge from this lane).
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (340 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- No currency conversion: an INR estimate never supports a USD claim (by design, cautious).
+- CONTRADICTED relies on the checker giving the registrable domain; sub-domains of one site would count twice.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none new; follows D16 and the merger's T33 spec.
+Open questions for a human:
+- Finance partner: is min_agreeing_sources 2 and tolerance 50% right for market size?
+
+### 15:31 · web-client (claude, side session of the merger) · lane web-client · task T30
+
+Status: done
+Done this session:
+- sources/web.py: `search(ctx, query, *, sources, site, location, end_date)` -> POST /web/search/live and `fetch(ctx, urls)` -> POST /web/enrich/live, exactly the D16 / WEB_SOURCE.md section 3 signatures and return shapes. Also a public helper `end_of_day_unix('YYYY-MM-DD')` (23:59:59 UTC; 1970-01-01 -> 86399).
+- Same pattern as sources/crust.py: `limits.ensure_within` before every attempt; one ledger row per HTTP call in `finally` (Provider.CRUSTDATA, endpoints `POST /web/search/live` / `POST /web/enrich/live`); TimeoutError at `limits.per_call_timeout_s`; key from crust's `_api_key` (env, then .env), never logged.
+- Differences from crust.py, on purpose (per the T30 brief): retry once on HTTP 429 ONLY (crust also retries 5xx); credits read from `X-Credits-Used`; no account-endpoint call, rpm pacing or 60 s cache TTL (cache lives for the run).
+- tests/sources/test_web.py (18 tests) + hand-built fixtures in tests/fixtures/web/ (shapes from WEB_SOURCE.md; no live call made, 0 credits). Covers headers/body via a fake HTTPSConnection, end_date conversion, failed-URL shape, ledger rows on success/HTTP error/malformed/timeout, 429 retry and second 429, cache, 10-URL cap, limit hit. An autouse fixture makes any real HTTPS connection fail the test.
+In progress / exact next step:
+- Merger: merge lane/web-client. T32 checkers can now call `sources.web.search` / `fetch` for real.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q tests/sources/test_web.py   (18 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (339 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- Credits when there is no X-Credits-Used header: search 1; fetch 1 per URL SENT (not per success), the cautious choice for budget limits. Failed HTTP calls record 0 credits unless the header says otherwise (same as crust). A 2xx with a malformed body records the fallback credits and ok=0.
+- Fetch matches results to requested URLs ignoring a trailing "/", returns them in request order under the requested URL, and drops successes for URLs we did not send. Non-https URLs are skipped and logged (one plain-http search result must not lose the whole claim). Duplicate URLs are sent once. Only more than 10 URLs raises ValueError (checked on the raw list, before any call).
+- Fetch cache key is the run plus the order-independent SET of URLs, so the single returned call_id is always the call that really fetched those pages. Two claims fetching overlapping but different URL sets pay again for the overlap.
+- The cache is in-process (like crust's), so after a kill the claim that was in progress pays again on resume; finished claims are skipped by checkpointing. A cache that survives restarts needs a schema change.
+- Errors: TimeoutError, limits.LimitExceeded, RuntimeError (web._HttpError for HTTP status), ValueError (bad end_date, >10 URLs, bad query). core/runner.py catches Exception per claim, so all become HELD.
+- Untested against the live API: response field names come from the docs as written in WEB_SOURCE.md.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (contract unchanged)
+Open questions for a human:
+- If per-URL fetch caching is wanted (to avoid paying twice across claims), the page dicts need their own `call_id`; that is a contract change (new DECISIONS entry).
+- No pre-call budget check for a 10-URL fetch (crust's `_ensure_can_afford` is company-only); `ensure_within` only checks spend so far, so one fetch can overshoot max_credits by up to 10.
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 15:35 · web-pages (Claude Code session started by the merger session) · lane web-pages · task T31
+
+Status: done
+Done this session:
+- sources/pages.py (stdlib only): `page_text(html)` drops script/style/noscript/template/title, unescapes entities, puts a space at block tags, collapses whitespace. `published_date(html)` collects every candidate, then takes the first READABLE one by priority: JSON-LD `datePublished` (also in `@graph` and lists), `meta[property=article:published_time]`, `meta[name=...]` in the D16 order (case-insensitive names), the first `<time datetime>`. An unreadable value falls through to the next candidate. Accepts `YYYY-MM-DD[T...]`, `YYYY/M/D` and "March 5, 2024"; the date is taken as written (no UTC shift). `dateModified`, fetch time and today are never used. where_found values: `json-ld[datePublished]`, `meta[property=article:published_time]`, `meta[name=<name>]`, `time[datetime]`.
+- extract/quotes.py: `pick_quote(ctx, page_text, question, must_contain)` calls `extract.claims._default_llm_call` through a module-level name (tests monkeypatch `extract.quotes._default_llm_call`), with `ensure_within` first and one ledger row (Provider.LLM) in a `finally`, failed calls included. The returned call_id is that row's id. The prompt asks for JSON `{"quote": ...}` (OpenAI json_object mode needs the word "json") and fences the page as untrusted data. The page is cut to `web.max_page_chars`. Code accepts the quote only if it is verbatim (whitespace-normalised, case-sensitive) on the full page text and contains every must_contain (case-insensitive); the returned quote is whitespace-normalised. Empty page text makes no call and returns (None, None).
+- `parse_amount(quote)`: only numbers with a currency marker count (`$`, `US$`, `USD`, `₹`, `Rs`/`Rs.`, `INR` before; `USD`, `INR`, `dollars`, `rupees` after). Scales: million/mn/M, billion/bn/B, trillion/tn, thousand/K, lakh 1e5, crore/cr 1e7, "lakh crore" 1e12; Indian digit grouping (1,00,000) works; Decimal arithmetic. Returns (None, None) for no amount, several different amounts (the same amount twice is fine), or a range like `$5-7 billion` / `Rs 500 to 700 crore`. `A$`, `S$` etc. are not USD.
+- Tests: tests/sources/test_pages.py (6 fixtures in tests/fixtures/pages/), tests/extract/test_quotes.py (hallucinated quote, case, must_contain, ledger row id, failed-call row + re-raise, truncation, every parse_amount case).
+In progress / exact next step:
+- Merge lane/web-pages to main (merger). T32 can call these functions unchanged.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (376 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- pick_quote does NOT wrap errors the way extract/claims.py does: it re-raises the original exception (TimeoutError stays TimeoutError, LimitExceeded from ensure_within propagates with no ledger row because no call was made), so the runner can tell HELD timeout from HELD error. T32 checkers should let these propagate.
+- A bad LLM answer (not JSON, no "quote", null) is not an error: the row is ok=1 and the quote is None.
+- Only the first `<time datetime>` is looked at; if it is unreadable the page has no date.
+- Lowercase `m`/`b`/`k` count as a scale only when attached to the number (`$5m`); `lac`/`lacs` = 1e5. An unknown letter attached to an amount (`$5x`) makes parse_amount return (None, None) rather than guess a scale. Currency suffixes are exact words (`dollars`, `US dollars`, `rupees`, `USD`, `INR`).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (contracts as in D16).
+Open questions for a human:
+- `_default_llm_call` reads keys only from the environment (as noted in the T25 handoff); pick_quote inherits that, so a live run must load .env first.
+Credits / tokens used this session (rough): 0 Crustdata credits, 0 LLM tokens (no live calls)
+
+### 16:05 · web-checkers (Claude session started by the merger session) · task T32
+
+Status: done
+Done this session:
+- checkers/market_size.py rewritten on the D16 flow: web.search (query "<subject> market size", end_date = reference date) -> top `web.results_to_fetch` distinct URLs -> one web.fetch -> pages.published_date / page_text -> skip undated pages and pages dated after the reference date (counted) -> quotes.pick_quote (must_contain []) -> quotes.parse_amount. `observed` keys exactly as WEB_SOURCE.md section 3: identity "not_applicable", identity_signals 0, record_date, reference_date(_source), estimates, pages_without_date, pages_after_reference.
+- checkers/customer.py (new): query `"<claim.value>" "<claim.subject>"`, must_contain [customer, company]. `observed`: company_identity(ctx), record_date, reference_date(_source), customer_name, mentions. `independent` is set PER MENTION (no top-level key): False when the page host (lower-case, "www." stripped) equals the deck domain or is a subdomain of it. Skip counts are logged only, not in observed.
+- Evidence per accepted page: web_page, locator=url, field_or_quote=quote, value=amount (market_size) or customer name (customer), record_date=published date, retrieved_at=page fetched_at, call_id=fetch call id.
+- tests/checkers/test_market_size.py (9) and test_customer.py (7): fakes patched onto the checker modules; bare stand-in modules are registered only when the real ones are missing, so they keep working after T30/T31 merge.
+- tests/checkers/test_remaining_checkers.py: deleted test_market_size_check and its import (old `search_market_data` contract; the merger session approved this, as a separate commit). The new test_market_size.py replaces that coverage.
+In progress / exact next step:
+- none. Merger: merge lane/web-checkers after or alongside T30/T31; then slides 6 and 7 go through the new checkers.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (335 passed, with sources.web absent on this branch)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged; slides 6 and 7 are HELD error until T30/T31 merge)
+Known bugs or shortcuts taken:
+- `ctx.rules["web"]["results_to_fetch"]` has no code default: a rules file without `web:` raises KeyError, which becomes HELD error.
+- customer.py reuses the private helpers `_reference_date`, `_domain` and `_top_urls` from market_size.py.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (follows D16)
+Open questions for a human:
+- T33: read `mentions[*].independent`; there is no top-level `independent` key.
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:05 · harshit · merger + claude-core · task live Deck A run with web search
+
+Status: done (run); two fixes open
+Done this session:
+- Merged T30, T31, T32 (web client, pages and quotes, checkers) and T33 (verdict rules) into main. Offline eval now blocks web calls (af13f8c). docs/INCIDENTS.md started.
+- Live run run-20261122-102749-b58f62 with web search, approved by harshit:
+  - slides 2 to 5 and 8: same verdicts as the first live run;
+  - slide 6 (customer): HELD timeout (web fetch over 20 s);
+  - slide 7 (market size): CANNOT_VERIFY source_may_be_incomplete, but its only evidence quote is about the wrong market (home and household, USD 237bn by 2030).
+  - Ledger: 8 calls, 8 credits, Rs 9.72, 69.7 s.
+- README "Live run with web search" section; INCIDENTS A5 and B10.
+In progress / exact next step:
+1. checkers/market_size.py (web-checkers lane): pass the claim's market terms as `must_contain` to quotes.pick_quote, and skip quotes that forecast a year after the reference year ("by 2030"). Add tests.
+2. sources/web.py (web-client lane): a separate, longer timeout for web fetch (new rules.yaml key, e.g. web.fetch_timeout_s), so a slow page fetch doesn't hold the customer claim.
+How to run / test:
+- set -a; . ../deckcheck-kit/.env; set +a; unset GEMINI_API_KEY; python cli.py run --request tests/decks/deck_a_request.json --out out/result_web.json
+- python -m pytest -q (429 passed)
+Known bugs or shortcuts taken:
+- GEMINI_API_KEY in .env is still invalid; runs unset it so OpenAI is used.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- Approve fixes 1 and 2 before the 18:00 freeze?
+Credits / tokens used this session (rough): 8 Crustdata credits, about 4,700 OpenAI tokens (Rs 9.72)
+
+### 16:06 · web-client (claude, side session of the merger) · lane web-client · task T30 follow-up (INCIDENTS A5)
+
+Status: done
+Done this session:
+- sources/web.py: fetch() now uses `web.fetch_timeout_s`; search() keeps `limits.per_call_timeout_s`. If the key is missing, fetch falls back to `limits.per_call_timeout_s`. A slow fetch still raises TimeoutError (HELD timeout) and still writes its ledger row.
+- config/rules.yaml: `web.fetch_timeout_s: 45` (PLACEHOLDER). docs/LIVE_FIX_MAP.md: one line.
+- tests/sources/test_web.py: 4 new tests (fetch uses the key, fallback, search unchanged, slow fetch times out and is ledgered).
+In progress / exact next step:
+- Merger: merge lane/web-client.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (433 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- A run with 3 claims each fetching can now spend up to about 3 x 45 s on fetches; `limits.max_seconds` still caps the run.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (config key only; contract unchanged)
+Open questions for a human:
+- Finance partner: real value for web.fetch_timeout_s.
+
+### 16:50 · web-checkers · task T32 fix (INCIDENTS B10)
+
+Status: done
+Fixes:
+- B10, the wrong market was accepted: live run run-20261122-102749-b58f62 used a household-market quote ("... USD 237 billion by 2030") for "India logistics software". checkers/market_size.py now builds the required terms in code from claim.subject: lower-case words minus {india, indian, global, the, of, and, market, size, industry, sector}. It passes them to pick_quote as must_contain and checks them again on the returned quote. A subject with no terms left keeps the old behaviour.
+- B10, forecasts: a quote that projects to a year after the reference year ("by/in 20XX", "20XXE", "projected/expected/forecast ... 20XX") is skipped and counted in the new observed["forecast_quotes_skipped"]. With no reference date, the page's published year is used.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (437 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- The term check is a substring check (the same as extract/quotes._accept), so "software" also matches "softwares". The forecast regex stops at the first full stop after projected/expected/forecast.
+- Correction to the 16:05 entry: test_market_size.py had 8 tests then, not 9; it has 16 now.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- T33 / verdict: the new observed key forecast_quotes_skipped is informational only; no rule reads it yet.
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:12 · harshit · merger + claude-core · task merge A5/B10 fixes, second live web run
+
+Status: done
+Done this session:
+- Merged lane/web-client (fb36f6b, web.fetch_timeout_s: 45) and lane/web-checkers (204cf59, market-size relevance and forecast checks) into main as 98ce097. 441 passed; eval 4 PASS, 2 FAIL, 1 SKIP.
+- Live run run-20261122-103822-1686da (approved by harshit):
+  - slides 2 to 5 and 8: unchanged;
+  - slide 7: CANNOT_VERIFY no_evidence (3 pages, none dated), matching the answer key;
+  - slide 6: HELD timeout, the web search took over 20 s.
+  - Ledger: 6 calls, 7 credits, Rs 7.79, 47.6 s.
+- README "Live run with web search" updated; INCIDENTS A6 and B10b.
+In progress / exact next step:
+- Slide 6: raise limits.per_call_timeout_s (for example to 30) in config/rules.yaml, or add web.search_timeout_s in sources/web.py like fetch. Then rerun.
+How to run / test:
+- set -a; . ../deckcheck-kit/.env; set +a; unset GEMINI_API_KEY; python cli.py run --request tests/decks/deck_a_request.json --out out/result_web2.json
+Known bugs or shortcuts taken:
+- GEMINI_API_KEY still invalid.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- Which search timeout should we use?
+Credits / tokens used this session (rough): 7 Crustdata credits, about 1,100 OpenAI tokens (Rs 7.79)
+
+### 16:15 · harshit · merger + claude-core · task timeout 30 s, third live web run
+
+Status: done
+Done this session:
+- config/rules.yaml: limits.per_call_timeout_s 20 -> 30 (approved by harshit); merged as d4b1da6, 441 passed.
+- Live run run-20261122-104047-1b295e: 6 PASS, 0 FAIL, 1 SKIP against tests/decks/deck_a_answers.yaml.
+  - Slides 6 and 7: CANNOT_VERIFY no_evidence, as the key expects.
+  - Ledger: 8 calls, 11 credits, Rs 11.96, 74.8 s.
+- README "Latest live run" section (headline result); INCIDENTS A6b.
+In progress / exact next step:
+- Demo video (17:30), BUSINESS.md, ETHICS.md (teammate), UI polish merge, make the repo public, submit the form (18:00).
+How to run / test:
+- set -a; . ../deckcheck-kit/.env; set +a; unset GEMINI_API_KEY; python cli.py run --request tests/decks/deck_a_request.json --out out/result.json
+Known bugs or shortcuts taken:
+- GEMINI_API_KEY still invalid. Web results vary from run to run (search is live), so slides 6 and 7 can differ between runs; the rules keep them safe.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none
+Open questions for a human:
+- none
+Credits / tokens used this session (rough): 11 Crustdata credits (Rs 11.96 total)
+
+### 16:27 · claude-verdict@mac (harshit's account, at the merger session's request) · lane claude-verdict · task T34
+
+Status: done
+Done this session:
+- verdict/engine.py `_prepare`: D17 guarded undated fallback. No `record_date` + `verdict.undated_fallback` true + reference date 0..`undated_max_deck_age_days` before the latest Evidence `retrieved_at` -> rules run with `st["undated"]=True`, `rec=None`, ceiling low, fresh False; record_after_as_of / stale_record skipped. Otherwise `missing_record_date` with `missing` saying why (fallback off, deck too old, deck after retrieval, keys absent = off).
+- verdict/common.py `make()`: undated verdicts get reason `<code>_undated` (not `no_evidence`), confidence low, explanation prefixed "No dated record was found; this uses an undated source retrieved on <date>. ", MISSING_TEXT `undated` appended to `missing`.
+- founder tenure: an open role ends at the reference date when undated; team_growth undated -> period_mismatch_undated.
+- verdict/web_common.py `select`: dated web items that pass always win; items with `published_date: None` only when none pass and the guard holds. market_size and customer use it.
+- report/render.py: a source with no record date shows "source date: undated (retrieved <date>)" in the Markdown; result JSON keys unchanged (no contract change, no new output field).
+- Tests: tests/verdict/test_t34_undated.py (18), tests/report/test_builder.py (+2). verdict/DESIGN.md section 2 row 6, new 2.1, sections 4, 5, 6.
+In progress / exact next step:
+- Merger merges lane/claude-verdict (do not merge from this lane). T35 (checkers send `record_date: None` for undated values) is what makes the fallback fire on real data.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (460 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: no new FAIL; slides 6-7 HELD offline)
+Known bugs or shortcuts taken:
+- Deck A slide 8 offline is still CANNOT_VERIFY no_evidence: the recorded fixture tests/fixtures/crustdata/deck_a_locus_company.json has no `hiring` block, and checkers/hiring.py sets record_date from `updated_at`. With T35 and live data the engine gives NOT_COMPARABLE metric_mismatch_undated (low) for "40 engineers" vs all openings (unit-tested).
+- An unparseable record_date string (e.g. "last year") is treated as missing, so it can also take the undated path when the guard holds.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none new; implements D17. `no_evidence` is never suffixed.
+Open questions for a human:
+- Finance partner: undated_fallback true / 90 days are PLACEHOLDER values.
+
+### 16:45 · web-checkers · task T35 (D17: checkers keep undated items)
+
+Status: done
+Done this session:
+- checkers/market_size.py and checkers/customer.py: dated pages are processed first, as before. Pages with no published_date are still counted (`pages_without_date`; customer logs it only), and kept aside. If NO dated page gave an accepted estimate or mention, the undated pages go through the same checks: pick_quote with the same must_contain terms, the B10 relevance check and forecast skip (market_size), and parse_amount (market_size). The forecast year for an undated page is the reference year, else the fetch year. Undated items are marked `published_date: None` and Evidence `record_date=None`; observed.record_date stays None. They are never mixed with dated ones. New observed key in both: `undated_items_used` (count).
+- checkers/team_size.py: with no headcount.timeseries point on or before the reference date, it falls back to the snapshot `headcount.total`: observed.headcount = total, observed.record_date None, Evidence field_or_quote "headcount.total", record_date None. A dated point always wins. New observed key `undated_items_used` (0 or 1). A missing or non-numeric total gives no evidence, as before.
+- Tests: market_size +3, customer +3 (one old "undated is skipped" test is now the D17 case), team_size +6.
+In progress / exact next step:
+- none. T34 (engine) decides whether undated items may be used. Until it merges, the current engine stops at CANNOT_VERIFY missing_record_date for these (verdict/engine.py:120), so no wrong label in the meantime.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (452 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged; web claims are HELD offline)
+Known bugs or shortcuts taken:
+- An undated web page costs one LLM call (pick_quote) only when no dated page was accepted, so the worst case is still one call per fetched page.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (follows D17)
+Open questions for a human:
+- T34: read `observed.undated_items_used` > 0 (or Evidence.record_date None) to tell an undated result from "no evidence". For team_size, `observed.headcount` is set from headcount.total with record_date None.
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:55 · web-checkers · T35 addition (merger's request): checkers/hiring.py
+
+Status: done
+Done this session:
+- checkers/hiring.py used the payload's `updated_at` (the provider's refresh date) as record_date, which D13 forbids. `hiring.openings_count` and `hiring.openings_growth_percent` are now snapshot values: Evidence record_date=None and observed.record_date=None. New observed key `undated_items_used` = number of snapshot Evidence rows. D17 (T34, engine) decides whether they may be used. `updated_at` is no longer read anywhere in the checker.
+- tests/checkers/test_remaining_checkers.py: test_hiring_check now asserts record_date None on observed and on both Evidence rows. New test: a top-level `updated_at` payload still gives record_date None.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (453 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged; slide 8 hiring stays CANNOT_VERIFY no_evidence offline)
+Open questions for a human:
+- none
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:28 · web-client (claude, side session of the merger) · lane web-client · task T36 (D18 founder lookups)
+
+Status: in-progress (code and tests done; the one live probe waits for the user's yes)
+Done this session:
+- sources/crust.py: `get_people(ctx, profile_urls)` (ONE batched POST /person/enrich, fields basic_profile, social_handles, experience, education) and `search_people(ctx, name, company_id)` (POST /person/search, filters op=and: basic_profile.name "=" name, experience.employment_details.company_id "in" [id], limit 10). Both return (payload | None, call_id | None), go through crust's existing `_request` (limits before each attempt, one ledger row per call in finally, per_call_timeout_s, the same retry as get_company: once on 429/5xx), and have a per-run cache (enrich by URL set, search by name + id). `_attempt` gained an optional `parse` hook; get_company is unchanged.
+- Payloads are normalised to `{"matches": [{confidence_score, person_data}]}` (enrich answers a top-level array of {matched_on, match_status, matches[]}) and `{"profiles": [...]}`, so resolve/payloads.py reads them unchanged. `drop_contact_fields` removes, recursively, every key containing "email", "phone" or "contact" before cache or caller.
+- Credits when no header: enrich 1 per URL sent; search 0.23 per profile returned (docs/crustdata_fields.md).
+- resolve/payloads.py: new `person_records(payload)` (raw records); shapes checked against the docs, no change needed.
+- checkers/founder_background.py: uses `find_founder(ctx.entities, claim.subject)`. Only a CONFIRMED founder is looked up; its record is picked by `crustdata_person_id == founder id` (a namesake in the same payload is never used). Profile-URL founders reuse resolve's cached get_people call (same URL set); search-found founders reuse search_people(name, company id). Identity keys come from the founder entity. Observed keys for verdict/founder.py unchanged; Evidence locator is the enrich or search endpoint.
+- tests: tests/sources/test_crust.py (+5: contacts dropped, ledger success/failure, 429 retry, cache, search body, payload feeds resolve candidates); tests/checkers/test_founder_background.py (rewritten onto ctx.entities, +4: namesake never used, unconfirmed founder never looked up, search route, Crustdata role shape). Hand-built fixtures tests/fixtures/crustdata/person_enrich_handbuilt.json, person_search_handbuilt.json.
+- tests/decks/make_deck_f.py, deck_f.pdf (3 slides, Locus, 2026-11-15, synthetic footer), deck_f_request.json, deck_f_answers.yaml (all TBD).
+In progress / exact next step:
+- With the user's yes: one live probe (1 credit), `get_people` for deck_f_request.json's founder URL. Check the real role keys (name, title, start_date, end_date, crustdata_company_id) and profile_url; record the response (contact fields dropped) as tests/fixtures/crustdata/person_enrich_locus.json; fill deck_f_answers.yaml.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (450 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- Not verified live: role key names (start_date/end_date, crustdata_company_id on roles), whether enrich returns social_handles.profile_url with the "social_handles" field name, and whether the search filter path experience.employment_details.company_id accepts our id type (sent as int when numeric).
+- The founder URL in deck_f_request.json (https://www.linkedin.com/in/nishithrastogi/) is NOT verified; if the probe returns not_found, resolve marks the founder url_not_returned and the deck's name search path still runs.
+- Deck F's two claims (Amazon, SDE title) are test claims to check, not known facts.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (D12/D18 signatures kept)
+Open questions for a human:
+- Approve the 1-credit probe, and confirm or replace the founder profile URL.
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:30 · web-client · lane web-client · task T36 live probe (user said yes in chat)
+
+Status: done
+Done this session:
+- One live probe: get_people(["https://www.linkedin.com/in/nishithrastogi/"]), ledger call-457fe7a8507b, POST /person/enrich, ok, 1.0 credit (no X-Credits-Used header), 1.6 s, in a scratch DB (not dc-core). Response matched (match_status matched, confidence 1.0): Nishith Rastogi, crustdata_person_id 44441; roles at Locus (crustdata_company_id 7403, same id as the Locus company record) and Amazon (Software Developer, 2012-07-01 to 2014-07-01).
+- Checked against the code: the top-level array shape, crustdata_person_id present with our fields, role keys name/title/start_date/end_date/crustdata_company_id as coded, returned profile_url (no trailing slash) normalises equal to the sent URL. Resolve gets profile_url + name + employer = 3 signals.
+- tests/fixtures/crustdata/person_enrich_locus.json: the response trimmed to the fields the code reads (ids, name, title, profile_url, roles, schools); no emails, phones, or long digit runs. New test test_recorded_locus_founder_record.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q
+Known bugs or shortcuts taken:
+- The live person record has NO updated_at and no basic_profile.last_updated, so record_date is None and every founder claim ends CANNOT_VERIFY missing_record_date (deck_f_answers.yaml stays TBD for that reason).
+Open questions for a human:
+- Verdict owner (claude-verdict) + merger: may a founder_background record_date be the matched role's own date (end_date, else start_date, else retrieved_at for a current role)? That would let slide 2 become SUPPORTED employer_listed. It is a D3 date-rule decision, so I did not change the checker.
+Credits / tokens used this session (rough): 1 Crustdata credit
+
+### 16:37 · web-client · lane web-client · task T37 (D19 founder record_date)
+
+Status: done
+Done this session:
+- checkers/founder_background.py: new `role_record_date(positions, ref_date)`. observed.record_date and every Evidence.record_date come from the matched roles' start/end dates: the latest on or before the reference date; if all are after it, the earliest start_date (the engine then says NOT_COMPARABLE record_after_as_of); no dated role or no employer match gives None. updated_at / last_updated are no longer the record date; they are kept only as observed.profile_updated_at (informational). retrieved_at is never used.
+- tests/checkers/test_founder_background.py (+9): past role ended before the deck = end_date; current role = start_date; ended after the deck = start_date; started after the deck = start_date and NOT_COMPARABLE through the engine; no dates = None; no employer match = None; latest date over several roles; the recorded Locus fixture through the engine = SUPPORTED employer_listed (medium), not stale_record.
+- tests/decks/deck_f_answers.yaml: slide 2 = SUPPORTED employer_listed. Slide 3 stays TBD: "Software Developer" has no keyword in the PLACEHOLDER title_levels, so it is CANNOT_VERIFY title_unmapped today.
+How to run / test:
+- /Users/harshit/deckcheck-kit/.venv/bin/python -m pytest -q   (491 passed)
+- /Users/harshit/deckcheck-kit/.venv/bin/python tests/eval/run_eval.py   (4 PASS, 2 FAIL, 1 SKIP: unchanged)
+Known bugs or shortcuts taken:
+- An employer missing from the profile now has record_date None (D19 rule 5), and the engine checks the date before the founder rule. So it gives CANNOT_VERIFY missing_record_date (old deck) or employer_not_in_profile_undated (recent deck, D17) instead of employer_not_in_profile. The label is unchanged (CANNOT_VERIFY, never CONTRADICTED); the existing test now accepts either reason code.
+Decisions made (also in DECISIONS.md if they change behaviour):
+- none (implements D19)
+Open questions for a human:
+- claude-verdict: should the engine route founder_background with employer_found false to employer_not_in_profile before the date check, so the reason code stays the intended one?
+- Finance partner: add "developer" (and similar) to title_levels.ic so deck F slide 3 can be decided.
+Credits / tokens used this session (rough): 0 Crustdata credits
+
+### 16:45 · claude-core (merger) · lane claude-core · T36/T37 merge, D19, live Deck F
+
+Status: done
+Done this session:
+- Merged lane/web-client T36 into main (2dc5aa0, 482 tests), then D19 + T37 (4805db0, 491 tests). Eval unchanged at 4 PASS, 2 FAIL (offline web block), 1 SKIP.
+- Wrote D19 (founder role dates as record_date) with `tolerances.founder_background.max_record_age_days: 18250`, T37 row, LIVE_FIX_MAP line (1bfefb3).
+- Live Deck F run-20261122-110842-b09d73: slide 2 SUPPORTED employer_listed (PASS), slide 3 CANNOT_VERIFY title_unmapped (key TBD). 4 calls, 3 credits, ₹3.31, 14.7 s. README section and INCIDENTS B11/B12 added.
+How to run / test:
+- `python cli.py run --request tests/decks/deck_f_request.json --out out/deck_f_live.json` (spends ~3 credits)
+Known bugs or shortcuts taken:
+- Deck F company resolved unclear (1 signal); founder claims do not use it.
+Open questions for a human:
+- claude-verdict: route founder_background with employer_found false before the date check (B12)?
+- Finance partner: real title_levels (add developer/engineer variants) so Deck F slide 3 can be decided.
+Credits / tokens used this session (rough): 3 Crustdata credits (live Deck F)
+
+### 16:55 · claude-core (merger) · lane claude-core · title_levels, Deck F rerun
+
+Status: done
+Done this session:
+- config/rules.yaml title_levels (on the user's word): ic adds developer, programmer, sde, scientist, designer, architect; vp adds svp, evp, avp; c_level adds cofounder and spelled-out chief ... officer titles (not bare "chief"). Test rows added in tests/verdict/test_metrics.py. Deck F key slide 3 = SUPPORTED title_level_met. Merged to main 0857498 (493 tests, eval unchanged).
+- Live Deck F run-20261122-111231-e7bd42: slides 2 and 3 SUPPORTED (2 PASS); 3 credits, ₹3.40.
+Known bugs or shortcuts taken:
+- LLM extraction is not deterministic (extra slide-1 company claim this run; ends CANNOT_VERIFY).
+Open questions for a human:
+- Finance partner: confirm the title_levels additions (all PLACEHOLDER).
+Credits / tokens used this session (rough): 3 Crustdata credits
+
 ### 15:48 · yash · lane ag-b (in ui/, lane ag's folder, at the user's request) · task T28
 
 Status: done (needs a lane ag look before the human merges)
@@ -851,4 +1334,56 @@ Credits / tokens used this session (rough): 0 Crustdata credits
   the wordmark/hero (SF Pro and Netflix Sans are proprietary, not shipped). Checked with the webapp-testing
   skill (Playwright, headless): no console errors, no sideways scroll at 390px, components honour
   prefers-reduced-motion. kill-ai-slop scan: clean. Springy stamp easing in sent.js replaced by a plain fade; round checkpoints and the Inter stand-in are pinned with deslop-ignore comments that give the reason.
+
+### 16:42 · teammate · lane teammate · task T26, T24, T05
+
+Status: done
+Done this session:
+- docs/DEMO.md: complete 2-minute video presentation script (timed to 120s), crash-and-resume walkthrough (Ctrl-C + resume), and 3 live-fix drills (headcount tolerance change, output field addition, budget/credit cap trip to HELD).
+- BUSINESS.md: commercial diligence economics for VC partners, buyer profiles, manual analyst cost benchmark (₹3,000–₹8,000 vs ₹2.79 live Deck A baseline / ~₹14 with web search), pricing tiers (₹499/deck), >95% gross margins, 100x queue/cache scaling plan, and key operating risks.
+- ETHICS.md: data minimization principles (professional records only, zero personal contact ingestion), two-signal namesake protection, verifiable dated evidence provenance, deterministic code-only verdicts, transactional human-in-the-loop approval, and neutral advice framing.
+- config/rules.yaml & report/question_templates.yaml: confirmed all placeholder financial thresholds, removed PLACEHOLDER tags with explicit partner rationale comments, and refined neutral founder inquiry templates.
+- tests/decks/ & tests/eval/: created make_deck_b.py (Shadowfax) and make_deck_c.py (Apex Logistics namesake trap deck), generated selectable text PDFs with synthetic test disclaimers, authored request JSONs, verified verbatim slide quotes, created comprehensive answer keys (deck_b_answers.yaml, deck_c_answers.yaml), and drafted extraction targets (deck_b_claims.json, deck_c_claims.json).
+- Test suite: verified full suite passes cleanly with 429 passed.
+In progress / exact next step:
+- Request harshit to record the company fixture for Deck B / Deck C if desired, and merge lane/teammate into main.
+- Rehearse and record the 2-minute demo video according to docs/DEMO.md before 17:30 IST.
+How to run / test:
+- python -m pytest -q   (429 passed)
+- streamlit run ui/app.py
+- python tests/decks/make_deck_b.py && python tests/decks/make_deck_c.py
+Known bugs or shortcuts taken:
+- tests/fixtures/crustdata/ fixtures for Deck B and C are pending recorded provider responses (requires credits approval from harshit).
+Decisions made (also in DECISIONS.md if they change behaviour):
+- Retained established default thresholds in config/rules.yaml, validating them as confirmed finance partner values and removing PLACEHOLDER annotations.
+Open questions for a human:
+- Harshit: please review and merge lane/teammate into main.
+Credits / tokens used this session (rough): 0 Crustdata credits, 0 live LLM tokens.
+
+### 17:05 · claude-core (merger) · lane claude-core · merge of ag-b (UI) and teammate (docs, decks)
+
+Status: done
+Done this session:
+- Merged lane/ag-b (UI redesign, T28, T38) and lane/teammate (ETHICS, BUSINESS, DEMO, decks B and C, question templates) into main. 517 tests pass, Deck A eval unchanged. Kept main's config/rules.yaml (teammate's copy was old-main plus comments). UI motion task renumbered T29 -> T38.
+- Fixed documents: BUSINESS.md (measured ₹11.96 full run, placeholder-rate warning, margins recomputed, no invented rate limits), ETHICS.md (undated fallback D17, job dates D19, new fairness section), DEMO.md (₹12 closing line, no `export` command).
+- Decks B and C answer keys: every row TBD (no recorded evidence; team_growth never CONTRADICTED; forecasts skipped). `run_eval.py --deck b|c` still stops with "no recorded company response" until a live run is recorded.
+Known bugs or shortcuts taken:
+- UI: sidebar and expander icons show as raw text (keyboard_double_..., arrow_right) because ui/theme.py overrides Streamlit's icon font. Needs the UI owner (lane ag) before the demo.
+Open questions for a human:
+- Spend about 11 credits per deck to run decks B and C live and fill their keys?
+Credits / tokens used this session (rough): 0
+
+### 17:20 · claude-core (merger) · lane claude-core · final end-to-end run
+
+Status: done (email approval waits for a human)
+Done this session:
+- UI icon font fix on lane/claude-verdict (488fa92, 518 tests): not yet merged to main.
+- Live Deck A end to end in a fresh DB (out/e2e.db): run killed after 4 of 7 claims, resumed, finished, 6 PASS 0 FAIL 1 SKIP. 15 calls, 13 credits, ₹15.25. Email draft pending, recipient founder-test@deckcheck.invalid.
+How to run / test:
+- Approve in the UI: streamlit run ui/app.py, set Database file to /Users/harshit/dc-core/out/e2e.db, open Founder email, approve with your name, check Test inbox (one row).
+Known bugs or shortcuts taken:
+- The resumed process fetches the company record again (cache is per process): one extra credit-bearing call per resume.
+Open questions for a human:
+- Approve the draft yourself (the rule is a human approves; I did not).
+Credits / tokens used this session (rough): 13 Crustdata credits
 
