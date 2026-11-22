@@ -19,18 +19,18 @@ Lanes: claude-core, claude-verdict, codex-a, ag-b, ag, human (see PLAN.md sectio
 | T10 | codex-a | resolve/entities.py: company by domain, founders, two-signal rule, confidence | namesake fixture returns identity_unclear | todo |
 | T11 | ag-b | checkers: team_size, funding | tests pass | todo |
 | T12 | codex-a | checkers: founder_background | tests pass | todo |
-| T13 | claude-verdict | verdict/engine.py for founder, team_size, funding | Deck A matches answer key for those claims | in-progress (claude-verdict-1, 85%, engine + 89 tests pass; blocked in real runs until claude-core adds verdict: keys to rules.yaml, D8) |
+| T13 | claude-verdict | verdict/engine.py for founder, team_size, funding | Deck A matches answer key for those claims | in-progress (claude-verdict@win, 85%: engine + 101 tests pass; waiting for claude-core to add the verdict: keys to rules.yaml (D8), without them a real run raises ValueError) |
 | T14 | human | MILESTONE 1 at 12:45: Deck A end to end | report generated | todo |
-| T15 | claude-verdict | report/: red flags by materiality, table, questions, evidence requests, kit-format JSON | output validates against kit format | in-progress (claude-verdict-1, 80%, report/builder.py + render + 11 tests done; kit-format JSON waits for D3 and io/adapter.to_kit) |
+| T15 | claude-verdict | report/: red flags by materiality, table, questions, evidence requests, kit-format JSON | output validates against kit format | in-progress (claude-verdict@win, 80%: report/builder.py + render + tests done; kit-format JSON waits for D3 and io/adapter to_kit) |
 | T16 | codex-a | checkers: prior_exit, company_fact, customer (web quote verify) | tests pass | todo |
 | T17 | ag-b | checkers: team_growth, hiring, traction, market_size, competition | tests pass | todo |
 | T18 | ag | UI: verdict detail with source link and date; approvals page; inbox; ledger view | click-through works | todo |
 | T19 | claude-core | actions/: draft, approve, exactly-once send | kill between approve and send, restart, one inbox row | todo |
-| T20 | claude-verdict | Hour-3 requirement change | DECISIONS entry + tests | todo |
+| T20 | claude-verdict | Hour-3 requirement change | DECISIONS entry + tests | todo (claude-verdict@win: waiting for the hour-3 requirement text) |
 | T21 | ag | tests/eval/run_eval.py: accuracy vs answer key for decks A, B, C | prints per-claim pass/fail | todo |
 | T22 | human | MILESTONE 2 at 15:00: 3 decks, kill/resume, send once | all green | todo |
 | T23 | ag | docs/ARCHITECTURE.md + diagram (components, data flow, data calls, approvals, retries, ledger) | in repo | todo |
 | T24 | human | ETHICS.md, BUSINESS.md (measured cost per deck in rupees) | in repo | todo |
 | T25 | ag + human | README: job, who pays, input, result, pass mark, data sources, how to run, credits | every claim in it is true | todo |
 | T26 | human | Rehearse demo with kill, 3 live-fix drills, design question | done twice | todo |
-| T27 | claude-verdict | Merge reviews before each human merge to main (12:15, 12:45, then every merge) | review notes in HANDOFF | in-progress (claude-verdict-1: first reviews of ag-b and codex-a written, see docs/reviews/; repeat before each merge) |
+| T27 | claude-verdict | Merge reviews before each human merge to main (12:15, 12:45, then every merge) | review notes in HANDOFF | in-progress (claude-verdict@win: first reviews of ag-b and codex-a in docs/reviews/; repeat before each merge to main) |
